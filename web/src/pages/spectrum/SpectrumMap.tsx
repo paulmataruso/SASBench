@@ -4,10 +4,32 @@ import { Maximize2 } from 'lucide-react';
 import { navigate } from '../../lib/router';
 import { cbsdLabel, patchIndex, range } from '../../lib/format';
 import { Button } from '../../components/ui';
+import type { MapConfig } from '../../lib/types';
 import { activeRanges, areaOf, cssRgb, useThemeVersion, type SpectrumData } from './shared';
+import { Basemap } from './basemap';
 
 // Leaflet map: CBSDs in their patch colour, protection areas (active stronger), PPA polygons.
-// Tiles come from OpenStreetMap; without internet the vectors still render on a blank ground.
+// The base map comes from Settings → Map: the bundled offline basemap, offline raster tiles from
+// the SAS tile store, or an online tile server. The offline basemap is always drawn underneath.
+
+/** Fit zoom cap: the offline basemap has little detail past z9; tile sets are capped at their own detail. */
+function fitMaxZoom(c: MapConfig | undefined): number {
+  if (c?.source === 'url') return 12;
+  if (c?.source === 'local' && c.local) return Math.min(12, Math.max(9, c.local.maxZoom ?? 12));
+  return 9;
+}
+
+export function mapSourceLabel(c: MapConfig): string {
+  if (c.source === 'url') {
+    let host = c.url;
+    try {
+      host = new URL(c.url.replace(/\{[^}]*\}/g, '0')).hostname;
+    } catch { /* keep the template */ }
+    return `Online tiles · ${c.attribution || host}`;
+  }
+  if (c.source === 'local') return c.local ? `Offline tiles · ${c.local.name}` : 'Offline tiles · none in store';
+  return 'Built-in basemap · offline';
+}
 
 interface Layers {
   cbsds: boolean;
@@ -16,31 +38,21 @@ interface Layers {
   ppas: boolean;
 }
 
-export function SpectrumMap({ data, followed }: { data: SpectrumData; followed: string | null }) {
+export function SpectrumMap({ data, followed, config: c }: { data: SpectrumData; followed: string | null; config: MapConfig | undefined }) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const groups = useRef<Record<keyof Layers, L.FeatureGroup> | null>(null);
   const fitted = useRef(false);
-  const [tiles, setTiles] = useState<'loading' | 'ok' | 'failed'>('loading');
+  const basemap = useRef<Basemap | null>(null);
+  const [tiles, setTiles] = useState<'none' | 'loading' | 'ok' | 'failed'>('none');
+  const [baseErr, setBaseErr] = useState<string | null>(null);
   const [show, setShow] = useState<Layers>({ cbsds: true, active: true, inactive: false, ppas: true });
   const theme = useThemeVersion();
 
   useEffect(() => {
     if (!el.current || map.current) return;
-    const m = L.map(el.current, { preferCanvas: true, worldCopyJump: true, zoomControl: true, attributionControl: true }).setView([39.5, -98.35], 4);
-    const tl = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 18,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    });
-    let ok = false;
-    tl.on('tileload', () => {
-      ok = true;
-      setTiles('ok');
-    });
-    tl.on('tileerror', () => {
-      if (!ok) setTiles('failed');
-    });
-    tl.addTo(m);
+    const m = L.map(el.current, { preferCanvas: true, worldCopyJump: true, zoomControl: true, attributionControl: true, minZoom: 2, maxZoom: 19 })
+      .setView([39.5, -98.35], 4);
     groups.current = { cbsds: L.featureGroup(), active: L.featureGroup(), inactive: L.featureGroup(), ppas: L.featureGroup() };
     map.current = m;
     const ro = new ResizeObserver(() => m.invalidateSize());
@@ -52,6 +64,58 @@ export function SpectrumMap({ data, followed }: { data: SpectrumData; followed: 
       groups.current = null;
     };
   }, []);
+
+  // Base map: rebuilt when the configured source changes.
+  const baseKey = c ? JSON.stringify([c.source, c.url, c.attribution, c.maxZoom, c.darken, c.local?.id, c.local?.minZoom, c.local?.maxZoom]) : '';
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !c) return;
+    setBaseErr(null);
+    let tl: L.TileLayer | null = null;
+    let covers: (mm: L.Map) => boolean = () => true;
+    if (c.source === 'url') {
+      tl = L.tileLayer(c.url, { maxNativeZoom: c.maxZoom, maxZoom: 19, attribution: escapeHtml(c.attribution) });
+    } else if (c.source === 'local' && c.local) {
+      const b = c.local.bounds;
+      const lb = b ? L.latLngBounds([b[1], b[0]], [b[3], b[2]]) : undefined;
+      const minZoom = c.local.minZoom ?? 0;
+      tl = L.tileLayer(`/tiles/${encodeURIComponent(c.local.id)}/{z}/{x}/{y}`, {
+        minZoom, maxNativeZoom: c.local.maxZoom ?? 18, maxZoom: 19, bounds: lb,
+        attribution: escapeHtml(c.local.attribution || `Offline tiles: ${c.local.name}`),
+      });
+      covers = (mm) => mm.getZoom() >= minZoom && (!lb || lb.contains(mm.getCenter()));
+    }
+    // Raster tiles carry their own place names: the built-in labels only fill in where no tiles draw.
+    let ok = false;
+    const bm = new Basemap(m, (e) => setBaseErr(e.message), (mm) => !tl || !ok || !covers(mm));
+    basemap.current = bm;
+    if (tl) {
+      setTiles('loading');
+      tl.on('tileload', () => {
+        if (!ok) {
+          ok = true;
+          bm.refresh();
+        }
+        setTiles('ok');
+      });
+      tl.on('tileerror', () => {
+        if (!ok) setTiles('failed');
+      });
+      tl.addTo(m);
+    } else {
+      setTiles('none');
+    }
+    m.getContainer().classList.toggle('map-darken', !!tl && c.darken);
+    return () => {
+      bm.dispose();
+      tl?.remove();
+      basemap.current = null;
+    };
+  }, [baseKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    basemap.current?.restyle();
+  }, [theme]);
 
   // Rebuild vector layers whenever data, theme or the followed CBSD changes.
   useEffect(() => {
@@ -121,15 +185,16 @@ export function SpectrumMap({ data, followed }: { data: SpectrumData; followed: 
       if (show[k]) g[k].addTo(m);
     }
     // First time there is something to show, zoom to it (bounds need the layers on the map).
-    if (!fitted.current) {
+    // Waits for the map config so the zoom cap suits the base map.
+    if (!fitted.current && c) {
       const b = L.latLngBounds([]);
       for (const k of ['cbsds', 'active', 'ppas'] as const) if (show[k] && g[k].getLayers().length) b.extend(g[k].getBounds());
       if (b.isValid()) {
-        m.fitBounds(b, { padding: [28, 28], maxZoom: 12 });
+        m.fitBounds(b, { padding: [28, 28], maxZoom: fitMaxZoom(c) });
         fitted.current = true;
       }
     }
-  }, [show, data, theme, followed]);
+  }, [show, data, theme, followed, baseKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fit = () => {
     const m = map.current;
@@ -137,7 +202,7 @@ export function SpectrumMap({ data, followed }: { data: SpectrumData; followed: 
     if (!m || !g) return;
     const b = L.latLngBounds([]);
     for (const k of Object.keys(show) as Array<keyof Layers>) if (show[k] && g[k].getLayers().length) b.extend(g[k].getBounds());
-    if (b.isValid()) m.fitBounds(b, { padding: [28, 28], maxZoom: 12 });
+    if (b.isValid()) m.fitBounds(b, { padding: [28, 28], maxZoom: fitMaxZoom(c) });
     else m.setView([39.5, -98.35], 4);
   };
 
@@ -162,11 +227,18 @@ export function SpectrumMap({ data, followed }: { data: SpectrumData; followed: 
       </div>
       <div className="relative min-h-[380px] flex-1">
         <div ref={el} className="absolute inset-0" />
-        {tiles === 'failed' && (
-          <div className="pointer-events-none absolute left-1/2 top-3 z-[500] -translate-x-1/2 rounded border border-line bg-panel/95 px-2.5 py-1 text-xs text-ink-2 shadow-panel">
-            Map tiles need internet access; positions and areas are still drawn.
-          </div>
-        )}
+        {(() => {
+          const msg = baseErr ? `The offline basemap failed to load (${baseErr}).`
+            : tiles === 'failed' && c?.source === 'url' ? 'Online map tiles are unreachable; showing the offline basemap. Settings → Map can switch sources.'
+            : tiles === 'failed' && c?.source === 'local' ? 'Offline tiles could not be read; showing the offline basemap.'
+            : c?.source === 'local' && !c.local ? 'No offline tile set in the tile store; showing the offline basemap. Add one in Settings → Map.'
+            : null;
+          return msg ? (
+            <div className="pointer-events-none absolute left-1/2 top-3 z-[500] max-w-[90%] -translate-x-1/2 rounded border border-line bg-panel/95 px-2.5 py-1 text-xs text-ink-2 shadow-panel">
+              {msg}
+            </div>
+          ) : null;
+        })()}
       </div>
       {(noLoc > 0 || bandWide > 0) && (
         <div className="border-t border-line px-3 py-1.5 text-xs text-ink-3">
@@ -176,6 +248,10 @@ export function SpectrumMap({ data, followed }: { data: SpectrumData; followed: 
       )}
     </div>
   );
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
 }
 
 /** Popup content built as DOM (no HTML injection from record names). */

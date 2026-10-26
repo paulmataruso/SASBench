@@ -91,6 +91,18 @@ export interface Settings {
   msgLogLimit: number;
   eventLogLimit: number;
   uiPassword: string;
+
+  // --- Map -----------------------------------------------------------------
+  /** builtin = bundled offline basemap; local = offline tile store (SAS_TILES_DIR); url = online tile server. */
+  mapSource: 'builtin' | 'local' | 'url';
+  /** Tile set in the offline tile store (file or folder name); '' = first usable one. */
+  mapLocalTiles: string;
+  /** {z}/{x}/{y} tile URL template for mapSource = url. */
+  mapTileUrl: string;
+  mapTileAttribution: string;
+  mapTileMaxZoom: number;
+  /** Invert raster tiles in the dark theme. */
+  mapDarkenTiles: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -144,6 +156,14 @@ export const DEFAULT_SETTINGS: Settings = {
   msgLogLimit: 20000,
   eventLogLimit: 20000,
   uiPassword: '',
+
+  mapSource: 'builtin',
+  mapLocalTiles: '',
+  // USGS The National Map: US government work, public domain, no API key.
+  mapTileUrl: 'https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}',
+  mapTileAttribution: 'USGS The National Map',
+  mapTileMaxZoom: 16,
+  mapDarkenTiles: true,
 };
 
 /** Keys whose change requires the SAS listeners to be restarted. */

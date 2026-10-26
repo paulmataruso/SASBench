@@ -1,13 +1,13 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Download, Plus, RefreshCw, RotateCcw, Save, Trash2, Upload, X } from 'lucide-react';
 import { api, download } from '../lib/api';
 import { useResource } from '../lib/live';
 import { useStatus } from '../lib/status';
 import { clock, mhz } from '../lib/format';
 import type { Preset } from '../lib/types';
+import { Choice, Grid, Mhz, Num, Text, Toggle, type FProps, type S } from './settings/fields';
+import { MapSettings } from './settings/MapSettings';
 import { Button, Field, Input, Module, Note, PageHeader, Select, Switch, Tag, cx, useAction, useConfirm, useToast } from '../components/ui';
-
-type S = Record<string, any>;
 
 interface SettingsResp { settings: S; defaults: S; presets: Record<string, Preset>; profile: string | null }
 
@@ -18,6 +18,7 @@ const SECTIONS = [
   ['registration', 'Registration policy'],
   ['spectrum', 'Spectrum policy'],
   ['harness', 'Test harness'],
+  ['map', 'Map'],
   ['ui', 'UI & logs'],
   ['maintenance', 'Maintenance'],
 ] as const;
@@ -33,6 +34,12 @@ export function SettingsPage() {
   const cur: S = useMemo(() => ({ ...(server ?? {}), ...draft }), [server, draft]);
   const dirty = useMemo(() => Object.keys(draft).filter((k) => JSON.stringify(draft[k]) !== JSON.stringify(server?.[k])), [draft, server]);
   const set = (k: string, v: any) => setDraft((d) => ({ ...d, [k]: v }));
+
+  // Deep links such as /settings#map: sections exist only once the settings have loaded.
+  const loaded = !!r.data;
+  useEffect(() => {
+    if (loaded && window.location.hash) document.getElementById(window.location.hash.slice(1))?.scrollIntoView();
+  }, [loaded]);
 
   const save = () => run('save', async () => {
     const patch: S = {};
@@ -127,6 +134,8 @@ export function SettingsPage() {
 
           <Harness field={field} />
 
+          <MapSettings field={field} />
+
           <Module id="ui" title="UI & logs">
             <Grid>
               <Password {...field} />
@@ -153,105 +162,6 @@ export function SettingsPage() {
         </div>
       )}
     </div>
-  );
-}
-
-// ---------------------------------------------------------------- field helpers
-
-interface FProps { cur: S; set: (k: string, v: any) => void; defaults: S; draft: S }
-
-function Grid({ children }: { children: ReactNode }) {
-  return <div className="grid gap-x-8 gap-y-4 md:grid-cols-2">{children}</div>;
-}
-
-function changedMark(p: FProps, k: string) {
-  const d = p.defaults[k];
-  if (d === undefined || JSON.stringify(d) === JSON.stringify(p.cur[k])) return null;
-  return <span className="ml-1.5 font-normal text-ink-3" title={`Default: ${JSON.stringify(d)}`}>· default {Array.isArray(d) ? d.join(', ') : typeof d === 'boolean' ? (d ? 'on' : 'off') : String(d)}</span>;
-}
-
-function Toggle(p: FProps & { k: string; label: string; desc?: string }) {
-  return (
-    <Switch
-      checked={!!p.cur[p.k]}
-      onChange={(v) => p.set(p.k, v)}
-      label={<span className={cx(p.k in p.draft && 'font-medium')}>{p.label}{changedMark(p, p.k)}</span>}
-      description={p.desc}
-    />
-  );
-}
-
-function Num(p: FProps & { k: string; label: string; min?: number; max?: number; step?: number; hint?: ReactNode }) {
-  const [text, setText] = useState(String(p.cur[p.k] ?? ''));
-  const v = p.cur[p.k];
-  useEffect(() => setText(String(v ?? '')), [v]);
-  const bad = text === '' || !Number.isFinite(Number(text)) || (p.min !== undefined && Number(text) < p.min) || (p.max !== undefined && Number(text) > p.max);
-  return (
-    <Field label={<>{p.label}{changedMark(p, p.k)}</>} hint={p.hint} error={bad ? `Enter a number${p.min !== undefined ? ` ≥ ${p.min}` : ''}${p.max !== undefined ? ` and ≤ ${p.max}` : ''}` : null}>
-      <Input
-        type="number"
-        value={text}
-        min={p.min}
-        max={p.max}
-        step={p.step ?? 1}
-        aria-invalid={bad}
-        onChange={(e) => {
-          setText(e.target.value);
-          const n = Number(e.target.value);
-          if (e.target.value !== '' && Number.isFinite(n)) p.set(p.k, n);
-        }}
-        className="w-48"
-      />
-    </Field>
-  );
-}
-
-function Mhz(p: FProps & { k: string; label: string; hint?: ReactNode }) {
-  const [text, setText] = useState(mhz(p.cur[p.k]));
-  const v = p.cur[p.k];
-  useEffect(() => setText(mhz(v)), [v]);
-  return (
-    <Field label={<>{p.label}{p.defaults[p.k] !== undefined && p.defaults[p.k] !== p.cur[p.k] ? <span className="ml-1.5 font-normal text-ink-3">· default {mhz(p.defaults[p.k])}</span> : null}</>} hint={p.hint}>
-      <Input
-        type="number"
-        step="0.1"
-        value={text}
-        onChange={(e) => {
-          setText(e.target.value);
-          const n = Number(e.target.value);
-          if (e.target.value !== '' && Number.isFinite(n)) p.set(p.k, Math.round(n * 1e6));
-        }}
-        className="w-48"
-      />
-    </Field>
-  );
-}
-
-function Choice(p: FProps & { k: string; label: string; options: Array<[string, string]>; hint?: ReactNode }) {
-  return (
-    <Field label={<>{p.label}{changedMark(p, p.k)}</>} hint={p.hint}>
-      <Select value={p.cur[p.k]} onChange={(e) => p.set(p.k, e.target.value)} className="max-w-[380px]">
-        {p.options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-      </Select>
-    </Field>
-  );
-}
-
-function Text(p: FProps & { k: string; label: string; hint?: ReactNode; list?: boolean }) {
-  const val = p.cur[p.k];
-  const [text, setText] = useState(p.list ? (val ?? []).join(', ') : val ?? '');
-  useEffect(() => setText(p.list ? (val ?? []).join(', ') : val ?? ''), [JSON.stringify(val)]); // eslint-disable-line react-hooks/exhaustive-deps
-  return (
-    <Field label={<>{p.label}{changedMark(p, p.k)}</>} hint={p.hint}>
-      <Input
-        value={text}
-        onChange={(e) => {
-          setText(e.target.value);
-          p.set(p.k, p.list ? e.target.value.split(/[\s,]+/).map((x) => x.trim()).filter(Boolean) : e.target.value);
-        }}
-        className="max-w-[380px] font-mono text-sm"
-      />
-    </Field>
   );
 }
 
@@ -461,6 +371,10 @@ function Maintenance({ onDone }: { onDone: () => void }) {
           }}>Reset SAS state</Button>
         </div>
       </div>
+      <p className="mt-5 border-t border-line pt-3 text-xs text-ink-3">
+        This software includes open-source components and public-domain map data:{' '}
+        <a className="text-sel-ink underline" href="/third-party-notices.txt" target="_blank" rel="noreferrer">third-party notices</a>.
+      </p>
     </Module>
   );
 }

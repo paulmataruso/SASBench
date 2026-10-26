@@ -153,6 +153,24 @@ Settings are live-edited on the **Settings** page and stored in the database. Th
   - A request console that sends hand-written requests through the engine.
 - **Backup:** export/import configuration as JSON.
 
+## Map
+
+The Spectrum page map shows CBSDs, protection areas and PPAs. Choose its base map in **Settings → Map**:
+
+- **Built-in basemap (default).** North America drawn from Natural Earth data: coastlines, lakes, country and state borders, highways, urban areas and city names. It ships with the UI and needs no internet access. It is always drawn underneath, so the map is never blank, even when another source fails or does not cover the view.
+- **Offline tiles.** Raster tiles from the tile store, `/data/tiles` (`SAS_TILES_DIR`). The store accepts:
+  - MBTiles files (`*.mbtiles`) with PNG, JPEG or WebP tiles. Vector MBTiles (`pbf`) are not supported.
+  - Folders laid out as `<name>/<z>/<x>/<y>.png` (or `.jpg`/`.webp`).
+
+  Copy them in with `docker cp lab.mbtiles cbrs-lab-sas:/data/tiles/`, then press **Rescan**.
+- **Online tile server.** Any XYZ URL template with `{z}`, `{x}` and `{y}`. `{-y}` (TMS) and `{s}` also work. The presets are the USGS National Map (Topo, Imagery, Imagery + Topo), which is public domain and needs no API key.
+
+**Downloading an area for offline use.** Settings → Map → *Download an area* saves tiles from a tile server into a new MBTiles file in the store. The area can be the registered CBSDs plus a margin, or a box you enter. Pick the zoom range, start the download, and switch the map to the file once it finishes. A download is limited to 100,000 tiles. Zoom 6–14 around a few sites is typically 1,000–5,000 tiles (20–100 MB).
+
+OpenStreetMap's tile servers forbid bulk downloading ([tile usage policy](https://operations.osmfoundation.org/policies/tiles/)), so the downloader refuses them. They can still be used as a light-use online source. To use OSM data offline, render or obtain your own MBTiles file and copy it into the store.
+
+`npm run basemap` rebuilds the built-in basemap (`web/public/basemap/north-america.json`) from Natural Earth with `scripts/build-basemap.sh`. It needs Node.js, `curl` and internet access, and downloads about 130 MB. The generated file is committed, so this is only needed to change the basemap.
+
 ## Running the WInnForum test harness
 
 The harness is at <https://github.com/Wireless-Innovation-Forum/Spectrum-Access-System>.
@@ -177,6 +195,7 @@ The harness is at <https://github.com/Wireless-Innovation-Forum/Spectrum-Access-
 | `SAS_PROFILE` | — | `lab`, `winnforum` or `open`, applied once on first start |
 | `SAS_UI_PASSWORD` | — | Protects the UI with HTTP Basic auth (any user name, this password); applied on every start |
 | `SAS_TERRAIN_DIR` | `$SAS_DATA_DIR/terrain` | USGS NED GridFloat tiles for the HAAT check |
+| `SAS_TILES_DIR` | `$SAS_DATA_DIR/tiles` | Offline map tile store (MBTiles files and z/x/y folders) |
 | `SAS_WEB_DIR` | `web/dist` | Location of the built UI |
 
 ## Data and persistence
@@ -185,9 +204,27 @@ All state lives in `$SAS_DATA_DIR` (the `/data` volume in Docker):
 
 - `sas.db`, a SQLite database: settings, CBSDs, grants, PKI (certificates and private keys), registries, protections, logs;
 - `tmp/`, scratch space for OpenSSL;
-- `terrain/`, optional elevation tiles.
+- `terrain/`, optional elevation tiles;
+- `tiles/`, the offline map tile store.
 
 Back up the volume to keep your PKI. Deleting it regenerates a fresh one, and radios then need new certificates. Resetting the SAS (from the UI, or the harness's `POST /admin/reset`) clears CBSDs, grants, registries, protections/DPAs/PPAs and injected incumbent data, but keeps certificates, settings and logs.
+
+## Third-party notices
+
+`THIRD_PARTY_NOTICES.md` lists every third-party component that ships with CBRS Lab SAS, with its license text:
+
+- the npm packages of the server and the web UI bundle;
+- the runtime in the container image (Node.js, OpenSSL, tini, Alpine packages);
+- the map and incumbent data (Natural Earth, NTIA DPAs, USGS).
+
+The UI serves the same file at `/third-party-notices.txt`, linked from Settings → Maintenance. The Docker image also has it at `/app/THIRD_PARTY_NOTICES.md`, with the Node.js license and the installed Alpine packages in `/app/licenses/`.
+
+The file is generated from the installed packages. Regenerate it after changing dependencies:
+
+```bash
+npm run notices         # rewrite THIRD_PARTY_NOTICES.md and web/public/third-party-notices.txt
+npm run notices:check   # fail if they are out of date (for CI)
+```
 
 ## Tests
 

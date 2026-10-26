@@ -211,3 +211,47 @@ export interface Preset {
   description: string;
   patch: Record<string, any>;
 }
+
+export interface TileSet {
+  id: string;
+  kind: 'mbtiles' | 'directory';
+  name: string;
+  format: string | null;
+  minZoom: number | null;
+  maxZoom: number | null;
+  bounds: [number, number, number, number] | null;
+  attribution: string | null;
+  sizeBytes: number | null;
+  usable: boolean;
+  error: string | null;
+}
+
+export interface TileDownload {
+  state: 'running' | 'done' | 'failed' | 'cancelled';
+  file: string;
+  url: string;
+  bounds: [number, number, number, number];
+  minZoom: number;
+  maxZoom: number;
+  total: number;
+  done: number;
+  missing: number;
+  failed: number;
+  bytes: number;
+  startedAt: number;
+  finishedAt: number | null;
+  error: string | null;
+}
+
+/** GET /api/map: effective map configuration plus the offline tile store. */
+export interface MapConfig {
+  source: 'builtin' | 'local' | 'url';
+  url: string;
+  attribution: string;
+  maxZoom: number;
+  darken: boolean;
+  local: TileSet | null;
+  store: { dir: string; sets: TileSet[] };
+  download: TileDownload | null;
+  maxDownloadTiles: number;
+}

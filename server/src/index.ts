@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import zlib from 'node:zlib';
 import { Db } from './db.ts';
 import { SettingsStore, LISTENER_KEYS, type Settings } from './settings.ts';
 import { Bus } from './bus.ts';
@@ -12,6 +13,7 @@ import { FaultInjector } from './sas/faults.ts';
 import { SasAdmin } from './sas/admin.ts';
 import { Terrain } from './sas/terrain.ts';
 import { SasServer } from './net/sasServer.ts';
+import { TileDownloader, TileStore } from './map/tiles.ts';
 import { buildApi, harnessHook } from './api.ts';
 import { sendJson } from './net/http.ts';
 import { PRESETS } from './presets.ts';
@@ -44,6 +46,8 @@ if (!engine.terrain.tileCount) {
 const faults = new FaultInjector(db, bus);
 const admin = new SasAdmin(db, engine, bus, settings, pki, RESOURCE_DIR);
 const sas = new SasServer(settings, pki, bus, engine, faults);
+const tiles = new TileStore(path.resolve(process.env.SAS_TILES_DIR ?? path.join(DATA_DIR, 'tiles')));
+const tileDownloader = new TileDownloader(tiles, bus);
 sas.adminHook = harnessHook(admin, bus);
 
 // Hostnames / IPs that should appear in the SAS server certificate.
@@ -77,12 +81,15 @@ engine.startSweeper();
 
 // ---------------------------------------------------------------- UI / REST server
 
-const api = buildApi({ db, settings, bus, pki, engine, sas, admin, startedAt: Date.now(), version: VERSION, uiPort: UI_PORT, hostnames });
+const api = buildApi({ db, settings, bus, pki, engine, sas, admin, startedAt: Date.now(), version: VERSION, uiPort: UI_PORT, hostnames, tiles, tileDownloader });
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png',
-  '.ico': 'image/x-icon', '.json': 'application/json', '.woff2': 'font/woff2', '.map': 'application/json',
+  '.ico': 'image/x-icon', '.json': 'application/json', '.woff2': 'font/woff2', '.woff': 'font/woff', '.map': 'application/json',
+  '.txt': 'text/plain; charset=utf-8',
 };
+const COMPRESSIBLE = new Set(['.html', '.js', '.css', '.svg', '.json', '.map', '.txt']);
+const gzipped = new Map<string, { mtime: number; data: Buffer }>();
 
 const ui = http.createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', 'http://x');
@@ -100,7 +107,9 @@ const ui = http.createServer(async (req, res) => {
     if (url.pathname.startsWith('/admin/') || /\/v\d+\.\d+\//.test(url.pathname)) {
       return sendJson(res, 404, { error: `This is the UI port. Send SAS protocol requests to port ${settings.get().sasHttpsPort} (HTTPS) or ${settings.get().sasHttpPort} (HTTP).` });
     }
-    serveStatic(url.pathname, res);
+    const t = /^\/tiles\/([^/]+)\/(\d{1,2})\/(\d{1,7})\/(\d{1,7})(?:\.\w+)?$/.exec(url.pathname);
+    if (t) return serveTile(res, decodeURIComponent(t[1]), Number(t[2]), Number(t[3]), Number(t[4]));
+    serveStatic(req, url.pathname, res);
   } catch (e: any) {
     if (!res.headersSent) sendJson(res, 500, { error: e.message });
   }
@@ -134,7 +143,19 @@ function stream(req: http.IncomingMessage, res: http.ServerResponse) {
   });
 }
 
-function serveStatic(pathname: string, res: http.ServerResponse) {
+/** Offline map tiles from the tile store: /tiles/<tile set>/<z>/<x>/<y>. */
+function serveTile(res: http.ServerResponse, id: string, z: number, x: number, y: number) {
+  const t = tiles.tile(id, z, x, y);
+  if (!t) {
+    res.writeHead(404, { 'Cache-Control': 'public, max-age=300' });
+    res.end();
+    return;
+  }
+  res.writeHead(200, { 'Content-Type': t.type, 'Content-Length': t.data.length, 'Cache-Control': 'public, max-age=86400' });
+  res.end(t.data);
+}
+
+function serveStatic(req: http.IncomingMessage, pathname: string, res: http.ServerResponse) {
   let file = path.join(WEB_DIR, path.normalize(decodeURIComponent(pathname)).replace(/^(\.\.[/\\])+/, ''));
   if (!file.startsWith(WEB_DIR)) file = WEB_DIR;
   if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(WEB_DIR, 'index.html');
@@ -144,11 +165,23 @@ function serveStatic(pathname: string, res: http.ServerResponse) {
     return;
   }
   const ext = path.extname(file);
-  const data = fs.readFileSync(file);
-  res.writeHead(200, {
-    'Content-Type': MIME[ext] ?? 'application/octet-stream', 'Content-Length': data.length,
+  let data: Buffer = fs.readFileSync(file);
+  const headers: Record<string, string | number> = {
+    'Content-Type': MIME[ext] ?? 'application/octet-stream',
     'Cache-Control': file.includes(`${path.sep}assets${path.sep}`) ? 'public, max-age=31536000, immutable' : 'no-cache',
-  });
+  };
+  if (COMPRESSIBLE.has(ext)) {
+    headers.Vary = 'Accept-Encoding';
+    if (/\bgzip\b/.test(String(req.headers['accept-encoding'] ?? ''))) {
+      const mtime = fs.statSync(file).mtimeMs;
+      let gz = gzipped.get(file);
+      if (!gz || gz.mtime !== mtime) gzipped.set(file, (gz = { mtime, data: zlib.gzipSync(data) }));
+      data = gz.data;
+      headers['Content-Encoding'] = 'gzip';
+    }
+  }
+  headers['Content-Length'] = data.length;
+  res.writeHead(200, headers);
   res.end(data);
 }
 

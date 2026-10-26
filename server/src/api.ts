@@ -18,6 +18,8 @@ import { signCpiData } from './sas/cpi.ts';
 import { RC_NAME } from './sas/codes.ts';
 import { cbsdViewFromRow } from './sas/policy.ts';
 import { toRfc3339 } from './util/time.ts';
+import type { TileDownloader, TileStore } from './map/tiles.ts';
+import { MAX_DOWNLOAD_TILES, validateTemplate } from './map/tiles.ts';
 
 // REST API for the web UI (/api/...) and the WInnForum harness admin hook (/admin/... on the SAS listeners).
 
@@ -33,12 +35,14 @@ export interface ApiDeps {
   version: string;
   uiPort: number;
   hostnames: string[];
+  tiles: TileStore;
+  tileDownloader: TileDownloader;
 }
 
 const GRANT_STATES = ['GRANTED', 'AUTHORIZED', 'TERMINATED', 'RELINQUISHED', 'EXPIRED', 'DELETED'];
 
 export function buildApi(d: ApiDeps): Router {
-  const { db, settings, bus, pki, engine, sas, admin } = d;
+  const { db, settings, bus, pki, engine, sas, admin, tiles, tileDownloader } = d;
   const r = new Router();
   const need = (v: any, name: string) => {
     if (v === undefined || v === null || v === '') throw new HttpError(400, `${name} is required`);
@@ -422,6 +426,50 @@ export function buildApi(d: ApiDeps): Router {
   r.post('/api/listeners/restart', async () => {
     await sas.restart();
     return sas.getStatus();
+  });
+
+  // ------------------------------------------------------------------ map
+
+  // Effective map configuration for the UI plus the offline tile store contents.
+  r.get('/api/map', () => {
+    const s = settings.get();
+    const active = s.mapSource === 'local' ? tiles.pick(s.mapLocalTiles) : null;
+    return {
+      source: s.mapSource, url: s.mapTileUrl, attribution: s.mapTileAttribution, maxZoom: s.mapTileMaxZoom, darken: s.mapDarkenTiles,
+      local: active, store: { dir: tiles.dir, sets: tiles.list() }, download: tileDownloader.job, maxDownloadTiles: MAX_DOWNLOAD_TILES,
+    };
+  });
+  r.post('/api/map/rescan', () => {
+    const sets = tiles.rescan();
+    bus.changed('map');
+    return sets;
+  });
+  r.delete('/api/map/tiles/:id', ({ params }) => {
+    const job = tileDownloader.job;
+    if (job?.state === 'running' && job.file === params.id) throw new HttpError(409, 'That tile set is still downloading');
+    try {
+      tiles.remove(params.id);
+    } catch (e: any) {
+      throw new HttpError(404, e.message);
+    }
+    bus.event('info', 'map', `Deleted offline map ${params.id}`);
+    bus.changed('map');
+    return { ok: true };
+  });
+  r.post('/api/map/download', async ({ body }) => {
+    const b = await body();
+    try {
+      return tileDownloader.start({
+        url: need(b.url, 'url'), bounds: b.bounds, minZoom: Number(b.minZoom), maxZoom: Number(b.maxZoom),
+        name: String(b.name ?? ''), attribution: String(b.attribution ?? ''),
+      });
+    } catch (e: any) {
+      throw new HttpError(400, e.message);
+    }
+  });
+  r.delete('/api/map/download', () => {
+    tileDownloader.cancel();
+    return { ok: true };
   });
 
   // ------------------------------------------------------------------ fault injection
@@ -842,6 +890,15 @@ function validateSettings(p: any) {
     throw new HttpError(400, 'supportedVersions must look like ["v1.2"]');
   }
   if ('gaaRanges' in p && (!Array.isArray(p.gaaRanges) || p.gaaRanges.some((r: any) => !(r.low < r.high)))) throw new HttpError(400, 'Invalid GAA ranges');
+  if ('mapSource' in p && !['builtin', 'local', 'url'].includes(p.mapSource)) throw new HttpError(400, 'mapSource must be builtin, local or url');
+  if ('mapTileUrl' in p) {
+    try {
+      validateTemplate(p.mapTileUrl);
+    } catch (e: any) {
+      throw new HttpError(400, e.message);
+    }
+  }
+  if ('mapTileMaxZoom' in p && (!Number.isInteger(p.mapTileMaxZoom) || p.mapTileMaxZoom < 1 || p.mapTileMaxZoom > 22)) throw new HttpError(400, 'mapTileMaxZoom must be 1–22');
 }
 
 function cbsdOut(c: Row, grants: Record<string, number>) {

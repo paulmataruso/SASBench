@@ -410,11 +410,43 @@
   font-size: 12.5px;
   line-height: 18px;
 }
-[data-theme='dark'] .leaflet-tile-pane {
+/* Raster tiles are light by design; "darken" inverts them in the dark theme (Settings → Map). */
+[data-theme='dark'] .map-darken .leaflet-tile-pane {
   filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9);
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) .leaflet-tile-pane {
+  :root:not([data-theme='light']) .map-darken .leaflet-tile-pane {
     filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9);
   }
+}
+/* Offline basemap: water is the container itself; land and lines are drawn on a canvas. */
+.leaflet-container.map-builtin {
+  background: rgb(var(--info-soft));
+}
+.map-place {
+  pointer-events: none;
+}
+.map-place > span {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-3px, -50%);
+  padding-left: 9px;
+  white-space: nowrap;
+  font-size: 11px;
+  line-height: 14px;
+  color: rgb(var(--ink-2));
+  text-shadow: 0 0 2px rgb(var(--panel)), 0 0 2px rgb(var(--panel)), 0 0 3px rgb(var(--panel));
+}
+.map-place > span::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  margin-top: -2.5px;
+  border-radius: 50%;
+  background: rgb(var(--ink-3));
+  box-shadow: 0 0 0 1px rgb(var(--panel));
 }

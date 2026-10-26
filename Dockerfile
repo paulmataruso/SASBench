@@ -19,6 +19,10 @@ RUN npm ci --omit=dev --no-audit --no-fund && npm cache clean --force
 COPY server/src ./server/src
 COPY server/data ./server/data
 COPY --from=web /build/web/dist ./web/dist
+COPY THIRD_PARTY_NOTICES.md ./
+# License texts for the runtime this image ships (referenced from THIRD_PARTY_NOTICES.md).
+RUN mkdir -p licenses && apk list --installed > licenses/alpine-packages.txt \
+ && node -e "fetch('https://raw.githubusercontent.com/nodejs/node/v' + process.versions.node + '/LICENSE').then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); }).then((t) => require('fs').writeFileSync('licenses/node-LICENSE', t))"
 
 ENV NODE_ENV=production \
     SAS_DATA_DIR=/data \
