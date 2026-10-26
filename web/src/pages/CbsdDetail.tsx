@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { ArrowLeft, Check, Crosshair, Save, Send, Trash2, Unplug } from 'lucide-react';
 import { api } from '../lib/api';
 import { useNow, useResource } from '../lib/live';
@@ -8,7 +8,7 @@ import { ago, clock, iso, range } from '../lib/format';
 import type { Cbsd, EventRow, Grant } from '../lib/types';
 import { GrantTable } from '../components/grants';
 import { MessageDrawer, transportTag } from '../components/message';
-import { Swatch, TxIndicator, groupGrants, useHeartbeatPulses } from '../components/rack';
+import { RackLeds, Swatch, TxIndicator, groupGrants, useHeartbeatPulses } from '../components/rack';
 import {
   Button, CodeTag, CopyButton, Empty, ErrorNote, Field, HttpTag, Input, JsonView, Led, Module, Readout, SkeletonRows, Tabs, Tag, Textarea,
   cx, useAction, useConfirm,
@@ -56,82 +56,165 @@ export function CbsdDetailPage({ id }: { id: string }) {
   const active = groupGrants(grants).get(d.cbsdId) ?? [];
   const enc = encodeURIComponent(d.cbsdId);
 
+  const live = (
+    <div>
+      <Tabs
+        value={tab}
+        onChange={setTab}
+        tabs={[
+          { value: 'grants', label: 'Grants', count: grants.length },
+          { value: 'messages', label: 'Exchanges', count: d.messages.length },
+          { value: 'events', label: 'Events', count: d.events.length },
+          { value: 'raw', label: 'Raw registration' },
+        ]}
+      />
+      <Module className="rounded-t-none border-t-0" bodyClass="">
+        {tab === 'grants' && (grants.length ? <GrantTable grants={grants} showCbsd={false} marks={marks} onAck={ack} /> : (
+          <Empty title="No grants">The CBSD has not requested a grant yet, or its grants were deleted by re-registration.</Empty>
+        ))}
+        {tab === 'messages' && (d.messages.length ? (
+          <div className="max-h-[420px] overflow-auto">
+            <table className="dtable">
+              <thead><tr><th>Time</th><th>Method</th><th>Response codes</th><th>HTTP</th><th>Transport</th><th>Error</th></tr></thead>
+              <tbody>
+                {d.messages.map((m) => (
+                  <tr key={m.id} className="cursor-pointer" onClick={() => setOpenMsg(m.id)}>
+                    <td className="whitespace-nowrap">
+                      <button type="button" className="num font-mono text-xs text-ink hover:underline" title={`${iso(m.ts)}: open exchange #${m.id}`} onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenMsg(m.id);
+                      }}>{clock(m.ts, true)}</button>
+                    </td>
+                    <td className="font-mono text-xs">{m.method}</td>
+                    <td><span className="flex flex-wrap gap-1">{parseCodes(m.codes).map((c, i) => <CodeTag key={i} code={c} />)}</span></td>
+                    <td><HttpTag status={m.http_status} /></td>
+                    <td>{transportTag(m.transport)}</td>
+                    <td className="max-w-[300px] truncate text-xs text-bad-ink">{m.error}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : <Empty title="No exchanges logged" />)}
+        {tab === 'events' && (d.events.length ? (
+          <ul className="max-h-[420px] divide-y divide-line overflow-y-auto">
+            {d.events.map((e) => (
+              <li key={e.id} className="flex items-start gap-3 px-3 py-2 text-sm">
+                <Led c={e.level === 'error' ? 'bad' : e.level === 'warn' ? 'warn' : e.level === 'success' ? 'ok' : 'info'} className="mt-1.5" title={e.level} />
+                <span className="num w-[150px] flex-none font-mono text-xs text-ink-3">{clock(e.ts, true)}</span>
+                <span className="w-[80px] flex-none font-label text-xs font-semibold uppercase tracking-[0.06em] text-ink-3">{e.category}</span>
+                <span className="min-w-0 flex-1 break-words">{e.message}</span>
+              </li>
+            ))}
+          </ul>
+        ) : <Empty title="No events" />)}
+        {tab === 'raw' && (
+          <div className="grid gap-4 p-3 xl:grid-cols-2">
+            <div className="min-w-0">
+              <div className="silk mb-1.5">Last registration request</div>
+              <JsonView value={d.registration} maxHeight={520} />
+            </div>
+            <div className="min-w-0">
+              <div className="silk mb-1.5">Effective parameters (preload ← request ← CPI)</div>
+              <JsonView value={d.effective} maxHeight={520} />
+            </div>
+            {d.lastMeasReport && (
+              <div className="min-w-0 xl:col-span-2">
+                <div className="silk mb-1.5">Last measurement report</div>
+                <JsonView value={d.lastMeasReport} maxHeight={400} />
+              </div>
+            )}
+          </div>
+        )}
+      </Module>
+    </div>
+  );
+
   return (
     <div className="space-y-4">
       <BackLink />
-      <div className="flex flex-wrap items-start gap-x-6 gap-y-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2.5">
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          <div className="flex min-w-0 max-w-full items-center gap-2.5">
             <Swatch cbsdId={d.cbsdId} className="size-3" />
-            <h1 className="truncate font-mono text-lg font-semibold">{d.fccId}<span className="text-ink-3"> / </span>{d.serial}</h1>
-            <Tag tone={d.state === 'REGISTERED' ? 'ok' : d.state === 'PENDING' ? 'warn' : 'off'}>{d.state}</Tag>
-            {d.category && <Tag>CAT {d.category}</Tag>}
-            {d.pendingDeregister && <Tag tone="warn">DEREGISTER (105) PENDING</Tag>}
+            <h1 className="flex min-w-0 items-baseline font-mono text-lg font-semibold">
+              <span className="truncate">{d.fccId}</span><span className="flex-none whitespace-pre text-ink-3"> / </span><span className="flex-none">{d.serial}</span>
+            </h1>
+            {d.category && <Tag className="flex-none">CAT {d.category}</Tag>}
+            {d.state === 'PENDING' && <Tag tone="warn" className="flex-none">PENDING APPROVAL</Tag>}
+            {d.state === 'UNREGISTERED' && <Tag className="flex-none">UNREGISTERED</Tag>}
+            {d.pendingDeregister && <Tag tone="warn" className="flex-none">DEREGISTER (105) PENDING</Tag>}
           </div>
-          <div className="mt-1 flex items-center gap-1 font-mono text-xs text-ink-3">
-            cbsdId {d.cbsdId}
+          <div className="flex items-center gap-4">
+            <RackLeds c={d} gs={active} p={p} now={now} labels />
+            <span className="inline-flex items-center gap-1.5"><span className="silk">TX</span><TxIndicator grants={active} now={now} /></span>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <div className="flex min-w-0 items-center gap-1 font-mono text-xs text-ink-3">
+            <span className="truncate">cbsdId {d.cbsdId}</span>
             <CopyButton text={d.cbsdId} label="Copy cbsdId" />
           </div>
-        </div>
-        <div className="flex items-center gap-4 rounded border border-line bg-panel px-3 py-2">
-          <span className="flex items-center gap-1.5 text-xs text-ink-3"><Led c={d.state === 'REGISTERED' ? 'ok' : d.state === 'PENDING' ? 'warn' : 'off'} /> REG</span>
-          <span className="flex items-center gap-1.5 text-xs text-ink-3"><Led c={active.some((g) => g.state === 'AUTHORIZED' && !g.suspended) ? 'ok' : active.some((g) => g.suspended) ? 'warn' : active.length ? 'info' : 'off'} /> GNT</span>
-          <span className="flex items-center gap-1.5 text-xs text-ink-3"><Led c={p ? (p.code === 0 ? 'ok' : 'bad') : d.lastHeartbeatOk ? 'ok' : 'off'} flash={p?.n} /> HB</span>
-          <span className="flex items-center gap-1.5 text-xs text-ink-3">TX <TxIndicator grants={active} now={now} /></span>
-        </div>
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          <Button icon={Crosshair} variant={isF ? 'primary' : 'secondary'} onClick={() => setFollowed(isF ? null : d.cbsdId)}>{isF ? 'Following' : 'Follow'}</Button>
-          {d.state === 'PENDING' && (
-            <Button icon={Check} variant="primary" loading={busy === 'approve'} onClick={() => run('approve', () => api.post(`/api/cbsds/${enc}/approve`), 'Approved: registration completes on the next request')}>Approve registration</Button>
-          )}
-          {d.state === 'REGISTERED' && !d.pendingDeregister && (
-            <Button icon={Send} loading={busy === 'dereg'} onClick={async () => {
-              if (await confirm({ title: 'Send DEREGISTER (105)?', body: 'The CBSD gets responseCode 105 on its next request of any kind, which tells it to deregister and re-register.', confirm: 'Queue 105' })) {
-                await run('dereg', () => api.post(`/api/cbsds/${enc}/deregister`), '105 DEREGISTER queued for the next request');
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            <Button icon={Crosshair} variant={isF ? 'primary' : 'secondary'} aria-pressed={isF} onClick={() => setFollowed(isF ? null : d.cbsdId)}>{isF ? 'Following' : 'Follow'}</Button>
+            {d.state === 'PENDING' && (
+              <Button icon={Check} variant="primary" loading={busy === 'approve'} onClick={() => run('approve', () => api.post(`/api/cbsds/${enc}/approve`), 'Approved: registration completes on the next request')}>Approve registration</Button>
+            )}
+            {d.state === 'REGISTERED' && !d.pendingDeregister && (
+              <Button icon={Send} loading={busy === 'dereg'} onClick={async () => {
+                if (await confirm({ title: 'Send DEREGISTER (105)?', body: 'The CBSD gets responseCode 105 on its next request of any kind, which tells it to deregister and re-register.', confirm: 'Queue 105' })) {
+                  await run('dereg', () => api.post(`/api/cbsds/${enc}/deregister`), '105 DEREGISTER queued for the next request');
+                }
+              }}>Send 105</Button>
+            )}
+            {d.state === 'REGISTERED' && (
+              <Button icon={Unplug} variant="danger-ghost" loading={busy === 'force'} onClick={async () => {
+                if (await confirm({ title: 'Deregister this CBSD now?', body: 'The SAS deregisters it silently and deletes its grants. Its next heartbeat gets 103; the radio has to register again.', confirm: 'Deregister now', danger: true })) {
+                  await run('force', () => api.post(`/api/cbsds/${enc}/force-deregister`), 'CBSD deregistered');
+                }
+              }}>Deregister now</Button>
+            )}
+            <span className="mx-1 h-5 w-px bg-line max-sm:hidden" aria-hidden />
+            <Button icon={Trash2} variant="danger-ghost" loading={busy === 'delete'} onClick={async () => {
+              if (await confirm({ title: 'Delete this CBSD record?', body: 'Removes the CBSD and all its grants from the database, as if it had never registered.', confirm: 'Delete record', danger: true })) {
+                const ok = await run('delete', () => api.del(`/api/cbsds/${enc}`), 'CBSD deleted');
+                if (ok !== undefined) navigate('/cbsds');
               }
-            }}>Send 105</Button>
-          )}
-          {d.state === 'REGISTERED' && (
-            <Button icon={Unplug} variant="danger-ghost" loading={busy === 'force'} onClick={async () => {
-              if (await confirm({ title: 'Deregister this CBSD now?', body: 'The SAS deregisters it silently and deletes its grants. Its next heartbeat gets 103; the radio has to register again.', confirm: 'Deregister now', danger: true })) {
-                await run('force', () => api.post(`/api/cbsds/${enc}/force-deregister`), 'CBSD deregistered');
-              }
-            }}>Deregister now</Button>
-          )}
-          <Button icon={Trash2} variant="danger-ghost" onClick={async () => {
-            if (await confirm({ title: 'Delete this CBSD record?', body: 'Removes the CBSD and all its grants from the database, as if it had never registered.', confirm: 'Delete', danger: true })) {
-              const ok = await run('delete', () => api.del(`/api/cbsds/${enc}`), 'CBSD deleted');
-              if (ok !== undefined) navigate('/cbsds');
-            }
-          }} aria-label="Delete CBSD" title="Delete record" />
+            }}>Delete record</Button>
+          </div>
         </div>
       </div>
 
+      {live}
+
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_400px]">
         <Module title="Registration" meta={d.registeredAt ? `registered ${clock(d.registeredAt, true)}` : 'never registered successfully'}>
-          <Readout
-            cols={3}
-            rows={[
+          <div className="space-y-4">
+            <RegBlock title="Identity" rows={[
               ['User ID', <span className="font-mono text-sm">{d.userId ?? '—'}</span>],
               ['Category', d.category ? `Category ${d.category}` : '—'],
-              ['Air interface', d.radioTechnology ?? '—'],
+              ['Air interface', d.radioTechnology ? <span className="font-mono text-sm">{d.radioTechnology}</span> : '—'],
               ['Call sign', d.callSign || '—'],
-              ['Latitude, longitude', ip.latitude != null ? <span className="num font-mono text-sm">{ip.latitude}, {ip.longitude}</span> : <span className="text-ink-3">Unknown (not sent, not preloaded)</span>],
-              ['Height', ip.height != null ? `${ip.height} m ${ip.heightType ?? ''}` : '—'],
-              ['Deployment', ip.indoorDeployment === true ? 'Indoor' : ip.indoorDeployment === false ? 'Outdoor' : '—'],
-              ['Antenna', ip.antennaGain != null ? `${ip.antennaGain} dBi · az ${ip.antennaAzimuth ?? '—'}° · tilt ${ip.antennaDowntilt ?? '—'}° · bw ${ip.antennaBeamwidth ?? '—'}°` : '—'],
-              ['EIRP capability', ip.eirpCapability != null ? `${ip.eirpCapability} dBm/10MHz` : '—'],
-              ['Measurement capability', d.measCapability?.length ? d.measCapability.join(', ') : 'none'],
-              ['EIRP limit', <span className="num">{d.limits.maxEirpDbmMhz} dBm/MHz <span className="text-ink-3">({d.limits.maxEirpPer10MHz} dBm/10MHz)</span></span>],
+              ['Measurement capability', d.measCapability?.length ? <span className="font-mono text-xs">{d.measCapability.join(', ')}</span> : 'none'],
               ['Preloaded data', d.conditional ? 'Yes (conditional registration)' : 'No'],
+            ]} />
+            <RegBlock title="Location and antenna" rows={[
+              ['Latitude, longitude', ip.latitude != null ? <span className="num font-mono text-sm">{ip.latitude}, {ip.longitude}</span> : <span className="text-ink-3">Unknown (not sent, not preloaded)</span>],
+              ['Height', ip.height != null ? <span className="num font-mono text-sm">{ip.height} m {ip.heightType ?? ''}</span> : '—'],
+              ['Deployment', ip.indoorDeployment === true ? 'Indoor' : ip.indoorDeployment === false ? 'Outdoor' : '—'],
+              ['Antenna', ip.antennaGain != null ? <span className="num font-mono text-sm">{ip.antennaGain} dBi · az {ip.antennaAzimuth ?? '—'}° · tilt {ip.antennaDowntilt ?? '—'}° · bw {ip.antennaBeamwidth ?? '—'}°</span> : '—'],
+              ['EIRP capability', ip.eirpCapability != null ? <span className="num font-mono text-sm">{ip.eirpCapability} dBm/10MHz</span> : '—'],
+              ['EIRP limit', <span className="num font-mono text-sm">{d.limits.maxEirpDbmMhz} dBm/MHz <span className="text-ink-3">({d.limits.maxEirpPer10MHz} dBm/10MHz)</span></span>],
+            ]} />
+            <RegBlock title="Link" rows={[
               ['Last link', <span className="flex items-center gap-2">{transportTag(d.transport)}<span className="font-mono text-xs">{d.remoteAddr ?? ''}</span></span>],
               ['Last seen', d.lastSeen ? `${ago(d.lastSeen, now)}` : 'never'],
               ['Last good heartbeat', d.lastHeartbeatOk ? ago(d.lastHeartbeatOk, now) : 'never'],
-            ]}
-          />
+            ]} />
+          </div>
           {d.certInfo ? (
             <div className="mt-4 border-t border-line pt-3">
-              <div className="silk mb-1.5">Client certificate at registration</div>
+              <div className="silk mb-1.5 text-ink-2">Client certificate at registration</div>
               <Readout
                 cols={3}
                 rows={[
@@ -155,75 +238,18 @@ export function CbsdDetailPage({ id }: { id: string }) {
           <Overrides d={d} />
         </div>
       </div>
-
-      <div>
-        <Tabs
-          value={tab}
-          onChange={setTab}
-          tabs={[
-            { value: 'grants', label: 'Grants', count: grants.length },
-            { value: 'messages', label: 'Exchanges', count: d.messages.length },
-            { value: 'events', label: 'Events', count: d.events.length },
-            { value: 'raw', label: 'Raw registration' },
-          ]}
-        />
-        <Module className="rounded-t-none border-t-0" bodyClass="">
-          {tab === 'grants' && (grants.length ? <GrantTable grants={grants} showCbsd={false} marks={marks} onAck={ack} /> : (
-            <Empty title="No grants">The CBSD has not requested a grant yet, or its grants were deleted by re-registration.</Empty>
-          ))}
-          {tab === 'messages' && (d.messages.length ? (
-            <div className="max-h-[520px] overflow-y-auto">
-              <table className="dtable">
-                <thead><tr><th>Time</th><th>Transport</th><th>Method</th><th>HTTP</th><th>Response codes</th><th>Error</th></tr></thead>
-                <tbody>
-                  {d.messages.map((m) => (
-                    <tr key={m.id} className="cursor-pointer" onClick={() => setOpenMsg(m.id)}>
-                      <td className="num whitespace-nowrap font-mono text-xs" title={iso(m.ts)}>{clock(m.ts, true)}</td>
-                      <td>{transportTag(m.transport)}</td>
-                      <td className="font-mono text-xs">{m.method}</td>
-                      <td><HttpTag status={m.http_status} /></td>
-                      <td><span className="flex flex-wrap gap-1">{parseCodes(m.codes).map((c, i) => <CodeTag key={i} code={c} />)}</span></td>
-                      <td className="max-w-[300px] truncate text-xs text-bad-ink">{m.error}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : <Empty title="No exchanges logged" />)}
-          {tab === 'events' && (d.events.length ? (
-            <ul className="max-h-[520px] divide-y divide-line overflow-y-auto">
-              {d.events.map((e) => (
-                <li key={e.id} className="flex items-start gap-3 px-3 py-2 text-sm">
-                  <Led c={e.level === 'error' ? 'bad' : e.level === 'warn' ? 'warn' : e.level === 'success' ? 'ok' : 'info'} className="mt-1.5" />
-                  <span className="num w-[150px] flex-none font-mono text-xs text-ink-3">{clock(e.ts, true)}</span>
-                  <span className="w-[80px] flex-none font-label text-xs font-semibold uppercase tracking-[0.06em] text-ink-3">{e.category}</span>
-                  <span className="min-w-0 flex-1 break-words">{e.message}</span>
-                </li>
-              ))}
-            </ul>
-          ) : <Empty title="No events" />)}
-          {tab === 'raw' && (
-            <div className="grid gap-4 p-3 xl:grid-cols-2">
-              <div className="min-w-0">
-                <div className="silk mb-1.5">Last registration request</div>
-                <JsonView value={d.registration} maxHeight={520} />
-              </div>
-              <div className="min-w-0">
-                <div className="silk mb-1.5">Effective parameters (preload ← request ← CPI)</div>
-                <JsonView value={d.effective} maxHeight={520} />
-              </div>
-              {d.lastMeasReport && (
-                <div className="min-w-0 xl:col-span-2">
-                  <div className="silk mb-1.5">Last measurement report</div>
-                  <JsonView value={d.lastMeasReport} maxHeight={400} />
-                </div>
-              )}
-            </div>
-          )}
-        </Module>
-      </div>
       <MessageDrawer id={openMsg} onClose={() => setOpenMsg(null)} />
     </div>
+  );
+}
+
+/** One labelled group of registration readouts. */
+function RegBlock({ title, rows }: { title: string; rows: Array<[ReactNode, ReactNode]> }) {
+  return (
+    <section>
+      <h3 className="silk mb-1.5 text-ink-2">{title}</h3>
+      <Readout cols={3} rows={rows} />
+    </section>
   );
 }
 

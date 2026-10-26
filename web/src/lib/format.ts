@@ -127,8 +127,30 @@ export function shortId(id: string, n = 10): string {
   return `${id.slice(0, n)}…`;
 }
 
-/** cbsdId is "<fccId>/<sha1(serial)>"; show the FCC ID and a short hash. */
+/** "FCC ID / serial" for a cbsdId ("<fccId>/<sha1(serial)>"), as the radio itself would report it. */
 export function cbsdLabel(cbsdId: string): string {
+  const p = cbsdParts(cbsdId);
+  return p.serial ? `${p.fccId} / ${p.serial}` : p.fccId;
+}
+
+/** Text colour that stays legible on a CBSD's patch fill (band blocks, map labels). */
+export function patchFg(cbsdId: string): string {
+  return `rgb(var(--p${patchIndex(cbsdId)}-fg))`;
+}
+
+// FCC ID and serial per cbsdId, kept current by the shell from /api/cbsds, so a radio reads the
+// same everywhere (rack, wire log, events, faults) even where only its cbsdId is at hand.
+const names = new Map<string, { fccId: string; serial: string }>();
+
+export function setCbsdNames(list: Array<{ cbsdId: string; fccId: string; serial: string }>) {
+  names.clear();
+  for (const c of list) names.set(c.cbsdId, { fccId: c.fccId, serial: c.serial });
+}
+
+/** FCC ID and serial of a CBSD; unknown ones fall back to the FCC ID and a short hash of the serial. */
+export function cbsdParts(cbsdId: string): { fccId: string; serial: string; known: boolean } {
+  const n = names.get(cbsdId);
+  if (n) return { ...n, known: true };
   const i = cbsdId.indexOf('/');
-  return i > 0 ? `${cbsdId.slice(0, i)}/${cbsdId.slice(i + 1, i + 9)}` : cbsdId;
+  return i > 0 ? { fccId: cbsdId.slice(0, i), serial: `${cbsdId.slice(i + 1, i + 9)}…`, known: false } : { fccId: cbsdId, serial: '', known: false };
 }

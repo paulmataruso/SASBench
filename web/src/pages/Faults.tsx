@@ -1,10 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Pencil, Plus, Trash2, Zap } from 'lucide-react';
 import { api } from '../lib/api';
 import { useResource } from '../lib/live';
 import { useFollow } from '../lib/follow';
 import { RC_NAMES, SAS_METHODS, cbsdLabel } from '../lib/format';
-import type { FaultRule } from '../lib/types';
+import { Link } from '../lib/router';
+import type { Cbsd, FaultRule } from '../lib/types';
+import { CbsdName } from '../components/rack';
 import {
   Button, Drawer, Empty, ErrorNote, Field, Input, Module, Note, PageHeader, Select, SkeletonRows, Switch, Tag, Textarea,
   useAction, useConfirm, cx,
@@ -104,34 +106,42 @@ export function summarize(f: { action: Action; response_code?: number | string |
   }
 }
 
-interface Preset { label: string; rule: Partial<Draft> & { action: Action } }
+/** A one-click fault. `lead` and `effect` render the button; `label` names the rule it creates. */
+interface Preset { group: string; label: string; lead: string; effect: ReactNode; rule: Partial<Draft> & { action: Action } }
+
+const code = (c: number) => <><span className="font-mono">{c}</span> <span className="font-label tracking-[0.04em]">{RC_NAMES[c]}</span></>;
 
 const PRESETS: Preset[] = [
-  { label: 'Next heartbeat → 501 SUSPENDED_GRANT', rule: { method: 'heartbeat', action: 'response_code', response_code: '501', remaining: '1' } },
-  { label: 'Next heartbeat → 500 TERMINATED_GRANT', rule: { method: 'heartbeat', action: 'response_code', response_code: '500', remaining: '1' } },
-  { label: 'Next heartbeat → 502 UNSYNC_OP_PARAM', rule: { method: 'heartbeat', action: 'response_code', response_code: '502', remaining: '1' } },
-  { label: 'Next grant → 400 INTERFERENCE', rule: { method: 'grant', action: 'response_code', response_code: '400', remaining: '1' } },
-  { label: 'Next registration → 104 CERT_ERROR', rule: { method: 'registration', action: 'response_code', response_code: '104', remaining: '1' } },
-  { label: 'Next 3 heartbeats → HTTP 503', rule: { method: 'heartbeat', action: 'http_status', http_status: '503', remaining: '3' } },
-  { label: 'Drop next heartbeat', rule: { method: 'heartbeat', action: 'drop', remaining: '1' } },
-  { label: 'Delay every response 5 s', rule: { method: '*', action: 'delay', delay_ms: '5000', remaining: '' } },
-  { label: 'Heartbeat interval → 10 s', rule: { method: 'heartbeat', action: 'patch', response_data: '{"heartbeatInterval": 10}', remaining: '' } },
-  { label: 'Malformed next spectrumInquiry', rule: { method: 'spectrumInquiry', action: 'malformed', remaining: '1' } },
+  { group: 'Heartbeat', label: 'Next heartbeat → 501 SUSPENDED_GRANT', lead: 'Next heartbeat', effect: code(501), rule: { method: 'heartbeat', action: 'response_code', response_code: '501', remaining: '1' } },
+  { group: 'Heartbeat', label: 'Next heartbeat → 500 TERMINATED_GRANT', lead: 'Next heartbeat', effect: code(500), rule: { method: 'heartbeat', action: 'response_code', response_code: '500', remaining: '1' } },
+  { group: 'Heartbeat', label: 'Next heartbeat → 502 UNSYNC_OP_PARAM', lead: 'Next heartbeat', effect: code(502), rule: { method: 'heartbeat', action: 'response_code', response_code: '502', remaining: '1' } },
+  { group: 'Heartbeat', label: 'Heartbeat interval → 10 s', lead: 'heartbeatInterval', effect: <span className="font-mono">10 s</span>, rule: { method: 'heartbeat', action: 'patch', response_data: '{"heartbeatInterval": 10}', remaining: '' } },
+  { group: 'Grant and registration', label: 'Next grant → 400 INTERFERENCE', lead: 'Next grant', effect: code(400), rule: { method: 'grant', action: 'response_code', response_code: '400', remaining: '1' } },
+  { group: 'Grant and registration', label: 'Next registration → 104 CERT_ERROR', lead: 'Next registration', effect: code(104), rule: { method: 'registration', action: 'response_code', response_code: '104', remaining: '1' } },
+  { group: 'Transport', label: 'Next 3 heartbeats → HTTP 503', lead: 'Next 3 heartbeats', effect: <>HTTP <span className="font-mono">503</span></>, rule: { method: 'heartbeat', action: 'http_status', http_status: '503', remaining: '3' } },
+  { group: 'Transport', label: 'Drop next heartbeat', lead: 'Next heartbeat', effect: 'connection dropped', rule: { method: 'heartbeat', action: 'drop', remaining: '1' } },
+  { group: 'Transport', label: 'Malformed next spectrumInquiry', lead: 'Next spectrumInquiry', effect: 'malformed JSON', rule: { method: 'spectrumInquiry', action: 'malformed', remaining: '1' } },
+  { group: 'Transport', label: 'Delay every response 5 s', lead: 'Every response', effect: <>delayed <span className="font-mono">5 s</span></>, rule: { method: '*', action: 'delay', delay_ms: '5000', remaining: '' } },
 ];
+const GROUPS = [...new Set(PRESETS.map((p) => p.group))];
 
 export function FaultsPage() {
   const faults = useResource<FaultRule[]>('/api/faults', ['faults']);
+  const cbsds = useResource<Cbsd[]>('/api/cbsds', ['cbsds']);
   const { followed } = useFollow();
   const { run, busy } = useAction();
   const confirm = useConfirm();
   const [editing, setEditing] = useState<{ id: number | null; draft: Draft } | null>(null);
-  const [scopeFollowed, setScopeFollowed] = useState(true);
+  // Which radio quick faults hit: the followed CBSD by default, any CBSD on request.
+  const [target, setTarget] = useState<string | null>(null);
+  const scope = target ?? followed ?? '';
+  const known = new Set((cbsds.data ?? []).map((c) => c.cbsdId));
 
   const rules = faults.data ?? [];
   const armed = rules.filter((r) => r.enabled && (r.remaining === null || r.remaining > 0)).length;
 
   const addPreset = (p: Preset) => run(`preset:${p.label}`, async () => {
-    const match = scopeFollowed && followed ? followed : '';
+    const match = scope;
     const d: Draft = { ...EMPTY, ...p.rule, name: p.label + (match ? ` (${cbsdLabel(match)})` : ''), match_cbsd: match };
     await api.post('/api/faults', draftBody(d));
     await faults.reload();
@@ -223,14 +233,26 @@ export function FaultsPage() {
                           </td>
                           <td><span className="font-mono text-xs">{f.method === '*' ? 'any' : f.method}</span></td>
                           <td className="max-w-[200px]">
-                            {f.match_cbsd ? <span className="block truncate font-mono text-xs" title={f.match_cbsd}>{f.match_cbsd}</span> : <span className="whitespace-nowrap text-ink-3">every CBSD</span>}
+                            {f.match_cbsd && known.has(f.match_cbsd) ? <CbsdName cbsdId={f.match_cbsd} />
+                              : f.match_cbsd ? <span className="block truncate font-mono text-xs" title={f.match_cbsd}>“{f.match_cbsd}”</span>
+                              : <span className="whitespace-nowrap text-ink-3">every CBSD</span>}
                           </td>
                           <td className="whitespace-nowrap">
                             <Tag tone={live ? 'warn' : 'off'}>{summarize(f)}</Tag>
                             <span className="ml-2 whitespace-nowrap text-xs text-ink-3">{ACTION[f.action]?.scope === 'exchange' ? 'whole exchange' : 'per object'}</span>
                           </td>
                           <td className="num text-right">{f.remaining === null ? <span className="text-ink-3">∞</span> : spent ? <Tag>spent</Tag> : f.remaining}</td>
-                          <td className="num text-right">{f.hits}</td>
+                          <td className="num text-right">
+                            {f.hits > 0 ? (
+                              <Link
+                                to={`/messages?${new URLSearchParams({ ...(f.method !== '*' ? { method: f.method } : {}), ...(f.match_cbsd && known.has(f.match_cbsd) ? { cbsdId: f.match_cbsd } : {}) })}`}
+                                className="underline decoration-line-strong hover:decoration-ink-3"
+                                title="Matching exchanges in the wire log"
+                              >
+                                {f.hits}
+                              </Link>
+                            ) : 0}
+                          </td>
                           <td>
                             <div className="flex justify-end gap-0.5">
                               <Button size="sm" variant="ghost" icon={Pencil} title="Edit" aria-label="Edit rule" onClick={() => setEditing({ id: f.id, draft: toDraft(f) })} />
@@ -247,19 +269,24 @@ export function FaultsPage() {
         </Module>
 
         <Module title="Quick faults" bodyClass="p-3">
-          {followed ? (
-            <label className="mb-3 flex items-center gap-2 text-sm text-ink-2">
-              <input type="checkbox" className="accent-[rgb(var(--sel))]" checked={scopeFollowed} onChange={(e) => setScopeFollowed(e.target.checked)} />
-              Only for the followed CBSD <span className="font-mono text-xs text-ink">{cbsdLabel(followed)}</span>
-            </label>
-          ) : (
-            <p className="mb-3 text-sm text-ink-3">Quick faults apply to every CBSD. Follow a CBSD to scope them to one radio.</p>
-          )}
-          <div className="flex flex-col gap-1.5">
-            {PRESETS.map((p) => (
-              <Button key={p.label} className="!justify-start" icon={Zap} onClick={() => void addPreset(p)} loading={busy === `preset:${p.label}`}>
-                {p.label}
-              </Button>
+          <Field label="Applies to" className="mb-3" hint={scope ? 'Only requests from this CBSD are affected.' : 'Every CBSD talking to the SAS listeners is affected.'}>
+            <Select value={scope} onChange={(e) => setTarget(e.target.value)}>
+              <option value="">Every CBSD</option>
+              {(cbsds.data ?? []).map((c) => <option key={c.cbsdId} value={c.cbsdId}>{c.fccId} / {c.serial}{c.cbsdId === followed ? ' (followed)' : ''}</option>)}
+            </Select>
+          </Field>
+          <div className="space-y-3">
+            {GROUPS.map((g) => (
+              <section key={g}>
+                <h3 className="silk mb-1">{g}</h3>
+                <div className="flex flex-col gap-1.5">
+                  {PRESETS.filter((p) => p.group === g).map((p) => (
+                    <Button key={p.label} className="!justify-start" icon={Zap} onClick={() => void addPreset(p)} loading={busy === `preset:${p.label}`} title={`Arm: ${p.label}`}>
+                      <span className="truncate">{p.lead} <span className="text-ink-3">→</span> {p.effect}</span>
+                    </Button>
+                  ))}
+                </div>
+              </section>
             ))}
           </div>
           <p className="mt-3 text-xs text-ink-3">

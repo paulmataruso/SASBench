@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Crosshair } from 'lucide-react';
 import { useLiveMessages, useNow } from '../lib/live';
 import { useFollow } from '../lib/follow';
 import { Link, navigate } from '../lib/router';
-import { ago, dur, mhz, parseCodes, patchColor, range } from '../lib/format';
+import { ago, cbsdLabel, cbsdParts, dur, mhz, parseCodes, patchColor, patchFg, range } from '../lib/format';
 import type { Cbsd, Grant } from '../lib/types';
-import { Led, Tag, cx, type Tone } from './ui';
+import { Button, Led, Switch, Tag, cx, type Tone } from './ui';
 
 // The CBSD "rack": each radio is a 1U row with front-panel LEDs driven by wire events.
 
@@ -44,27 +44,52 @@ export function groupGrants(grants: Grant[] | undefined): Map<string, Grant[]> {
   return m;
 }
 
-function regTone(c: Cbsd): Tone {
-  if (c.state === 'REGISTERED') return c.pendingDeregister ? 'warn' : 'ok';
-  if (c.state === 'PENDING') return 'warn';
-  return 'off';
+// One set of LED rules for every view of a radio (rack, CBSD page header).
+
+export interface LedState { c: Tone; title: string }
+
+function regLed(c: Cbsd): LedState {
+  if (c.state === 'REGISTERED') return c.pendingDeregister ? { c: 'warn', title: 'Registered · DEREGISTER (105) pending' } : { c: 'ok', title: 'Registered' };
+  if (c.state === 'PENDING') return { c: 'warn', title: 'Registration pending approval' };
+  return { c: 'off', title: c.state === 'UNREGISTERED' ? 'Not registered' : c.state };
 }
 
-function grantLed(gs: Grant[]): Tone {
-  if (!gs.length) return 'off';
-  if (gs.some((g) => g.state === 'AUTHORIZED' && !g.suspended)) return 'ok';
-  if (gs.some((g) => g.suspended)) return 'warn';
-  return 'info';
+function grantLed(gs: Grant[]): LedState {
+  const title = gs.length ? gs.map((g) => `${range(g.low, g.high)} ${g.state}${g.suspended ? ' (suspended)' : ''}`).join(', ') : 'No active grant';
+  if (!gs.length) return { c: 'off', title };
+  if (gs.some((g) => g.state === 'AUTHORIZED' && !g.suspended)) return { c: 'ok', title };
+  if (gs.some((g) => g.suspended)) return { c: 'warn', title };
+  return { c: 'info', title };
 }
 
-function hbTone(p: Pulse | undefined, c: Cbsd, gs: Grant[], now: number): Tone {
+/**
+ * Heartbeat LED, timed against the heartbeat interval the SAS gave the radio: green while
+ * heartbeats arrive on time (1.5× the interval), amber when they are late or answered 501/105,
+ * red when answered with an error, off once the radio has gone quiet (3× the interval).
+ */
+function hbLed(p: Pulse | undefined, c: Cbsd, gs: Grant[], now: number): LedState {
+  const interval = gs.length ? Math.min(...gs.map((g) => g.pendingHeartbeatInterval ?? g.heartbeatInterval ?? 60)) : 60;
+  const age = (ts: number) => (now - ts) / 1000;
+  const onTime = (ts: number) => age(ts) <= interval * 1.5 + 5;
+  const alive = (ts: number) => age(ts) <= interval * 3 + 5;
+  const every = `interval ${dur(interval)}`;
   if (p && (!c.lastHeartbeatOk || p.ts >= c.lastHeartbeatOk)) {
-    if (p.code === 0) return now - p.ts < 10 * 60e3 ? 'ok' : 'off';
-    return p.code === 501 || p.code === 105 ? 'warn' : 'bad';
+    const when = `last heartbeat ${ago(p.ts, now)}, ${every}`;
+    if (!alive(p.ts)) return { c: 'off', title: `Quiet: ${when}` };
+    if (p.code === 0) return onTime(p.ts) ? { c: 'ok', title: `Heartbeating: ${when}` } : { c: 'warn', title: `Late: ${when}` };
+    if (p.code === 501 || p.code === 105) return { c: 'warn', title: `Answered ${p.code}: ${when}` };
+    return { c: 'bad', title: `Answered ${p.code < 0 ? 'with an HTTP error' : p.code}: ${when}` };
   }
-  // No live heartbeat seen yet: a suspended grant means the last heartbeats were answered 501.
-  if (gs.some((g) => g.suspended && g.lastHeartbeat && now - g.lastHeartbeat < 10 * 60e3)) return 'warn';
-  return c.lastHeartbeatOk && now - c.lastHeartbeatOk < 10 * 60e3 ? 'ok' : 'off';
+  // No live heartbeat seen since the page loaded: a suspended grant means the last ones got 501.
+  if (gs.some((g) => g.suspended && g.lastHeartbeat && alive(g.lastHeartbeat))) return { c: 'warn', title: 'Suspended: heartbeats answered 501' };
+  const last = c.lastHeartbeatOk;
+  if (!last) return { c: 'off', title: 'No heartbeat yet' };
+  const when = `last good heartbeat ${ago(last, now)}, ${every}`;
+  return !alive(last) ? { c: 'off', title: `Quiet: ${when}` } : onTime(last) ? { c: 'ok', title: `Heartbeating: ${when}` } : { c: 'warn', title: `Late: ${when}` };
+}
+
+export function cbsdLeds(c: Cbsd, gs: Grant[], p: Pulse | undefined, now: number) {
+  return { reg: regLed(c), gnt: grantLed(gs), hb: hbLed(p, c, gs, now) };
 }
 
 /** TX LED with a bar draining towards transmitExpireTime. */
@@ -75,8 +100,9 @@ export function TxIndicator({ grants, now }: { grants: Grant[]; now: number }) {
   const left = exp ? (exp - now) / 1000 : 0;
   const frac = exp ? Math.max(0, Math.min(1, left / span)) : 0;
   const tone: Tone = !exp ? 'off' : left < 15 ? 'warn' : 'ok';
+  const title = exp ? `Transmit window closes in ${dur(left)}` : 'Not authorized to transmit';
   return (
-    <span className="inline-flex items-center gap-1.5" title={exp ? `Transmit window closes in ${dur(left)}` : 'Not authorized to transmit'}>
+    <span className="inline-flex items-center gap-1.5" title={title} role="img" aria-label={title}>
       <Led c={tone} />
       <span className="relative h-[3px] w-10 overflow-hidden rounded-full bg-line" aria-hidden>
         <span
@@ -93,12 +119,60 @@ export function Swatch({ cbsdId, className }: { cbsdId: string; className?: stri
   return <span aria-hidden className={cx('inline-block size-2.5 flex-none rounded-[2px]', className)} style={{ background: patchColor(cbsdId) }} />;
 }
 
-function RackLeds({ c, gs, p, now }: { c: Cbsd; gs: Grant[]; p: Pulse | undefined; now: number }) {
+/**
+ * A radio's name as the radio itself reports it: patch swatch, FCC ID and serial. The FCC ID
+ * truncates first so the serial (what tells two bench units apart) stays readable; the full
+ * cbsdId is in the tooltip.
+ */
+export function CbsdName({ cbsdId, fccId, serial, link = true, swatch = true, className }: {
+  cbsdId: string; fccId?: string; serial?: string; link?: boolean; swatch?: boolean; className?: string;
+}) {
+  const p = fccId !== undefined && serial !== undefined ? { fccId, serial } : cbsdParts(cbsdId);
+  const body = (
+    <>
+      {swatch && <Swatch cbsdId={cbsdId} />}
+      <span className="flex min-w-0 items-baseline">
+        <span className="truncate">{p.fccId}</span>
+        {p.serial && <><span className="flex-none whitespace-pre text-ink-3"> / </span><span className="flex-none">{p.serial}</span></>}
+      </span>
+    </>
+  );
+  const cls = cx('inline-flex min-w-0 max-w-full items-center gap-1.5 font-mono text-xs', className);
+  return link
+    ? <Link to={`/cbsds/${encodeURIComponent(cbsdId)}`} title={cbsdId} onClick={(e) => e.stopPropagation()} className={cx(cls, 'hover:underline')}>{body}</Link>
+    : <span title={cbsdId} className={cls}>{body}</span>;
+}
+
+/** "Followed CBSD only" filter switch; renders nothing while no CBSD is followed. */
+export function FollowedOnly({ checked, onChange, className }: { checked: boolean; onChange: (v: boolean) => void; className?: string }) {
+  const { followed } = useFollow();
+  if (!followed) return null;
+  return (
+    <Switch
+      checked={checked}
+      onChange={onChange}
+      className={className}
+      label={<span className="inline-flex items-center gap-1.5" title={cbsdLabel(followed)}><Crosshair className="size-3.5 text-sel" aria-hidden />Followed CBSD only</span>}
+    />
+  );
+}
+
+export function RackLeds({ c, gs, p, now, labels }: { c: Cbsd; gs: Grant[]; p: Pulse | undefined; now: number; labels?: boolean }) {
+  const l = cbsdLeds(c, gs, p, now);
+  if (labels) {
+    return (
+      <span className="inline-flex items-center gap-4">
+        {([['REG', l.reg], ['GNT', l.gnt], ['HB', l.hb]] as const).map(([k, v]) => (
+          <span key={k} className="inline-flex items-center gap-1.5"><Led c={v.c} title={v.title} flash={k === 'HB' ? p?.n : undefined} /><span className="silk">{k}</span></span>
+        ))}
+      </span>
+    );
+  }
   return (
     <span className="inline-flex items-center gap-[19px]">
-      <Led c={regTone(c)} title={c.pendingDeregister ? 'DEREGISTER (105) pending' : c.state} />
-      <Led c={grantLed(gs)} title={gs.length ? gs.map((g) => `${g.state}${g.suspended ? ' (suspended)' : ''}`).join(', ') : 'No active grant'} />
-      <Led c={hbTone(p, c, gs, now)} flash={p?.n} title={p ? `Last heartbeat ${ago(p.ts, now)}, code ${p.code}` : c.lastHeartbeatOk ? `Last good heartbeat ${ago(c.lastHeartbeatOk, now)}` : 'No heartbeat'} />
+      <Led c={l.reg.c} title={`REG: ${l.reg.title}`} />
+      <Led c={l.gnt.c} title={`GNT: ${l.gnt.title}`} />
+      <Led c={l.hb.c} flash={p?.n} title={`HB: ${l.hb.title}`} />
     </span>
   );
 }
@@ -114,9 +188,16 @@ function RackTags({ c }: { c: Cbsd }) {
   );
 }
 
-function subLine(c: Cbsd, now: number) {
-  return [c.radioTechnology, c.indoor === true ? 'indoor' : c.indoor === false ? 'outdoor' : null,
-    c.remoteAddr && `${(c.transport ?? '').toUpperCase()} ${c.remoteAddr}`, `seen ${ago(c.lastSeen, now)}`].filter(Boolean).join(' · ');
+/** Second line of a rack row. The detailed rack (CBSDs page) adds user and location, and keeps link and last-seen in their own column. */
+function subLine(c: Cbsd, now: number, detail?: boolean) {
+  const where = c.latitude != null && c.longitude != null
+    ? `${c.latitude.toFixed(4)}, ${c.longitude.toFixed(4)}${c.height != null ? ` · ${c.height} m ${c.heightType ?? ''}`.trimEnd() : ''}`
+    : 'no location';
+  const tech = <span className="font-mono">{c.radioTechnology ?? 'no air interface'}</span>;
+  const parts: ReactNode[] = detail
+    ? [tech, c.indoor === true ? 'indoor' : c.indoor === false ? 'outdoor' : null, c.userId && <span className="font-mono">{c.userId}</span>, <span className="num font-mono">{where}</span>]
+    : [tech, c.indoor === true ? 'indoor' : c.indoor === false ? 'outdoor' : null, c.remoteAddr && <span className="font-mono">{`${(c.transport ?? '').toUpperCase()} ${c.remoteAddr}`}</span>, `seen ${ago(c.lastSeen, now)}`];
+  return parts.filter(Boolean).map((x, i) => <span key={i}>{i > 0 && <span aria-hidden> · </span>}{x}</span>);
 }
 
 function Held({ gs, stacked }: { gs: Grant[]; stacked?: boolean }) {
@@ -126,15 +207,39 @@ function Held({ gs, stacked }: { gs: Grant[]; stacked?: boolean }) {
       {gs.map((g) => (
         <div key={g.grantId} className="num whitespace-nowrap font-mono text-xs leading-4" title={`${g.state}${g.suspended ? ' (suspended)' : ''} · ${g.channelType}`}>
           <span className={cx(g.suspended ? 'text-warn-ink' : g.state === 'AUTHORIZED' ? 'text-ink' : 'text-ink-2')}>{range(g.low, g.high)}</span>
-          <span className="block text-2xs text-ink-3">{g.maxEirp} dBm/MHz{g.channelType === 'PAL' ? ' · PAL' : ''}</span>
+          <span className="block text-xs text-ink-3">{g.maxEirp} dBm/MHz{g.channelType === 'PAL' ? ' · PAL' : ''}{g.suspended ? ' · suspended' : ''}</span>
         </div>
       ))}
     </div>
   );
 }
 
-export function CbsdRack({ cbsds, grants, pulses, marks, onAck }: {
-  cbsds: Cbsd[]; grants: Map<string, Grant[]>; pulses: Record<string, Pulse>; marks?: Record<string, string>; onAck?: (id: string) => void;
+function FollowButton({ cbsdId }: { cbsdId: string }) {
+  const { followed, setFollowed } = useFollow();
+  const isF = followed === cbsdId;
+  return (
+    <Button
+      size="sm"
+      variant="ghost"
+      icon={Crosshair}
+      className={cx(isF && 'text-sel')}
+      title={isF ? 'Stop following' : 'Follow this CBSD across pages'}
+      aria-label={isF ? `Stop following ${cbsdLabel(cbsdId)}` : `Follow ${cbsdLabel(cbsdId)}`}
+      aria-pressed={isF}
+      onClick={(e) => {
+        e.stopPropagation();
+        setFollowed(isF ? null : cbsdId);
+      }}
+    />
+  );
+}
+
+/**
+ * The CBSD rack: one 1U row per radio. `detail` (CBSDs page) adds user and location to the second
+ * line, a last-seen column and a follow button; the overview keeps the compact form.
+ */
+export function CbsdRack({ cbsds, grants, pulses, marks, onAck, detail }: {
+  cbsds: Cbsd[]; grants: Map<string, Grant[]>; pulses: Record<string, Pulse>; marks?: Record<string, string>; onAck?: (id: string) => void; detail?: boolean;
 }) {
   const now = useNow();
   const { followed } = useFollow();
@@ -147,20 +252,23 @@ export function CbsdRack({ cbsds, grants, pulses, marks, onAck }: {
           const gs = grants.get(c.cbsdId) ?? [];
           const mark = marks?.[c.cbsdId];
           return (
-            <li key={c.cbsdId} aria-selected={followed === c.cbsdId} className={cx('cursor-pointer px-3 py-2', followed === c.cbsdId && 'bg-sel-soft')} onClick={() => open(c.cbsdId)} onTouchStart={() => mark && onAck?.(c.cbsdId)}>
+            <li key={c.cbsdId} aria-selected={followed === c.cbsdId} className={cx('cursor-pointer px-3 py-2', followed === c.cbsdId && 'bg-sel-soft')} onClick={() => open(c.cbsdId)} onTouchStart={() => mark && onAck?.(c.cbsdId)} onFocus={() => mark && onAck?.(c.cbsdId)}>
               <div className="flex items-center gap-3">
                 <Swatch cbsdId={c.cbsdId} />
-                <RackLeds c={c} gs={gs} p={pulses[c.cbsdId]} now={now} />
+                <RackLeds c={c} gs={gs} p={pulses[c.cbsdId]} now={now} labels />
                 <TxIndicator grants={gs} now={now} />
                 {mark && <span className="changed-mark ml-auto" title={`Changed: ${mark}`} />}
               </div>
               <div className="mt-1.5 flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="break-all font-mono text-xs font-medium">{c.fccId}<span className="text-ink-3"> / </span>{c.serial}</span>
+                    <Link to={`/cbsds/${encodeURIComponent(c.cbsdId)}`} onClick={(e) => e.stopPropagation()} className="break-all font-mono text-xs font-medium text-ink">
+                      {c.fccId}<span className="text-ink-3"> / </span>{c.serial}
+                    </Link>
                     <RackTags c={c} />
                   </div>
-                  <div className="mt-0.5 text-2xs text-ink-3">{subLine(c, now)}</div>
+                  <div className="mt-0.5 text-xs text-ink-3">{subLine(c, now, detail)}</div>
+                  {detail && <div className="mt-0.5 text-xs text-ink-3">seen {ago(c.lastSeen, now)}{c.remoteAddr && <span className="font-mono"> · {(c.transport ?? '').toUpperCase()} {c.remoteAddr}</span>}</div>}
                 </div>
                 <Held gs={gs} stacked />
               </div>
@@ -179,6 +287,8 @@ export function CbsdRack({ cbsds, grants, pulses, marks, onAck }: {
             <th className="w-[1%]">TX window</th>
             <th>CBSD</th>
             <th className="w-[1%] text-right">Spectrum held (MHz)</th>
+            {detail && <th className="w-[1%] text-right">Last seen</th>}
+            {detail && <th className="w-[1%]"><span className="sr-only">Follow</span></th>}
           </tr>
         </thead>
         <tbody>
@@ -187,7 +297,7 @@ export function CbsdRack({ cbsds, grants, pulses, marks, onAck }: {
             const isFollowed = followed === c.cbsdId;
             const mark = marks?.[c.cbsdId];
             return (
-              <tr key={c.cbsdId} aria-selected={isFollowed} className="cursor-pointer" onMouseEnter={() => mark && onAck?.(c.cbsdId)} onClick={() => open(c.cbsdId)}>
+              <tr key={c.cbsdId} aria-selected={isFollowed} className="cursor-pointer" onMouseEnter={() => mark && onAck?.(c.cbsdId)} onFocus={() => mark && onAck?.(c.cbsdId)} onClick={() => open(c.cbsdId)}>
                 <td className="pr-0">
                   <span className="flex items-center gap-1.5">
                     <Swatch cbsdId={c.cbsdId} />
@@ -198,15 +308,20 @@ export function CbsdRack({ cbsds, grants, pulses, marks, onAck }: {
                 <td><TxIndicator grants={gs} now={now} /></td>
                 <td className="max-w-0 py-1.5">
                   <div className="flex min-w-0 items-center gap-2">
-                    <Link to={`/cbsds/${encodeURIComponent(c.cbsdId)}`} onClick={(e) => e.stopPropagation()} className="truncate font-mono text-xs font-medium text-ink hover:underline">
-                      {c.fccId}<span className="text-ink-3"> / </span>{c.serial}
-                    </Link>
+                    <CbsdName cbsdId={c.cbsdId} fccId={c.fccId} serial={c.serial} swatch={false} className="font-medium text-ink" />
                     {isFollowed && <Crosshair className="size-3.5 flex-none text-sel" aria-label="Followed" />}
                     <RackTags c={c} />
                   </div>
-                  <div className="truncate text-xs text-ink-3">{subLine(c, now)}</div>
+                  <div className="truncate text-xs text-ink-3">{subLine(c, now, detail)}</div>
                 </td>
                 <td className="py-1.5 text-right"><Held gs={gs} stacked /></td>
+                {detail && (
+                  <td className="num whitespace-nowrap py-1.5 text-right text-xs text-ink-2">
+                    {ago(c.lastSeen, now)}
+                    <div className="font-mono text-xs text-ink-3">{c.transport ? c.transport.toUpperCase() : ''} {c.remoteAddr ?? ''}</div>
+                  </td>
+                )}
+                {detail && <td className="pl-0"><FollowButton cbsdId={c.cbsdId} /></td>}
               </tr>
             );
           })}
@@ -243,9 +358,11 @@ export function BandStrip({ grants, low, high, gaa }: { grants: Grant[]; low: nu
               <Link
                 key={g.grantId}
                 to={`/cbsds/${encodeURIComponent(g.cbsdId)}`}
-                title={`${g.cbsdId}\n${range(g.low, g.high)} MHz · ${g.maxEirp} dBm/MHz · ${g.state}${g.suspended ? ' (suspended)' : ''}`}
-                className={cx('absolute inset-y-0 flex items-center overflow-hidden rounded-sm px-1 text-2xs font-medium text-white transition-[filter] hover:brightness-110', g.state !== 'AUTHORIZED' && 'opacity-60')}
+                title={`${cbsdLabel(g.cbsdId)}\n${range(g.low, g.high)} MHz · ${g.maxEirp} dBm/MHz · ${g.state}${g.suspended ? ' (suspended)' : ''}`}
+                aria-label={`${cbsdLabel(g.cbsdId)}: ${range(g.low, g.high)} MHz, ${g.state}${g.suspended ? ', suspended' : ''}`}
+                className={cx('absolute inset-y-0 flex items-center overflow-hidden rounded-sm px-1 text-2xs font-medium transition-[filter] hover:brightness-110', g.state !== 'AUTHORIZED' && 'opacity-60')}
                 style={{
+                  color: patchFg(g.cbsdId),
                   left: pct(g.low),
                   width: `calc(${pct(g.high)} - ${pct(g.low)} - 1px)`,
                   background: g.suspended

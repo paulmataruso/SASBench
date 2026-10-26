@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ArrowRight, Pause, Play, RadioTower, ShieldCheck } from 'lucide-react';
 import { useLiveMessages, useNow, useResource } from '../lib/live';
 import { lanFirst, useStatus } from '../lib/status';
@@ -6,7 +6,7 @@ import { useChangeMarks } from '../lib/follow';
 import { Link, navigate } from '../lib/router';
 import { ago, clock, dur, mhz } from '../lib/format';
 import type { Cbsd, Grant, MessageRow } from '../lib/types';
-import { BandStrip, CbsdRack, Swatch, groupGrants, useHeartbeatPulses } from '../components/rack';
+import { BandStrip, CbsdName, CbsdRack, groupGrants, useHeartbeatPulses } from '../components/rack';
 import { MessageDrawer, isErrorRow, normMsg, type WireRow } from '../components/message';
 import { Button, CodeTag, CopyButton, Empty, HttpTag, Led, Module, SkeletonRows, Tag, cx } from '../components/ui';
 
@@ -29,9 +29,10 @@ export function OverviewPage() {
 
   return (
     <div className="space-y-4">
+      <h1 className="sr-only">Overview</h1>
       <Endpoints />
 
-      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_380px] 2xl:grid-cols-[minmax(0,1fr)_440px]">
+      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_380px] xl:items-stretch 2xl:grid-cols-[minmax(0,1fr)_440px]">
         <div className="min-w-0 space-y-4">
           <Module
             title="CBSD rack"
@@ -50,12 +51,12 @@ export function OverviewPage() {
           >
             <BandStrip grants={active} low={band.low} high={band.high} gaa={spectrum.data?.gaaRanges} />
           </Module>
-        </div>
-        <div className="min-w-0 space-y-4">
-          <LiveWire names={new Map((cbsds.data ?? []).map((c) => [c.cbsdId, c.serial]))} />
           <Module title="SAS state">
             <StateReadout />
           </Module>
+        </div>
+        <div className="flex min-w-0 flex-col">
+          <LiveWire />
         </div>
       </div>
     </div>
@@ -135,50 +136,96 @@ function FirstRun() {
   );
 }
 
-function LiveWire({ names }: { names: Map<string, string> }) {
-  const recent = useResource<MessageRow[]>('/api/messages?limit=40', []);
-  const [rows, setRows] = useState<WireRow[]>([]);
+/** A wire line; consecutive good heartbeats from the same CBSD fold into one line that counts them. */
+interface WireLine extends WireRow { n: number; run?: string; first: number }
+
+const goodBeat = (r: WireRow) => r.method === 'heartbeat' && r.cbsds.length > 0 && !isErrorRow(r);
+
+/**
+ * Add an exchange to the top of the list. A good heartbeat joins its CBSD's open run, unless
+ * something else has happened to that CBSD since; anything else gets its own line.
+ */
+function fold(lines: WireLine[], r: WireRow): WireLine[] {
+  if (goodBeat(r)) {
+    const key = r.cbsds.join(',');
+    const i = lines.findIndex((l) => l.cbsds.some((c) => r.cbsds.includes(c)));
+    if (i >= 0 && lines[i].run === key) {
+      const next = lines.slice();
+      next[i] = { ...r, n: lines[i].n + 1, run: key, first: lines[i].first };
+      return next;
+    }
+    return [{ ...r, n: 1, run: key, first: r.ts }, ...lines].slice(0, 80);
+  }
+  return [{ ...r, n: 1, first: r.ts }, ...lines].slice(0, 80);
+}
+
+function LiveWire() {
+  const recent = useResource<MessageRow[]>('/api/messages?limit=200', []);
+  const [lines, setLines] = useState<WireLine[]>([]);
   const [paused, setPaused] = useState(false);
+  const held = useRef<WireRow[]>([]);
+  const [heldCount, setHeldCount] = useState(0);
   const [open, setOpen] = useState<number | null>(null);
   const now = useNow();
   useEffect(() => {
-    if (recent.data) setRows(recent.data.map(normMsg));
+    if (recent.data) setLines(recent.data.map(normMsg).reverse().reduce(fold, [] as WireLine[]));
   }, [recent.data]);
   useLiveMessages((m) => {
-    if (paused) return;
-    setRows((r) => [normMsg(m), ...r].slice(0, 60));
+    if (paused) {
+      held.current.push(normMsg(m));
+      setHeldCount(held.current.length);
+      return;
+    }
+    setLines((l) => fold(l, normMsg(m)));
   });
+  const togglePause = () => {
+    if (paused) {
+      const rows = held.current;
+      held.current = [];
+      setHeldCount(0);
+      setLines((l) => rows.reduce(fold, l));
+    }
+    setPaused(!paused);
+  };
   return (
     <Module
       title="Wire"
-      meta={rows[0] ? <span className="num">last {ago(rows[0].ts, now)}</span> : null}
+      className="xl:min-h-0 xl:flex-1"
+      meta={lines[0] ? <span className="num">last {ago(Math.max(...lines.slice(0, 8).map((l) => l.ts)), now)}</span> : null}
       actions={(
         <>
-          <Button size="sm" variant="ghost" icon={paused ? Play : Pause} onClick={() => setPaused(!paused)} title={paused ? 'Resume live updates' : 'Pause live updates'}>{paused ? 'Resume' : null}</Button>
+          <Button size="sm" variant={paused ? 'primary' : 'ghost'} icon={paused ? Play : Pause} onClick={togglePause} title={paused ? 'Resume live updates' : 'Pause live updates'} aria-label={paused ? 'Resume live updates' : 'Pause live updates'}>
+            {paused ? `Resume${heldCount ? ` (${heldCount} new)` : ''}` : null}
+          </Button>
           <Link to="/messages" className="inline-flex items-center gap-1 text-sm text-ink-2 hover:text-ink">Wire log <ArrowRight className="size-3.5" /></Link>
         </>
       )}
-      bodyClass="max-h-[400px] overflow-y-auto"
+      bodyClass="max-h-[420px] overflow-y-auto xl:h-0 xl:max-h-none xl:min-h-[320px]"
     >
-      {recent.loading && !rows.length ? <SkeletonRows rows={6} cols={3} /> : rows.length === 0 ? (
+      {recent.loading && !lines.length ? <SkeletonRows rows={6} cols={3} /> : lines.length === 0 ? (
         <Empty title="Quiet on the wire">Every SAS request and response will stream here.</Empty>
       ) : (
         <ul className="divide-y divide-line">
-          {rows.map((r) => (
-            <li key={r.id}>
-              <button type="button" onClick={() => setOpen(r.id)} className={cx('flex w-full items-center gap-2 px-3 py-[7px] text-left text-sm transition-colors hover:bg-panel-3/70', isErrorRow(r) && 'bg-bad-soft/40')}>
+          {lines.map((r) => (
+            <li key={r.run ? `run:${r.run}:${r.first}` : r.id}>
+              <button
+                type="button"
+                onClick={() => setOpen(r.id)}
+                title={r.n > 1 ? `${r.n} heartbeats answered 0 since ${clock(r.first)}; opens the latest` : undefined}
+                className={cx('flex w-full items-center gap-2 px-3 py-[7px] text-left text-sm transition-colors hover:bg-panel-3/70', isErrorRow(r) && 'bg-bad-soft/40')}
+              >
                 <span className="num w-[58px] flex-none font-mono text-2xs text-ink-3">{clock(r.ts)}</span>
                 <span className="w-[92px] flex-none truncate font-mono text-xs text-ink">{r.method ?? r.path}</span>
                 <span className="flex min-w-0 flex-1 items-center gap-1.5">
                   {r.cbsds.length ? (
                     <>
-                      <Swatch cbsdId={r.cbsds[0]} className="size-2" />
-                      <span className="truncate font-mono text-2xs text-ink-2" title={r.cbsds.join('\n')}>{names.get(r.cbsds[0]) ?? cbsdShort(r.cbsds[0])}</span>
-                      {r.cbsds.length > 1 && <span className="num flex-none text-2xs text-ink-3">+{r.cbsds.length - 1}</span>}
+                      <CbsdName cbsdId={r.cbsds[0]} link={false} className="text-ink-2" />
+                      {r.cbsds.length > 1 && <span className="num flex-none text-xs text-ink-3">+{r.cbsds.length - 1}</span>}
                     </>
-                  ) : <span className="truncate font-mono text-2xs text-ink-3">{r.remote ?? ''}</span>}
+                  ) : <span className="truncate font-mono text-xs text-ink-3">{r.remote ?? ''}</span>}
                 </span>
                 <span className="flex flex-none items-center gap-1">
+                  {r.n > 1 && <span className="num font-mono text-xs text-ink-3">×{r.n}</span>}
                   {r.codes.length ? summarizeCodes(r.codes) : <HttpTag status={r.http} />}
                 </span>
               </button>
@@ -202,34 +249,33 @@ function StateReadout() {
   const now = useNow();
   if (!s) return <div className="skeleton h-24" />;
   const g = s.counts.grantsByState;
-  const line = (k: string, v: ReactNode, tone?: 'ok' | 'warn' | 'bad') => (
-    <div className="flex items-baseline justify-between gap-3 border-b border-line py-1 last:border-0">
-      <span className="text-sm text-ink-2">{k}</span>
+  const line = (k: string, v: ReactNode, tone?: 'warn' | 'bad', to?: string) => (
+    <div className="flex items-baseline justify-between gap-3 border-b border-line py-1">
+      {to ? <Link to={to} className="text-sm text-ink-2 underline decoration-line-strong hover:text-ink hover:decoration-ink-3">{k}</Link> : <span className="text-sm text-ink-2">{k}</span>}
       <span className={cx('num font-mono text-sm', tone === 'bad' ? 'text-bad-ink' : tone === 'warn' ? 'text-warn-ink' : 'text-ink')}>{v}</span>
     </div>
   );
   return (
     <div>
-      {line('Grants authorized / granted', `${g.AUTHORIZED ?? 0} / ${g.GRANTED ?? 0}`)}
-      {line('Grants ended (term · relinq · exp)', `${g.TERMINATED ?? 0} · ${g.RELINQUISHED ?? 0} · ${g.EXPIRED ?? 0}`)}
-      {line('Requests last hour', s.counts.messagesLastHour)}
-      {line('Error responses last hour', s.counts.errorsLastHour, s.counts.errorsLastHour ? 'warn' : undefined)}
-      {line('Active protections', s.counts.activeProtections, s.counts.activeProtections ? 'warn' : undefined)}
-      {line('PPAs', s.counts.ppas)}
-      {line('Fault rules armed', s.counts.faultRules, s.counts.faultRules ? 'warn' : undefined)}
-      {line('Terrain tiles (HAAT)', s.terrain.tiles ? s.terrain.tiles : 'none', s.terrain.tiles ? undefined : 'warn')}
-      {line('Uptime', dur((now - s.startedAt) / 1000))}
-      <div className="mt-2 flex flex-wrap gap-1">
-        {s.triggers.measInRegistration && <Tag tone="info">Meas. report trigger: registration</Tag>}
-        {s.triggers.measInHeartbeat && <Tag tone="info">Meas. report trigger: heartbeat</Tag>}
-        {s.daily.running && <Tag tone="warn">Daily activities running</Tag>}
+      <div className="grid gap-x-6 sm:grid-cols-2 2xl:grid-cols-3">
+        {line('Grants authorized / granted', `${g.AUTHORIZED ?? 0} / ${g.GRANTED ?? 0}`)}
+        {line('Grants ended (term · relinq · exp)', `${g.TERMINATED ?? 0} · ${g.RELINQUISHED ?? 0} · ${g.EXPIRED ?? 0}`)}
+        {line('Requests last hour', s.counts.messagesLastHour)}
+        {line('Error responses last hour', s.counts.errorsLastHour, s.counts.errorsLastHour ? 'warn' : undefined, s.counts.errorsLastHour ? '/messages?errors=1' : undefined)}
+        {line('Active protections', s.counts.activeProtections, s.counts.activeProtections ? 'warn' : undefined, s.counts.activeProtections ? '/spectrum' : undefined)}
+        {line('PPAs', s.counts.ppas)}
+        {line('Fault rules armed', s.counts.faultRules, s.counts.faultRules ? 'warn' : undefined, s.counts.faultRules ? '/faults' : undefined)}
+        {line('Terrain tiles (HAAT)', s.terrain.tiles ? s.terrain.tiles : 'none', s.terrain.tiles ? undefined : 'warn')}
+        {line('Uptime', dur((now - s.startedAt) / 1000))}
       </div>
+      {(s.triggers.measInRegistration || s.triggers.measInHeartbeat || s.daily.running) && (
+        <div className="mt-2 flex flex-wrap gap-1">
+          {s.triggers.measInRegistration && <Tag tone="info">Meas. report trigger: registration</Tag>}
+          {s.triggers.measInHeartbeat && <Tag tone="info">Meas. report trigger: heartbeat</Tag>}
+          {s.daily.running && <Tag tone="warn">Daily activities running</Tag>}
+        </div>
+      )}
     </div>
   );
 }
 
-/** FCC ID plus the start of the serial hash, enough to tell bench radios apart in a narrow column. */
-function cbsdShort(cbsdId: string): string {
-  const i = cbsdId.indexOf('/');
-  return i > 0 ? `${cbsdId.slice(0, i)}/${cbsdId.slice(i + 1, i + 5)}` : cbsdId;
-}

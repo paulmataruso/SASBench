@@ -28,7 +28,7 @@
   --line-strong: 186 194 205;
   --ink: 19 25 33;
   --ink-2: 60 71 87;
-  --ink-3: 96 108 125;
+  --ink-3: 90 102 118;
   --sel: 36 87 197;
   --sel-soft: 230 237 251;
   --sel-ink: 29 69 160;
@@ -52,12 +52,21 @@
   /* T568-style patch cable colours: one identity colour per CBSD, reused in the band plan and the map. */
   --p0: 232 113 28;
   --p1: 47 158 68;
-  --p2: 28 126 214;
+  --p2: 23 114 198;
   --p3: 141 90 43;
   --p4: 92 107 122;
   --p5: 123 79 214;
   --p6: 214 51 108;
   --p7: 15 148 136;
+  /* Text on a patch fill: whichever of white / ink clears 4.5:1 on that colour. */
+  --p0-fg: 19 25 33;
+  --p1-fg: 19 25 33;
+  --p2-fg: 255 255 255;
+  --p3-fg: 255 255 255;
+  --p4-fg: 255 255 255;
+  --p5-fg: 255 255 255;
+  --p6-fg: 255 255 255;
+  --p7-fg: 19 25 33;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -106,6 +115,14 @@
     --p5: 156 118 240;
     --p6: 240 86 140;
     --p7: 40 190 176;
+    --p0-fg: 14 17 22;
+    --p1-fg: 14 17 22;
+    --p2-fg: 14 17 22;
+    --p3-fg: 14 17 22;
+    --p4-fg: 14 17 22;
+    --p5-fg: 14 17 22;
+    --p6-fg: 14 17 22;
+    --p7-fg: 14 17 22;
   }
 }
 
@@ -154,6 +171,14 @@
   --p5: 156 118 240;
   --p6: 240 86 140;
   --p7: 40 190 176;
+  --p0-fg: 14 17 22;
+  --p1-fg: 14 17 22;
+  --p2-fg: 14 17 22;
+  --p3-fg: 14 17 22;
+  --p4-fg: 14 17 22;
+  --p5-fg: 14 17 22;
+  --p6-fg: 14 17 22;
+  --p7-fg: 14 17 22;
 }
 
 @layer base {
@@ -186,7 +211,11 @@
   }
   input::placeholder,
   textarea::placeholder {
-    color: rgb(var(--ink-3) / 0.85);
+    color: rgb(var(--ink-3));
+  }
+  /* On the rail the selection blue is too dark to see; its lighter rail tint carries focus. */
+  .on-rail :focus-visible {
+    outline-color: rgb(var(--rail-sel));
   }
   ::-webkit-scrollbar {
     width: 10px;

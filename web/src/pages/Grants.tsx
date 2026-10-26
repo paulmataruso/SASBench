@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
-import { Crosshair, Search, Ticket, Trash2 } from 'lucide-react';
+import { Search, Ticket, Trash2 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useResource } from '../lib/live';
 import { useChangeMarks, useFollow } from '../lib/follow';
 import type { Grant } from '../lib/types';
 import { GrantTable } from '../components/grants';
+import { FollowedOnly } from '../components/rack';
 import { Button, Empty, ErrorNote, Input, Module, PageHeader, Segmented, SkeletonRows, cx, useAction, useConfirm } from '../components/ui';
 
 type View = 'active' | 'ended' | 'all';
@@ -26,7 +27,7 @@ export function GrantsPage() {
 
   const rows = useMemo(() => {
     const n = q.trim().toLowerCase();
-    return (r.data ?? []).filter((g) => (!onlyFollowed || g.cbsdId === followed)
+    return (r.data ?? []).filter((g) => (!onlyFollowed || !followed || g.cbsdId === followed)
       && (!n || [g.grantId, g.cbsdId, g.fccId, g.serial, g.state, g.endReason].some((v) => v?.toLowerCase().includes(n))));
   }, [r.data, q, onlyFollowed, followed]);
 
@@ -45,11 +46,7 @@ export function GrantsPage() {
           <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-ink-3" aria-hidden />
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Grant ID, FCC ID, reason…" className="w-60 pl-7" aria-label="Search grants" />
         </div>
-        {followed && (
-          <Button icon={Crosshair} variant={onlyFollowed ? 'primary' : 'secondary'} onClick={() => setOnlyFollowed(!onlyFollowed)} title="Only the followed CBSD">
-            Followed only
-          </Button>
-        )}
+        <FollowedOnly checked={onlyFollowed} onChange={setOnlyFollowed} />
         <Segmented value={view} onChange={setView} label="Grant view" options={[{ value: 'active', label: 'Active' }, { value: 'ended', label: 'Ended' }, { value: 'all', label: 'All' }]} />
         {view !== 'active' && (
           <Button icon={Trash2} variant="danger-ghost" loading={busy === 'purge'} onClick={async () => {

@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Crosshair, History, Search, Trash2 } from 'lucide-react';
+import { History, Search, Trash2 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useLiveEvents } from '../lib/live';
 import { useFollow } from '../lib/follow';
-import { Link } from '../lib/router';
-import { cbsdLabel, clock, iso } from '../lib/format';
+import { clock, iso } from '../lib/format';
 import type { EventRow } from '../lib/types';
-import { Swatch } from '../components/rack';
-import { Button, Empty, ErrorNote, Input, Led, Module, PageHeader, Segmented, SkeletonRows, Switch, cx, useAction, useConfirm } from '../components/ui';
+import { CbsdName, FollowedOnly } from '../components/rack';
+import { Button, Empty, ErrorNote, Input, Led, Module, PageHeader, Segmented, SkeletonRows, cx, useAction, useConfirm } from '../components/ui';
 
 type Level = '' | 'info' | 'success' | 'warn' | 'error';
 const PAGE = 300;
@@ -43,7 +42,7 @@ export function EventsPage() {
 
   const shown = useMemo(() => {
     const n = q.trim().toLowerCase();
-    return (rows ?? []).filter((e) => (!mine || e.cbsd_id === followed) && (!n || [e.message, e.category, e.cbsd_id, e.grant_id].some((v) => v?.toLowerCase().includes(n))));
+    return (rows ?? []).filter((e) => (!mine || !followed || e.cbsd_id === followed) && (!n || [e.message, e.category, e.cbsd_id, e.grant_id].some((v) => v?.toLowerCase().includes(n))));
   }, [rows, q, mine, followed]);
 
   const loadMore = async () => {
@@ -77,7 +76,7 @@ export function EventsPage() {
             <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-ink-3" aria-hidden />
             <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filter text…" className="w-64 pl-7" aria-label="Filter events" />
           </span>
-          {followed && <Switch checked={mine} onChange={setMine} label={<span className="inline-flex items-center gap-1"><Crosshair className="size-3.5 text-sel" /> Followed CBSD</span>} />}
+          <FollowedOnly checked={mine} onChange={setMine} />
         </div>
         {err && <div className="p-3"><ErrorNote>{err}</ErrorNote></div>}
         {!rows ? <SkeletonRows rows={10} cols={4} /> : shown.length === 0 ? (
@@ -89,17 +88,16 @@ export function EventsPage() {
                 <li key={e.id} className={cx('grid grid-cols-[14px_150px_96px_minmax(0,1fr)] items-start gap-3 px-3 py-2 text-sm max-lg:grid-cols-[14px_minmax(0,1fr)]', followed && e.cbsd_id === followed && 'bg-sel-soft')}>
                   <Led c={e.level === 'error' ? 'bad' : e.level === 'warn' ? 'warn' : e.level === 'success' ? 'ok' : 'info'} className="mt-1.5" title={e.level} />
                   <span className="num font-mono text-xs text-ink-3 max-lg:hidden" title={iso(e.ts)}>{clock(e.ts, true)}</span>
-                  <span className="font-label text-xs font-semibold uppercase tracking-[0.06em] text-ink-3 max-lg:hidden">{e.category}</span>
+                  <span className="font-label text-xs font-semibold uppercase tracking-[0.06em] text-ink-3 max-lg:hidden">
+                    {e.category}
+                    <LevelWord level={e.level} block />
+                  </span>
                   <div className="min-w-0">
-                    <p className="break-words text-ink">{e.message}</p>
-                    <div className="mt-0.5 flex flex-wrap items-center gap-x-3 text-2xs text-ink-3">
-                      <span className="lg:hidden">{clock(e.ts, true)} · {e.category}</span>
-                      {e.cbsd_id && (
-                        <Link to={`/cbsds/${encodeURIComponent(e.cbsd_id)}`} className="inline-flex items-center gap-1 font-mono hover:underline">
-                          <Swatch cbsdId={e.cbsd_id} className="size-2" />{cbsdLabel(e.cbsd_id)}
-                        </Link>
-                      )}
-                      {e.grant_id && <span className="font-mono">grant {e.grant_id}</span>}
+                    <p className="break-words text-ink">{withMonoIds(e.message)}</p>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-3 text-xs text-ink-3">
+                      <span className="lg:hidden">{clock(e.ts, true)} · {e.category}<LevelWord level={e.level} /></span>
+                      {e.cbsd_id && <CbsdName cbsdId={e.cbsd_id} className="text-ink-2" />}
+                      {e.grant_id && <span>grant <span className="font-mono">{e.grant_id}</span></span>}
                     </div>
                   </div>
                 </li>
@@ -113,4 +111,18 @@ export function EventsPage() {
       </Module>
     </div>
   );
+}
+
+/** Warnings and errors also say so in words, not only through the LED colour. */
+function LevelWord({ level, block }: { level: string; block?: boolean }) {
+  if (level !== 'warn' && level !== 'error') return null;
+  return <span className={cx(block ? 'block' : 'ml-1.5', level === 'error' ? 'text-bad-ink' : 'text-warn-ink')}>{level === 'error' ? 'error' : 'warning'}</span>;
+}
+
+// cbsdIds (FCC ID + 40-hex serial hash) and long numeric grant IDs inside event text.
+const ID_RE = /([A-Za-z0-9-]+\/[0-9a-f]{40}|\b\d{10,}\b)/g;
+
+/** Set the machine identifiers in a message in mono, as everywhere else in the console. */
+function withMonoIds(text: string) {
+  return text.split(ID_RE).map((part, i) => (i % 2 ? <span key={i} className="font-mono text-xs">{part}</span> : part));
 }

@@ -4,7 +4,7 @@ import { api, download } from '../lib/api';
 import { useResource } from '../lib/live';
 import { useStatus } from '../lib/status';
 import { clock, mhz } from '../lib/format';
-import type { Preset } from '../lib/types';
+import type { Cbsd, Preset } from '../lib/types';
 import { Choice, Grid, Mhz, Num, Text, Toggle, type FProps, type S } from './settings/fields';
 import { MapSettings } from './settings/MapSettings';
 import { Button, Field, Input, Module, Note, PageHeader, Select, Switch, Tag, cx, useAction, useConfirm, useToast } from '../components/ui';
@@ -57,7 +57,7 @@ export function SettingsPage() {
 
   return (
     <div className="pb-20">
-      <PageHeader title="Settings" sub="Changes apply live. Listener and TLS settings restart the SAS listeners (open connections drop); everything else takes effect on the next request." />
+      <PageHeader title="Settings" sub="Saved changes take effect without restarting the SAS. Listener and TLS settings restart the SAS listeners (open connections drop); everything else applies from the next request." />
       <div className="grid gap-6 lg:grid-cols-[180px_minmax(0,1fr)]">
         <nav aria-label="Settings sections" className="hidden lg:block">
           <ul className="sticky top-0 space-y-0.5">
@@ -218,9 +218,32 @@ function GaaRanges({ value, onChange }: { value: Array<{ low: number; high: numb
 
 // ---------------------------------------------------------------- sections
 
+/** What applying a profile would do to the radios the SAS knows right now, in the operator's terms. */
+function profileImpact(patch: S, cur: S, cbsds: Cbsd[]): string[] {
+  const out: string[] = [];
+  const reg = cbsds.filter((c) => c.state === 'REGISTERED');
+  const n = (k: number, what: string) => `${k} registered CBSD${k === 1 ? '' : 's'} ${what}`;
+  if (patch.sasHttpEnabled === false && cur.sasHttpEnabled !== false) {
+    const k = reg.filter((c) => c.transport === 'http').length;
+    if (k) out.push(n(k, 'use plain HTTP, which is turned off: they lose the SAS.'));
+  }
+  if (patch.tlsClientAuth === 'require' && cur.tlsClientAuth !== 'require') {
+    const k = reg.filter((c) => c.transport === 'https' && !c.certInfo).length;
+    if (k) out.push(n(k, 'connect over HTTPS without a client certificate: the TLS handshake will refuse them.'));
+  }
+  if (patch.requireKnownFccId === true && !cur.requireKnownFccId) out.push('FCC IDs must be in the registry: unknown ones get 103 on their next registration.');
+  if (patch.requireKnownUserId === true && !cur.requireKnownUserId) out.push('User IDs must be in the registry: unknown ones get 103 on their next registration.');
+  if (patch.missingInstallParams === 'pending' && cur.missingInstallParams === 'register') {
+    const k = reg.filter((c) => c.latitude == null || c.longitude == null).length;
+    if (k) out.push(n(k, 'sent no location: they get 200 REG_PENDING when they register again.'));
+  }
+  return out;
+}
+
 function Profiles({ data, onApplied }: { data: SettingsResp; onApplied: () => void }) {
   const { run, busy } = useAction();
   const confirm = useConfirm();
+  const cbsds = useResource<Cbsd[]>('/api/cbsds', ['cbsds']);
   const diff = (p: Preset) => Object.entries(p.patch).filter(([k, v]) => JSON.stringify(data.settings[k]) !== JSON.stringify(v)).map(([k]) => k);
   return (
     <Module id="profiles" title="Profiles" meta={data.profile ? `Active: ${data.presets[data.profile]?.label}` : 'Active: custom (matches no profile)'} bodyClass="">
@@ -233,17 +256,28 @@ function Profiles({ data, onApplied }: { data: SettingsResp; onApplied: () => vo
               <div className="min-w-0 flex-1 basis-[420px]">
                 <div className="flex items-center gap-2">
                   <span className="text-md font-semibold">{p.label}</span>
-                  {active && <Tag tone="sel">ACTIVE</Tag>}
+                  {active && <Tag>ACTIVE</Tag>}
+                  {key === 'open' && <Tag tone="warn">NO SECURITY</Tag>}
                 </div>
-                <p className="mt-0.5 max-w-[90ch] text-sm text-ink-2">{p.description}</p>
+                <p className="mt-0.5 max-w-[80ch] text-sm text-ink-2">{p.description}</p>
                 {!active && d.length > 0 && <p className="mt-1 font-mono text-2xs text-ink-3">Changes {d.length}: {d.join(', ')}</p>}
               </div>
               <Button
-                variant={active ? 'secondary' : 'primary'}
                 disabled={active}
                 loading={busy === key}
                 onClick={async () => {
-                  if (await confirm({ title: `Apply "${p.label}"?`, body: `Changes ${d.length} setting${d.length === 1 ? '' : 's'}. Listener settings among them restart the SAS listeners.`, confirm: 'Apply profile' })) {
+                  const impact = profileImpact(p.patch, data.settings, cbsds.data ?? []);
+                  const body = (
+                    <>
+                      <p>Changes {d.length} setting{d.length === 1 ? '' : 's'}. Listener settings among them restart the SAS listeners.</p>
+                      {impact.length > 0 && (
+                        <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-warn-ink">
+                          {impact.map((x) => <li key={x}>{x}</li>)}
+                        </ul>
+                      )}
+                    </>
+                  );
+                  if (await confirm({ title: `Apply "${p.label}"?`, body, confirm: 'Apply profile', danger: key === 'open' })) {
                     await run(key, () => api.post(`/api/settings/preset/${key}`), `Profile "${p.label}" applied`);
                     onApplied();
                   }
@@ -300,7 +334,7 @@ function Harness({ field }: { field: FProps }) {
           <span className="mb-1 block text-sm font-medium text-ink-2">Harness sas.cfg</span>
           <p className="mb-2 text-xs text-ink-3">Base URLs for the WInnForum harness config, using the HTTPS port and this host name.</p>
           <div className="flex gap-2">
-            <Select value={host} onChange={(e) => setHost(e.target.value)} className="w-56">
+            <Select value={host} onChange={(e) => setHost(e.target.value)} className="w-56" aria-label="Harness sas.cfg host name">
               <option value="">{hosts[0] ?? 'localhost'}</option>
               {hosts.slice(1).map((h) => <option key={h} value={h}>{h}</option>)}
             </Select>

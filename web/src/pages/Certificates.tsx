@@ -479,13 +479,13 @@ function Inventory({ data, loading, openId, onOpen }: { data?: CertsResponse; lo
       meta={data ? `${data.certs.length} certificates` : undefined}
       bodyClass="p-0"
       actions={
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Select value={filter} onChange={(e) => setFilter(e.target.value)} className="h-7 w-36 py-0 text-sm" aria-label="Filter by kind">
             {FILTERS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
           </Select>
           <div className="relative">
             <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-ink-3" aria-hidden />
-            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name, FCC ID, serial…" className="h-7 w-52 py-0 pl-7 text-sm" aria-label="Search certificates" />
+            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name, FCC ID, serial…" className="h-7 w-44 py-0 pl-7 text-sm sm:w-52" aria-label="Search certificates" />
           </div>
         </div>
       }

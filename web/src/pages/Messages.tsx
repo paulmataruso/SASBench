@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Crosshair, Download, Pause, Play, ScrollText, Search, Trash2, X } from 'lucide-react';
+import { Download, Pause, Play, ScrollText, Search, Trash2, X } from 'lucide-react';
 import { api, download } from '../lib/api';
 import { useLiveMessages } from '../lib/live';
 import { useFollow } from '../lib/follow';
-import { setQuery, useLocation, Link } from '../lib/router';
+import { setQuery, useLocation } from '../lib/router';
 import { cbsdLabel, clockMs, iso, SAS_METHODS } from '../lib/format';
 import type { MessageRow } from '../lib/types';
 import { MessageDrawer, isErrorRow, normMsg, transportTag, type WireRow } from '../components/message';
-import { Swatch } from '../components/rack';
+import { CbsdName, FollowedOnly } from '../components/rack';
 import { Button, CodeTag, Empty, ErrorNote, HttpTag, Input, Module, PageHeader, Select, SkeletonRows, Switch, cx, useAction, useConfirm } from '../components/ui';
 
 const PAGE = 200;
@@ -120,7 +120,7 @@ export function MessagesPage() {
         >
           <label className="text-sm">
             <span className="silk mb-1 block">Method</span>
-            <Select value={method} onChange={(e) => setMethod(e.target.value)} className="w-44">
+            <Select value={method} onChange={(e) => setMethod(e.target.value)} className="w-44" aria-label="Method">
               <option value="">All methods</option>
               {SAS_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
               <option disabled>──────────</option>
@@ -131,11 +131,11 @@ export function MessagesPage() {
             <span className="silk mb-1 block">Search JSON / IP</span>
             <span className="relative block">
               <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-ink-3" aria-hidden />
-              <Input value={q} onChange={(e) => setQ(e.target.value)} onBlur={() => setQApplied(q.trim())} placeholder="grantId, serial, 10.0.0.12…" className="w-64 pl-7" />
+              <Input value={q} onChange={(e) => setQ(e.target.value)} onBlur={() => setQApplied(q.trim())} placeholder="grantId, serial, 10.0.0.12…" className="w-64 pl-7" aria-label="Search JSON or IP" />
             </span>
           </label>
           <Switch checked={errors} onChange={setErrors} label="Errors only" className="pb-1.5" />
-          {followed && <Switch checked={mine} onChange={setMine} label={<span className="inline-flex items-center gap-1"><Crosshair className="size-3.5 text-sel" /> Followed CBSD</span>} className="pb-1.5" />}
+          <FollowedOnly checked={mine} onChange={setMine} className="pb-1.5" />
           {query.get('cbsdId') && !mine && (
             <Button size="sm" icon={X} onClick={() => setQuery('cbsdId', null)} title="Remove CBSD filter">CBSD {cbsdLabel(query.get('cbsdId')!)}</Button>
           )}
@@ -148,16 +148,15 @@ export function MessagesPage() {
           </Empty>
         ) : (
           <div className="overflow-x-auto">
-            <table className="dtable min-w-[1100px]">
+            <table className="dtable min-w-[880px]">
               <thead>
                 <tr>
                   <th>Time</th>
-                  <th>Transport</th>
-                  <th>Client</th>
-                  <th>Method</th>
-                  <th>HTTP</th>
-                  <th>Response codes</th>
                   <th>CBSD</th>
+                  <th>Method</th>
+                  <th>Response codes</th>
+                  <th>HTTP</th>
+                  <th>Transport · client</th>
                   <th className="text-right">ms</th>
                 </tr>
               </thead>
@@ -169,31 +168,40 @@ export function MessagesPage() {
                     className={cx('cursor-pointer', isErrorRow(r) && 'bg-bad-soft/35')}
                     onClick={() => setQuery('id', String(r.id))}
                   >
-                    <td className="num whitespace-nowrap font-mono text-xs" title={iso(r.ts)}>{clockMs(r.ts)}</td>
-                    <td>{transportTag(r.transport)}</td>
-                    <td className="max-w-[220px] truncate font-mono text-2xs text-ink-2" title={r.cert ?? undefined}>{r.remote ?? '—'}</td>
+                    <td className="whitespace-nowrap">
+                      <button type="button" className="num font-mono text-xs text-ink hover:underline" title={`${iso(r.ts)}: open exchange #${r.id}`} onClick={(e) => {
+                        e.stopPropagation();
+                        setQuery('id', String(r.id));
+                      }}>{clockMs(r.ts)}</button>
+                    </td>
+                    <td className="max-w-[240px]">
+                      {r.cbsds.length ? (
+                        <span className="flex min-w-0 items-center gap-1.5">
+                          <CbsdName cbsdId={r.cbsds[0]} />
+                          {r.cbsds.length > 1 && <span className="num flex-none text-xs text-ink-3">+{r.cbsds.length - 1}</span>}
+                        </span>
+                      ) : <span className="text-ink-3">—</span>}
+                    </td>
                     <td className="whitespace-nowrap font-mono text-xs text-ink">
                       {r.method ?? r.path}
                       {r.version && r.version !== 'v1.2' ? <span className="text-ink-3"> ({r.version})</span> : null}
                     </td>
-                    <td><HttpTag status={r.http} /></td>
                     <td>
                       <span className="flex max-w-[360px] flex-wrap gap-1">
                         {r.codes.slice(0, 6).map((c, i) => <CodeTag key={i} code={c} />)}
-                        {r.codes.length > 6 && <span className="num text-2xs text-ink-3">+{r.codes.length - 6}</span>}
+                        {r.codes.length > 6 && <span className="num text-xs text-ink-3">+{r.codes.length - 6}</span>}
                         {r.error && <span className="truncate text-xs text-bad-ink">{r.error}</span>}
                       </span>
                     </td>
-                    <td className="max-w-[220px]">
-                      {r.cbsds.length ? (
-                        <Link to={`/cbsds/${encodeURIComponent(r.cbsds[0])}`} onClick={(e) => e.stopPropagation()} className="flex min-w-0 items-center gap-1.5 hover:underline">
-                          <Swatch cbsdId={r.cbsds[0]} />
-                          <span className="truncate font-mono text-2xs">{cbsdLabel(r.cbsds[0])}</span>
-                          {r.cbsds.length > 1 && <span className="num text-2xs text-ink-3">+{r.cbsds.length - 1}</span>}
-                        </Link>
-                      ) : <span className="text-ink-3">—</span>}
+                    <td><HttpTag status={r.http} /></td>
+                    <td className="max-w-[260px]">
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        {transportTag(r.transport)}
+                        <span className="truncate font-mono text-xs text-ink-2">{r.remote ?? '—'}</span>
+                      </span>
+                      {r.cert && <div className="truncate font-mono text-xs text-ink-3" title={r.cert}>{r.cert}</div>}
                     </td>
-                    <td className="num text-right font-mono text-2xs text-ink-3">{r.ms ?? ''}</td>
+                    <td className="num text-right font-mono text-xs text-ink-3">{r.ms ?? ''}</td>
                   </tr>
                 ))}
               </tbody>

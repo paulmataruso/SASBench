@@ -228,7 +228,7 @@
       "ink-3": {
         "role": "neutral",
         "displayName": "Ink Muted",
-        "canonical": "rgb(var(--ink-3)) = rgb(96 108 125)",
+        "canonical": "rgb(var(--ink-3)) = rgb(90 102 118)",
         "dark": "#8792a2",
         "cssVar": "--ink-3",
         "tonalRamp": [
@@ -602,7 +602,7 @@
       "patch-blue": {
         "role": "tertiary",
         "displayName": "Patch Blue",
-        "canonical": "rgb(var(--p2)) = rgb(28 126 214)",
+        "canonical": "rgb(var(--p2)) = rgb(23 114 198)",
         "dark": "#409aee",
         "cssVar": "--p2",
         "tonalRamp": [

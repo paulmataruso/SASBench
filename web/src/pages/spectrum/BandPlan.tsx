@@ -1,5 +1,5 @@
 import { useId, useMemo, useState, type CSSProperties, type MouseEvent, type ReactNode } from 'react';
-import { cbsdLabel, mhz, patchIndex, range } from '../../lib/format';
+import { cbsdLabel, cbsdParts, mhz, patchFg, patchIndex, range } from '../../lib/format';
 import type { Ppa } from '../../lib/types';
 import { KIND_LABEL, activeRanges, kindRank, packLanes, useWidth, type SpectrumData, type SpectrumGrant } from './shared';
 
@@ -31,6 +31,8 @@ const AXIS = 24;
 const ROW = 18;
 const GAP = 5;
 const SECTION = 12;
+// Opaque, so the "not available" hatch on the track beneath does not show through available ranges.
+const GAA_FILL = 'color-mix(in srgb, rgb(var(--line-strong)) 50%, rgb(var(--panel)))';
 
 export function BandPlan({ data, followed, onOpen }: { data: SpectrumData; followed: string | null; onOpen: (cbsdId: string) => void }) {
   const [ref, width] = useWidth<HTMLDivElement>();
@@ -164,7 +166,7 @@ export function BandPlan({ data, followed, onOpen }: { data: SpectrumData; follo
             {track(gaaY, `url(#${uid}-nogaa)`)}
             {data.gaaRanges.map((r, i) => (
               <rect key={i} x={x(r.low)} y={gaaY} width={Math.max(1, x(r.high) - x(r.low))} height={ROW} rx={2}
-                style={{ fill: 'rgb(var(--ok-soft))', stroke: 'rgb(var(--ok) / 0.55)', strokeWidth: 1 }} />
+                style={{ fill: GAA_FILL, stroke: 'rgb(var(--line-strong))', strokeWidth: 1 }} />
             ))}
 
             {/* PAL channels (PPAs) */}
@@ -232,15 +234,16 @@ export function BandPlan({ data, followed, onOpen }: { data: SpectrumData; follo
               const w = Math.max(3, x(g.high) - x(g.low));
               const auth = g.state === 'AUTHORIZED' && !g.suspended;
               const isF = followed === g.cbsdId;
-              const txt = `${cbsdLabel(g.cbsdId).split('/')[0]} ${g.maxEirp}`;
+              const name = cbsdParts(g.cbsdId);
+              const txt = `${name.known ? name.serial : name.fccId} · ${g.maxEirp} dBm`;
               const p = `var(--p${patchIndex(g.cbsdId)})`;
               return (
                 <g
                   key={g.grantId}
                   role="button"
                   tabIndex={0}
-                  aria-label={`Grant ${range(g.low, g.high)} MHz, ${g.state}${g.suspended ? ' suspended' : ''}, CBSD ${g.cbsdId}`}
-                  className="cursor-pointer outline-none [&:focus-visible>rect:first-child]:stroke-[rgb(var(--sel))]"
+                  aria-label={`${cbsdLabel(g.cbsdId)}: grant ${range(g.low, g.high)} MHz, ${g.maxEirp} dBm/MHz, ${g.state}${g.suspended ? ', suspended' : ''}`}
+                  className="cursor-pointer outline-none [&:focus-visible>rect:first-child]:![stroke-width:2.5px] [&:focus-visible>rect:first-child]:![stroke:rgb(var(--sel))]"
                   style={{ opacity: dim(g.cbsdId) ? 0.4 : 1 }}
                   onMouseEnter={() => setHover({ t: 'grant', g })}
                   onMouseLeave={() => setHover(null)}
@@ -256,7 +259,7 @@ export function BandPlan({ data, followed, onOpen }: { data: SpectrumData; follo
                     height={ROW - 1}
                     rx={2}
                     style={{
-                      fill: auth ? `rgb(${p} / 0.9)` : `rgb(${p} / 0.22)`,
+                      fill: auth ? `rgb(${p})` : `rgb(${p} / 0.22)`,
                       stroke: g.suspended ? 'rgb(var(--warn))' : isF ? 'rgb(var(--ink))' : `rgb(${p})`,
                       strokeWidth: g.suspended || isF ? 2 : 1.25,
                     }}
@@ -264,7 +267,7 @@ export function BandPlan({ data, followed, onOpen }: { data: SpectrumData; follo
                   {g.suspended && <rect x={x(g.low) + 1} y={grantYs[i] + 1} width={Math.max(0, w - 2)} height={ROW - 2} rx={2} style={{ fill: `url(#${uid}-susp)`, opacity: 0.55 }} />}
                   {fits(w, txt) && (
                     <text x={x(g.low) + 5} y={grantYs[i] + ROW / 2} dominantBaseline="central"
-                      className={auth ? 'pointer-events-none fill-white font-mono text-2xs' : 'pointer-events-none fill-ink font-mono text-2xs'}>
+                      className="pointer-events-none fill-ink font-mono text-2xs" style={auth ? { fill: patchFg(g.cbsdId) } : undefined}>
                       {txt}
                     </text>
                   )}
@@ -297,7 +300,7 @@ function Readout({ data, hover, f }: { data: SpectrumData; hover: Hover; f: numb
     body = (
       <>
         <Swatch style={{ background: `rgb(var(--p${patchIndex(g.cbsdId)}))` }} />
-        <span className="font-mono text-xs text-ink">{g.cbsdId}</span>
+        <span className="font-mono text-xs text-ink" title={g.cbsdId}>{cbsdLabel(g.cbsdId)}</span>
         <Sep />
         <span className="num">{range(g.low, g.high)} MHz</span>
         <Sep />
@@ -364,7 +367,7 @@ function Sep() {
 function Legend() {
   const hatch = (c: string) => `repeating-linear-gradient(45deg, ${c} 0 2px, transparent 2px 5px)`;
   const items: Array<[CSSProperties, string]> = [
-    [{ background: 'rgb(var(--ok-soft))', boxShadow: 'inset 0 0 0 1px rgb(var(--ok) / 0.55)' }, 'GAA available'],
+    [{ background: GAA_FILL, boxShadow: 'inset 0 0 0 1px rgb(var(--line-strong))' }, 'GAA available'],
     [{ background: hatch('rgb(var(--line-strong))') }, 'Not available for GAA'],
     [{ background: 'rgb(var(--sel) / 0.2)', boxShadow: 'inset 0 0 0 1px rgb(var(--sel))' }, 'PAL channel'],
     [{ background: 'rgb(var(--warn) / 0.3)', boxShadow: 'inset 0 0 0 1px rgb(var(--warn))' }, 'Protection active · suspend'],

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode, type RefObject } from 'react';
 import {
   AudioLines, BookUser, Crosshair, History, LayoutDashboard, Menu, Monitor, Moon, RadioTower, ScrollText,
   Settings2, ShieldCheck, SquareTerminal, Sun, Ticket, X, Zap, type LucideIcon,
@@ -7,8 +7,9 @@ import { RouterProvider, Link, useLocation } from './lib/router';
 import { LiveProvider, useLive, useResource } from './lib/live';
 import { FollowProvider, useFollow } from './lib/follow';
 import { StatusProvider, useStatus, PROFILE_LABEL } from './lib/status';
-import { ConfirmProvider, ToastProvider, Led, Segmented, Tag, cx } from './components/ui';
-import { cbsdLabel, setPatchOrder } from './lib/format';
+import { ConfirmProvider, ToastProvider, Led, Segmented, Select, Tag, cx, useModalFocus } from './components/ui';
+import { CbsdName } from './components/rack';
+import { setCbsdNames, setPatchOrder } from './lib/format';
 import type { Cbsd } from './lib/types';
 import { OverviewPage } from './pages/Overview';
 import { CbsdsPage } from './pages/Cbsds';
@@ -99,9 +100,12 @@ function Shell() {
   // Identity colours follow registration order; recomputed before the pages render.
   const cbsds = useResource<Cbsd[]>('/api/cbsds', ['cbsds']);
   useMemo(() => {
-    if (cbsds.data) setPatchOrder([...cbsds.data].sort((a, b) => a.createdAt - b.createdAt).map((c) => c.cbsdId));
+    if (!cbsds.data) return;
+    setPatchOrder([...cbsds.data].sort((a, b) => a.createdAt - b.createdAt).map((c) => c.cbsdId));
+    setCbsdNames(cbsds.data);
   }, [cbsds.data]);
   useEffect(() => setMenu(false), [path]);
+  const menuRef = useModalFocus(menu, () => setMenu(false));
   const title = NAV.flatMap((g) => g.items).find((i) => (i.to === '/' ? path === '/' : path.startsWith(i.to)))?.label ?? 'CBRS Lab SAS';
   useEffect(() => {
     document.title = `${title} · CBRS Lab SAS`;
@@ -109,16 +113,28 @@ function Shell() {
 
   return (
     <div className="flex h-dvh overflow-hidden">
+      <a
+        href="#main"
+        onClick={(e) => {
+          e.preventDefault();
+          document.getElementById('main')?.focus();
+        }}
+        className="sr-only z-50 rounded border border-line bg-panel px-3 py-1.5 text-sm font-medium text-ink shadow-pop focus:not-sr-only focus:fixed focus:left-3 focus:top-2"
+      >
+        Skip to content
+      </a>
       <Rail className="hidden md:flex" />
       {menu && (
         <div className="fixed inset-0 z-40 flex md:hidden">
           <div className="absolute inset-0 bg-rail/50" onClick={() => setMenu(false)} aria-hidden />
-          <Rail className="drawer-in relative flex w-[240px]" expanded onClose={() => setMenu(false)} />
+          <div ref={menuRef as RefObject<HTMLDivElement>} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Navigation" className="relative flex outline-none">
+            <Rail className="drawer-in relative flex w-[240px]" expanded onClose={() => setMenu(false)} />
+          </div>
         </div>
       )}
       <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar onMenu={() => setMenu(true)} />
-        <main className="min-h-0 flex-1 overflow-y-auto">
+        <TopBar onMenu={() => setMenu(true)} title={title} cbsds={cbsds.data ?? []} />
+        <main id="main" tabIndex={-1} className="min-h-0 flex-1 overflow-y-auto outline-none">
           <div className="mx-auto max-w-[1680px] p-4 lg:px-6 lg:py-5">{route(path)}</div>
         </main>
       </div>
@@ -132,7 +148,7 @@ function Rail({ className, expanded, onClose }: { className?: string; expanded?:
   const l = s?.listeners;
   const full = expanded ? '' : 'hidden lg:inline';
   return (
-    <nav aria-label="Main" className={cx('h-full flex-none flex-col bg-rail text-rail-fg', expanded ? '' : 'w-14 lg:w-[216px]', className)}>
+    <nav aria-label="Main" className={cx('on-rail h-full flex-none flex-col bg-rail text-rail-fg', expanded ? '' : 'w-14 lg:w-[216px]', className)}>
       <div className="flex h-12 items-center gap-2.5 border-b border-rail-3 px-[15px]">
         <RackMark />
         <span className={cx('whitespace-nowrap text-md font-semibold tracking-[-0.01em] text-white', full)}>CBRS Lab SAS</span>
@@ -164,7 +180,7 @@ function Rail({ className, expanded, onClose }: { className?: string; expanded?:
                     >
                       <it.icon className={cx('size-4 flex-none', active ? 'text-rail-sel' : 'text-rail-mute group-hover:text-rail-fg')} strokeWidth={1.75} aria-hidden />
                       <span className={cx('truncate', full)}>{it.label}</span>
-                      {badge ? <span className={cx('num ml-auto text-xs text-rail-mute', full)}>{badge}</span> : null}
+                      {badge ? <span className={cx('num ml-auto text-xs', active ? 'text-rail-fg/80' : 'text-rail-mute', full)}>{badge}</span> : null}
                     </Link>
                   </li>
                 );
@@ -211,28 +227,36 @@ function RackMark() {
   );
 }
 
-function TopBar({ onMenu }: { onMenu: () => void }) {
+function TopBar({ onMenu, title, cbsds }: { onMenu: () => void; title: string; cbsds: Cbsd[] }) {
   const { connected } = useLive();
   const { data: s } = useStatus();
   const { followed, setFollowed } = useFollow();
   const profile = s?.profile ? PROFILE_LABEL[s.profile] ?? s.profile : 'Custom settings';
   return (
     <header className="flex h-12 flex-none items-center gap-3 border-b border-line bg-panel px-3 lg:px-6">
-      <button type="button" onClick={onMenu} className="-ml-1 rounded p-1.5 text-ink-2 hover:bg-panel-3 md:hidden" aria-label="Open menu">
+      <button type="button" onClick={onMenu} className="-ml-1 rounded p-1.5 text-ink-2 hover:bg-panel-3 md:hidden" aria-label="Open menu" aria-haspopup="dialog">
         <Menu className="size-5" />
       </button>
+      <span className="truncate text-md font-semibold text-ink sm:hidden">{title}</span>
       {followed ? (
-        <div className="flex min-w-0 items-center gap-1 rounded border border-sel/30 bg-sel-soft py-0.5 pl-2 pr-0.5 text-sm text-sel-ink">
+        <div className="hidden min-w-0 items-center gap-1.5 rounded border border-sel/30 bg-sel-soft py-0.5 pl-2 pr-0.5 text-sm text-sel-ink sm:flex">
           <Crosshair className="size-3.5 flex-none" aria-hidden />
-          <span className="hidden sm:inline">Following</span>
-          <Link to={`/cbsds/${encodeURIComponent(followed)}`} className="truncate font-mono text-xs font-medium underline-offset-2 hover:underline">{cbsdLabel(followed)}</Link>
+          <span>Following</span>
+          <CbsdName cbsdId={followed} className="font-medium text-sel-ink" />
           <button type="button" onClick={() => setFollowed(null)} className="rounded p-1 hover:bg-sel/10" aria-label="Stop following" title="Stop following">
             <X className="size-3" />
           </button>
         </div>
-      ) : (
-        <span className="hidden text-sm text-ink-3 sm:inline">Follow a CBSD from its page to track it across every view.</span>
-      )}
+      ) : cbsds.length > 0 ? (
+        <label className="hidden items-center gap-2 sm:flex" title="The followed CBSD is highlighted on every page and can narrow the wire log, grants and events">
+          <Crosshair className="size-3.5 flex-none text-ink-3" aria-hidden />
+          <span className="sr-only">Follow a CBSD</span>
+          <Select value="" onChange={(e) => e.target.value && setFollowed(e.target.value)} className="h-7 w-[240px] py-0 text-sm text-ink-2">
+            <option value="">Follow a CBSD…</option>
+            {cbsds.map((c) => <option key={c.cbsdId} value={c.cbsdId}>{c.fccId} / {c.serial}</option>)}
+          </Select>
+        </label>
+      ) : null}
       <div className="ml-auto flex items-center gap-2">
         {s && s.counts.faultRules > 0 && (
           <Link to="/faults" title="Fault rules alter what goes on the wire">
@@ -240,7 +264,7 @@ function TopBar({ onMenu }: { onMenu: () => void }) {
           </Link>
         )}
         <Link to="/settings" className="hidden sm:block" title="Settings profile">
-          <Tag tone={s?.profile === 'winnforum' ? 'sel' : s?.profile === 'open' ? 'warn' : 'off'}>{profile}</Tag>
+          <Tag tone={s?.profile === 'open' ? 'warn' : 'off'}>{profile}</Tag>
         </Link>
         <span className="flex items-center gap-1.5 pl-1 text-xs text-ink-3" title={connected ? 'Live updates connected' : 'Reconnecting to the server…'}>
           <Led c={connected ? 'ok' : 'bad'} />

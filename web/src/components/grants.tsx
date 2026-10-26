@@ -3,11 +3,10 @@ import { Ban, Pause, Pencil, Play } from 'lucide-react';
 import { api } from '../lib/api';
 import { useNow } from '../lib/live';
 import { useFollow } from '../lib/follow';
-import { Link } from '../lib/router';
 import { ago, clock, iso, mhz, range, until } from '../lib/format';
 import type { Grant } from '../lib/types';
-import { Swatch } from './rack';
-import { Button, Drawer, Field, GrantStateTag, Input, Readout, Tag, cx, useAction, useConfirm } from './ui';
+import { CbsdName } from './rack';
+import { Button, Drawer, Field, GrantStateTag, Input, Readout, cx, useAction, useConfirm } from './ui';
 
 // Grant table with operator actions (suspend / resume / terminate / edit), shared by the
 // Grants page and the CBSD detail page.
@@ -35,10 +34,53 @@ export function GrantTable({ grants, showCbsd = true, marks, onAck }: {
     if (ok) await run(`t:${g.grantId}`, () => api.post(`/api/grants/${encodeURIComponent(g.grantId)}/terminate`, { reason: 'terminated by administrator' }), 'Grant terminated');
   };
 
+  const actions = (g: Grant, labelled?: boolean) => (
+    <div className={cx('flex gap-0.5', labelled ? 'flex-wrap gap-1.5' : 'justify-end')}>
+      <Button size="sm" variant={labelled ? 'secondary' : 'ghost'} icon={g.suspended ? Play : Pause} loading={busy === `s:${g.grantId}`} onClick={() => suspend(g, !g.suspended)} title={g.suspended ? 'Resume (heartbeat → 0)' : 'Suspend (heartbeat → 501)'} aria-label={labelled ? undefined : g.suspended ? 'Resume grant' : 'Suspend grant'}>
+        {labelled ? (g.suspended ? 'Resume' : 'Suspend') : null}
+      </Button>
+      <Button size="sm" variant={labelled ? 'secondary' : 'ghost'} icon={Pencil} onClick={() => setEdit(g)} title="Edit heartbeat interval, expiry, suggestion" aria-label={labelled ? undefined : 'Edit grant'}>
+        {labelled ? 'Edit' : null}
+      </Button>
+      <Button size="sm" variant="danger-ghost" icon={Ban} loading={busy === `t:${g.grantId}`} onClick={() => terminate(g)} title="Terminate (heartbeat → 500)" aria-label={labelled ? undefined : 'Terminate grant'}>
+        {labelled ? 'Terminate' : null}
+      </Button>
+    </div>
+  );
+  // The actions column stays pinned to the right edge while the table scrolls sideways.
+  const pin = 'sticky right-0 bg-panel shadow-[-1px_0_0_rgb(var(--line))] [tr:hover>&]:bg-panel-3 [tr[aria-selected=true]>&]:bg-sel-soft';
+
   return (
     <>
-      <div className="overflow-x-auto">
-        <table className="dtable min-w-[1080px]">
+      {/* Phones: one stacked card per grant with labelled actions. */}
+      <ul className="divide-y divide-line md:hidden">
+        {grants.map((g) => {
+          const active = ACTIVE(g);
+          const mark = marks?.[g.grantId];
+          return (
+            <li key={g.grantId} aria-selected={followed === g.cbsdId} className={cx('space-y-1.5 px-3 py-2.5', followed === g.cbsdId && 'bg-sel-soft')} onTouchStart={() => mark && onAck?.(g.grantId)}>
+              <div className="flex items-center gap-2">
+                {showCbsd ? <CbsdName cbsdId={g.cbsdId} fccId={g.fccId ?? undefined} serial={g.serial ?? undefined} /> : <span className="truncate font-mono text-xs text-ink-2">{g.grantId}</span>}
+                <span className="ml-auto flex flex-none items-center gap-1.5">
+                  {mark && <span className="changed-mark" title={`Changed: ${mark}`} />}
+                  <GrantStateTag state={g.state} suspended={g.suspended} />
+                </span>
+              </div>
+              <div className="num flex flex-wrap gap-x-3 font-mono text-xs text-ink">
+                <span>{range(g.low, g.high)} MHz</span>
+                <span>{g.maxEirp} <span className="text-ink-3">dBm/MHz</span></span>
+                <span className="text-ink-3">{g.channelType}</span>
+                {active && g.transmitExpireTime ? <span className="text-ink-2">TX {until(g.transmitExpireTime, now)}</span> : null}
+              </div>
+              {!active && g.endReason && <p className="text-xs text-ink-3">{g.endReason}</p>}
+              {active && actions(g, true)}
+            </li>
+          );
+        })}
+      </ul>
+
+      <div className="hidden overflow-x-auto md:block">
+        <table className="dtable">
           <thead>
             <tr>
               <th className="w-[1%]" aria-label="Changed" />
@@ -47,12 +89,10 @@ export function GrantTable({ grants, showCbsd = true, marks, onAck }: {
               <th>State</th>
               <th className="text-right">Channel (MHz)</th>
               <th className="text-right">Max EIRP</th>
-              <th>Type</th>
-              <th className="text-right">HB interval</th>
               <th className="text-right">Heartbeats</th>
               <th>Transmit expires</th>
               <th>Grant expires</th>
-              <th className="w-[1%]" aria-label="Actions" />
+              <th className={cx('w-[1%] !z-[2]', pin)} aria-label="Actions" />
             </tr>
           </thead>
           <tbody>
@@ -61,33 +101,31 @@ export function GrantTable({ grants, showCbsd = true, marks, onAck }: {
               const txLeft = g.transmitExpireTime ? g.transmitExpireTime - now : null;
               const mark = marks?.[g.grantId];
               return (
-                <tr key={g.grantId} aria-selected={followed === g.cbsdId} onMouseEnter={() => mark && onAck?.(g.grantId)} className={cx(!active && 'text-ink-2')}>
+                <tr key={g.grantId} aria-selected={followed === g.cbsdId} onMouseEnter={() => mark && onAck?.(g.grantId)} onFocus={() => mark && onAck?.(g.grantId)} className={cx(!active && 'text-ink-2')}>
                   <td className="pr-0">{mark ? <span className="changed-mark" title={`Changed: ${mark}`} /> : null}</td>
                   {showCbsd && (
-                    <td className="max-w-[300px]">
-                      <Link to={`/cbsds/${encodeURIComponent(g.cbsdId)}`} className="flex min-w-0 items-center gap-1.5 hover:underline">
-                        <Swatch cbsdId={g.cbsdId} />
-                        <span className="truncate font-mono text-xs">{g.fccId ? `${g.fccId} / ${g.serial}` : g.cbsdId}</span>
-                      </Link>
+                    <td className="max-w-[260px]">
+                      <CbsdName cbsdId={g.cbsdId} fccId={g.fccId ?? undefined} serial={g.serial ?? undefined} />
                     </td>
                   )}
-                  <td className="max-w-[180px] truncate font-mono text-2xs text-ink-2" title={g.grantId}>{g.grantId}</td>
+                  <td className="max-w-[170px] truncate font-mono text-xs text-ink-2" title={g.grantId}>{g.grantId}</td>
                   <td>
                     <div className="flex flex-col items-start gap-0.5">
                       <GrantStateTag state={g.state} suspended={g.suspended} />
-                      {!active && g.endReason && <span className="max-w-[220px] truncate text-2xs text-ink-3" title={g.endReason}>{g.endReason}</span>}
+                      {!active && g.endReason && <span className="max-w-[220px] truncate text-xs text-ink-3" title={g.endReason}>{g.endReason}</span>}
                     </div>
                   </td>
-                  <td className="num whitespace-nowrap text-right font-mono text-xs">{range(g.low, g.high)}<span className="text-ink-3"> · {mhz(g.high - g.low)}</span></td>
-                  <td className="num whitespace-nowrap text-right font-mono text-xs">{g.maxEirp}<span className="text-ink-3"> dBm/MHz</span></td>
-                  <td><Tag tone={g.channelType === 'PAL' ? 'sel' : 'off'}>{g.channelType}</Tag></td>
                   <td className="num whitespace-nowrap text-right font-mono text-xs">
-                    {g.heartbeatInterval}s
-                    {g.pendingHeartbeatInterval ? <span className="text-warn-ink" title="Sent with the next heartbeat response"> → {g.pendingHeartbeatInterval}s</span> : null}
+                    {range(g.low, g.high)}<span className="text-ink-3"> · {mhz(g.high - g.low)}</span>
+                    <div className="text-xs text-ink-3" title={g.channelType === 'PAL' ? 'Priority Access (PAL) channel' : 'General Authorized Access'}>{g.channelType}</div>
                   </td>
+                  <td className="num whitespace-nowrap text-right font-mono text-xs">{g.maxEirp}<span className="text-ink-3"> dBm/MHz</span></td>
                   <td className="num whitespace-nowrap text-right text-xs">
-                    {g.heartbeatCount}
-                    <div className="text-2xs text-ink-3">{g.lastHeartbeat ? ago(g.lastHeartbeat, now) : 'none yet'}</div>
+                    <span className="font-mono">{g.heartbeatCount}</span>
+                    <span className="text-ink-3"> · every </span>
+                    <span className="font-mono">{g.heartbeatInterval}s</span>
+                    {g.pendingHeartbeatInterval ? <span className="font-mono text-warn-ink" title="Sent with the next heartbeat response"> → {g.pendingHeartbeatInterval}s</span> : null}
+                    <div className="text-xs text-ink-3">{g.lastHeartbeat ? ago(g.lastHeartbeat, now) : 'none yet'}</div>
                   </td>
                   <td className="num whitespace-nowrap font-mono text-xs">
                     {active && txLeft !== null ? (
@@ -97,15 +135,7 @@ export function GrantTable({ grants, showCbsd = true, marks, onAck }: {
                   <td className="num whitespace-nowrap font-mono text-xs" title={iso(g.grantExpireTime)}>
                     {active ? until(g.grantExpireTime, now) : g.endedAt ? <span className="text-ink-3">ended {clock(g.endedAt, true)}</span> : '—'}
                   </td>
-                  <td>
-                    {active && (
-                      <div className="flex justify-end gap-0.5">
-                        <Button size="sm" variant="ghost" icon={g.suspended ? Play : Pause} loading={busy === `s:${g.grantId}`} onClick={() => suspend(g, !g.suspended)} title={g.suspended ? 'Resume (heartbeat → 0)' : 'Suspend (heartbeat → 501)'} aria-label={g.suspended ? 'Resume' : 'Suspend'} />
-                        <Button size="sm" variant="ghost" icon={Pencil} onClick={() => setEdit(g)} title="Edit heartbeat interval, expiry, suggestion" aria-label="Edit grant" />
-                        <Button size="sm" variant="danger-ghost" icon={Ban} loading={busy === `t:${g.grantId}`} onClick={() => terminate(g)} title="Terminate (heartbeat → 500)" aria-label="Terminate" />
-                      </div>
-                    )}
-                  </td>
+                  <td className={pin}>{active && actions(g)}</td>
                 </tr>
               );
             })}

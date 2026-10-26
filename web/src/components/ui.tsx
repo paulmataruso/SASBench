@@ -1,6 +1,6 @@
 import {
   createContext, forwardRef, useCallback, useContext, useEffect, useId, useRef, useState,
-  type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes,
+  type ButtonHTMLAttributes, type InputHTMLAttributes, type KeyboardEvent, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes,
 } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, Copy, Loader2, X, type LucideIcon } from 'lucide-react';
@@ -55,26 +55,42 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
 
 // ---------------------------------------------------------------- form controls
 
+// A Field hands its id to the control inside it, so the visible label names the control and the
+// hint / error describes it without every caller wiring htmlFor and aria-describedby by hand.
+const FieldCtx = createContext<{ id: string; describedBy?: string } | null>(null);
+
+function useFieldProps<P extends { id?: string; 'aria-label'?: string; 'aria-describedby'?: string }>(props: P): P {
+  const f = useContext(FieldCtx);
+  if (!f) return props;
+  // A control with its own aria-label shares the Field with others (e.g. a min/max pair): it keeps
+  // the hint but leaves the label's id to the Field's main control.
+  const id = props.id ?? (props['aria-label'] ? undefined : f.id);
+  return { ...props, id, 'aria-describedby': props['aria-describedby'] ?? f.describedBy };
+}
+
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(function Input({ className, ...rest }, ref) {
-  return <input ref={ref} className={cx('field', className)} {...rest} />;
+  return <input ref={ref} className={cx('field', className)} {...useFieldProps(rest)} />;
 });
 
 export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElement>>(function Select({ className, ...rest }, ref) {
-  return <select ref={ref} className={cx('field', className)} {...rest} />;
+  return <select ref={ref} className={cx('field', className)} {...useFieldProps(rest)} />;
 });
 
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement>>(function Textarea({ className, ...rest }, ref) {
-  return <textarea ref={ref} className={cx('field font-mono text-sm leading-[19px]', className)} spellCheck={false} {...rest} />;
+  return <textarea ref={ref} className={cx('field font-mono text-sm leading-[19px]', className)} spellCheck={false} {...useFieldProps(rest)} />;
 });
 
 export function Field({ label, hint, error, children, className, htmlFor }: {
   label: ReactNode; hint?: ReactNode; error?: string | null; children: ReactNode; className?: string; htmlFor?: string;
 }) {
+  const auto = useId();
+  const id = htmlFor ?? auto;
+  const note = error || hint ? `${id}-note` : undefined;
   return (
     <div className={cx('min-w-0', className)}>
-      <label htmlFor={htmlFor} className="mb-1 block text-sm font-medium text-ink-2">{label}</label>
-      {children}
-      {error ? <p className="mt-1 text-xs text-bad-ink">{error}</p> : hint ? <p className="mt-1 text-xs text-ink-3">{hint}</p> : null}
+      <label htmlFor={id} className="mb-1 block text-sm font-medium text-ink-2">{label}</label>
+      <FieldCtx.Provider value={{ id, describedBy: note }}>{children}</FieldCtx.Provider>
+      {error ? <p id={note} className="mt-1 text-xs text-bad-ink">{error}</p> : hint ? <p id={note} className="mt-1 text-xs text-ink-3">{hint}</p> : null}
     </div>
   );
 }
@@ -107,18 +123,39 @@ export function Switch({ checked, onChange, label, description, disabled, classN
   );
 }
 
-export function Segmented<T extends string>({ value, onChange, options, size = 'md', label }: {
+/** Arrow keys move between the options of a radio group or tab list and select the one reached. */
+function arrowNav<T>(e: KeyboardEvent<HTMLElement>, values: T[], value: T, onChange: (v: T) => void) {
+  const step = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0;
+  const to = e.key === 'Home' ? 0 : e.key === 'End' ? values.length - 1 : step ? (values.indexOf(value) + step + values.length) % values.length : -1;
+  if (to < 0) return;
+  e.preventDefault();
+  onChange(values[to]);
+  const buttons = e.currentTarget.querySelectorAll<HTMLElement>('[data-opt]');
+  buttons[to]?.focus();
+}
+
+export function Segmented<T extends string>({ value, onChange, options, size = 'md', label, className }: {
   value: T; onChange: (v: T) => void; options: Array<{ value: T; label: ReactNode; title?: string }>; size?: 'sm' | 'md'; label?: string;
+  /** Layout of the options; defaults to a single inline row. */
+  className?: string;
 }) {
   return (
-    <div role="radiogroup" aria-label={label} className="inline-flex rounded border border-line-strong bg-panel-2 p-0.5">
+    <div
+      role="radiogroup"
+      aria-label={label}
+      className={cx('rounded border border-line-strong bg-panel-2 p-0.5', className ?? 'inline-flex')}
+      onKeyDown={(e) => arrowNav(e, options.map((o) => o.value), value, onChange)}
+    >
       {options.map((o) => (
         <button
           key={o.value}
           type="button"
           role="radio"
+          data-opt=""
           aria-checked={value === o.value}
+          tabIndex={value === o.value ? 0 : -1}
           title={o.title}
+          aria-label={typeof o.label === 'string' ? undefined : o.title}
           onClick={() => onChange(o.value)}
           className={cx(
             'rounded-sm font-medium transition-colors duration-150',
@@ -142,10 +179,10 @@ export function Module({ title, actions, children, className, bodyClass, id, met
   return (
     <section id={id} className={cx('flex min-w-0 flex-col rounded border border-line bg-panel shadow-panel', className)}>
       {title !== undefined && (
-        <header className="flex min-h-[34px] items-center gap-3 border-b border-line bg-panel-2 px-3 py-1">
+        <header className="flex min-h-[34px] flex-wrap items-center gap-x-3 gap-y-1 border-b border-line bg-panel-2 px-3 py-1">
           <h2 className="silk text-xs text-ink-2">{title}</h2>
           {meta ? <div className="text-xs text-ink-3">{meta}</div> : null}
-          <div className="ml-auto flex items-center gap-1.5">{actions}</div>
+          <div className="ml-auto flex flex-wrap items-center gap-1.5">{actions}</div>
         </header>
       )}
       <div className={cx('min-h-0 flex-1', bodyClass ?? 'p-3')}>{children}</div>
@@ -169,13 +206,15 @@ export function Tabs<T extends string>({ value, onChange, tabs, className }: {
   value: T; onChange: (v: T) => void; tabs: Array<{ value: T; label: ReactNode; count?: number }>; className?: string;
 }) {
   return (
-    <div role="tablist" className={cx('flex gap-1 overflow-x-auto border-b border-line', className)}>
+    <div role="tablist" className={cx('flex gap-1 overflow-x-auto border-b border-line', className)} onKeyDown={(e) => arrowNav(e, tabs.map((t) => t.value), value, onChange)}>
       {tabs.map((t) => (
         <button
           key={t.value}
           role="tab"
           type="button"
+          data-opt=""
           aria-selected={value === t.value}
+          tabIndex={value === t.value ? 0 : -1}
           onClick={() => onChange(t.value)}
           className={cx(
             '-mb-px inline-flex h-9 items-center gap-2 whitespace-nowrap border-b-2 px-3 text-base font-medium transition-colors duration-150',
@@ -216,8 +255,9 @@ export function Led({ c, flash, title, className }: { c: Tone | null; flash?: nu
   return (
     <span
       key={flash}
-      role="img"
+      role={title ? 'img' : undefined}
       aria-label={title}
+      aria-hidden={title ? undefined : true}
       title={title}
       className={cx('led', className)}
       data-c={c && c !== 'off' ? c : undefined}
@@ -356,7 +396,7 @@ export function highlightJson(value: unknown): string {
 export function JsonView({ value, className, maxHeight }: { value: unknown; className?: string; maxHeight?: number }) {
   return (
     <pre
-      className={cx('json overflow-auto whitespace-pre-wrap break-all rounded border border-line bg-panel-2 p-3', className)}
+      className={cx('json overflow-auto whitespace-pre-wrap rounded border border-line bg-panel-2 p-3 [overflow-wrap:anywhere]', className)}
       style={maxHeight ? { maxHeight } : undefined}
       dangerouslySetInnerHTML={{ __html: highlightJson(value) }}
     />
@@ -365,27 +405,69 @@ export function JsonView({ value, className, maxHeight }: { value: unknown; clas
 
 // ---------------------------------------------------------------- drawer & dialog
 
+const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+
+/**
+ * Keyboard containment for a modal layer: focus moves in when it opens, Tab cycles inside it,
+ * Escape closes it, and focus returns to whatever opened it.
+ */
+export function useModalFocus(open: boolean, onClose: () => void) {
+  const ref = useRef<HTMLElement>(null);
+  const close = useRef(onClose);
+  close.current = onClose;
+  useEffect(() => {
+    if (!open) return;
+    const opener = document.activeElement as HTMLElement | null;
+    const frame = requestAnimationFrame(() => ref.current?.focus());
+    const on = (e: globalThis.KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        close.current();
+        return;
+      }
+      if (e.key !== 'Tab' || !ref.current) return;
+      const items = [...ref.current.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((el) => el.offsetParent !== null);
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      const at = document.activeElement;
+      if (e.shiftKey && (at === first || at === ref.current)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && (at === last || !ref.current.contains(at))) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener('keydown', on);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('keydown', on);
+      if (opener?.isConnected) opener.focus();
+    };
+  }, [open]);
+  return ref;
+}
+
 export function Drawer({ open, onClose, title, children, width = 640, actions }: {
   open: boolean; onClose: () => void; title: ReactNode; children: ReactNode; width?: number; actions?: ReactNode;
 }) {
-  useEffect(() => {
-    if (!open) return;
-    const on = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    window.addEventListener('keydown', on);
-    return () => window.removeEventListener('keydown', on);
-  }, [open, onClose]);
+  const ref = useModalFocus(open, onClose);
+  const titleId = useId();
   if (!open) return null;
   return createPortal(
     <div className="fixed inset-0 z-40 flex justify-end">
       <div className="absolute inset-0 bg-rail/30" onClick={onClose} aria-hidden />
       <aside
+        ref={ref}
         role="dialog"
         aria-modal="true"
-        className="drawer-in relative flex h-full w-full flex-col border-l border-line bg-panel shadow-pop"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className="drawer-in relative flex h-full w-full flex-col border-l border-line bg-panel shadow-pop outline-none"
         style={{ maxWidth: width }}
       >
         <header className="flex min-h-[48px] items-center gap-3 border-b border-line bg-panel-2 px-4">
-          <div className="min-w-0 flex-1 truncate text-md font-semibold">{title}</div>
+          <div id={titleId} className="min-w-0 flex-1 truncate text-md font-semibold">{title}</div>
           {actions}
           <button type="button" onClick={onClose} aria-label="Close" title="Close (Esc)" className="-mr-1.5 rounded p-1.5 text-ink-2 transition-colors hover:bg-panel-3 hover:text-ink">
             <X className="size-[18px]" strokeWidth={2} />

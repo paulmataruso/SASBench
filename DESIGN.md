@@ -15,7 +15,7 @@ colors:
   line-strong: "#bac2cd"
   ink: "#131921"
   ink-2: "#3c4757"
-  ink-3: "#606c7d"
+  ink-3: "#5a6676"
   primary: "#14181f"
   primary-hover: "#2c333f"
   primary-fg: "#f0f3f7"
@@ -37,7 +37,7 @@ colors:
   led-off: "#cdd3dc"
   patch-orange: "#e8711c"
   patch-green: "#2f9e44"
-  patch-blue: "#1c7ed6"
+  patch-blue: "#1772c6"
   patch-brown: "#8d5a2b"
   patch-slate: "#5c6b7a"
   patch-violet: "#7b4fd6"
@@ -201,9 +201,10 @@ The palette is cool-neutral hardware with saturated signal colours reserved for 
 - **Selection Blue** (sel, sel-soft, sel-ink): the single interaction colour. Focus rings, the active tab underline, switch-on state, followed-row background (sel-soft), inline links (sel-ink), text caret and selection tint. It is never a status colour.
 
 ### Tertiary
-- **LED Signal Set** (ok, warn, bad, info): each comes as a trio. The base hue lights LEDs, drain bars and change marks; `-soft` fills tags and notes; `-ink` is the text colour on those fills and for status numerals. Mapping is fixed: ok = AUTHORIZED / listening / success; warn = suspended / pending / 105 / 501; bad = terminated / error / listener down; info = GRANTED but not yet authorized.
+- **LED Signal Set** (ok, warn, bad, info): each comes as a trio. The base hue lights LEDs and drain bars; `-soft` fills tags and notes; `-ink` is the text colour on those fills and for status numerals. Mapping is fixed: ok = AUTHORIZED / listening / success; warn = suspended / pending / 105 / 501; bad = terminated / error / listener down; info = GRANTED but not yet authorized.
 - **LED Off** (led-off): an unlit LED. "Off" is a real state (none, disabled), not an absence.
-- **Patch-Cable Code** (patch-orange through patch-teal, CSS `--p0`..`--p7`): one colour per CBSD, chosen by hashing its ID. It appears as the 10px swatch at the start of each rack row, as the fill of that CBSD's grant blocks in the band strip and band plan, and as map markers. Suspended grants show the same colour as a 135-degree stripe of full and 45% alpha.
+- **Patch-Cable Code** (patch-orange through patch-teal, CSS `--p0`..`--p7`): one colour per CBSD, chosen by hashing its ID. It appears as the 10px swatch at the start of each rack row, as the fill of that CBSD's grant blocks in the band strip and band plan, and as map markers. Suspended grants show the same colour as a 135-degree stripe of full and 45% alpha. Text set on a patch fill uses its partner token `--p0-fg`..`--p7-fg` (through `patchFg()`): ink on the pale orange, green and teal patches in the light theme, white on the others, and near-black on every patch in the dark theme.
+- **CBSD names:** wherever a CBSD is named it reads `FCC ID / serial` in mono, with its swatch, linked to its page (`CbsdName`). When space runs short the FCC ID truncates first, so the serial (what tells two bench units apart) stays readable; the full cbsdId is in the title.
 
 ### Neutral
 - **Aluminium Ground** (ground): the page background behind all panels.
@@ -282,7 +283,7 @@ Compact, flat and bordered: they read like panel switches.
 
 ### Tags
 - **Style:** 20px tall, 2px corners, 1px tinted border, `-soft` fill with `-ink` text per tone (ok, warn, bad, info, sel, off). Text is Barlow Condensed with slight tracking, or mono at 10.5px for numeric tags.
-- **Variants:** grant-state tags follow the LED vocabulary (and append "SUSPENDED"); response-code tags show the number in mono plus its condensed name; HTTP tags are neutral below 300, warn below 500, bad above.
+- **Variants:** grant-state tags follow the LED vocabulary (and append "SUSPENDED"); response-code tags show the number in mono plus its condensed name; HTTP tags are neutral below 300, warn below 500, bad above. Transport tags (HTTP, HTTPS, INTERNAL) are neutral mono tags: they name a path, not a state.
 
 ### Modules (cards / containers)
 - **Corner Style:** 3px.
@@ -297,19 +298,24 @@ Compact, flat and bordered: they read like panel switches.
 - **Hover:** border to ink-3.
 - **Focus:** border to sel plus the 3px sel halo at 18%.
 - **Error / Disabled:** `aria-invalid` turns the border to bad, and the message below is 11.5px bad-ink. Disabled is a panel-2 fill with ink-3 text.
-- **Label:** 12.5px, 500 weight, ink-2, 4px above; hints are 11.5px ink-3.
+- **Label:** 12.5px, 500 weight, ink-2, 4px above; hints are 11.5px ink-3. `Field` labels its control (`htmlFor`/`id`) and wires the hint or error with `aria-describedby`; a control that carries its own `aria-label` (one of a min/max pair) keeps the hint but not the id.
 - **Switch:** 32x18 pill; on is sel fill, off is panel-3 with a line-strong border, and the 12px white knob slides over 150ms.
-- **Segmented:** a panel-2 trough with line-strong border; the selected segment is a raised panel face with panel contact shadow and a line-strong ring.
+- **Segmented:** a panel-2 trough with line-strong border; the selected segment is a raised panel face with panel contact shadow and a line-strong ring. Arrow keys, Home and End move the selection (roving tabindex), as they do on Tabs. When the options cannot fit one row they lay out as an even grid (the console's six methods as 3 + 3), never a clipped scroller.
+- **Focus:** a 2px sel outline at 2px offset; on the rail the outline is rail-sel so it reads on the dark ground.
 
 ### Navigation
 - **Rail:** rail background, a 48px brand row with the rack mark, and groups (Operate / Diagnose / Configure) headed by rail-mute silkscreen. Items are 32px, 3px corners, 13.5px; hover is rail-2; active is rail-3 with white text and a light-blue icon. Count badges are right-aligned tabular numerals. The footer shows an LED, condensed label and mono port for each listener, plus the version line.
 - **Tabs:** 36px, a 2px underline in sel when active, line-strong on hover, optional mono count chip.
+- **Top bar:** the followed-CBSD chip (or, when nothing is followed, a "Follow a CBSD…" picker), the settings-profile tag (warn on the open profile, off otherwise), the live LED and the theme switch. On phones it carries the page title, and the rail opens as a modal sheet that traps focus and closes on Escape. A "Skip to content" link is the first tab stop.
+- **Followed-only filter:** pages that list per-CBSD records (grants, wire log, events) offer a "Followed CBSD only" switch, shown only while a CBSD is followed.
 
 ### Data Tables
 Hairline rules between rows, 36px rows, sticky panel-2 silkscreen heads, hover panel-3 at 70%, and a sel-soft fill for the selected (followed) row. Body text is 12.5px.
 
 ### CBSD Rack Row (signature)
 Each radio is one 1U table row. From left to right: the 10px patch swatch (2px corners) and a change mark slot; three LEDs (REG, GNT, HB) spaced 19px apart under condensed column heads; the TX indicator; the mono `FCC ID / serial` link with category and state tags and a muted 11.5px detail line; the held spectrum as mono ranges; and the last-seen age. The HB LED replays a 900ms white-hot flash on every heartbeat received.
+
+The LEDs read from the radio's own schedule. HB uses the shortest heartbeat interval among its active grants (60s when unknown): ok while the last heartbeat is within 1.5x that interval plus 5s, warn when it is late or the last answer was 501 or 105, bad on any other non-zero code, and off once it is more than 3x the interval plus 5s old. On the CBSDs page the rack runs in detail mode: the sub-line adds deployment, user ID, location and height, and Last seen and Follow columns join on the right. On phones each row stacks into a labelled LED line above the name.
 
 ### LED
 An 8px flat circle. Unlit it is led-off with a 12% inset ring; lit it takes ok, warn, bad or info with a 5px glow at 55%. Colour changes transition over 200ms. The flash keyframe starts white with a 12px halo and settles by 35%, using `cubic-bezier(0.16, 1, 0.3, 1)`. With reduced motion, the flash shortens to 1ms.
@@ -320,8 +326,14 @@ An LED followed by a 40x3px rounded track in line, filled with ok (warn under 15
 ### Band Strip
 A 3550 to 3700 MHz occupancy strip. An 8px panel-3 track shows GAA availability in line-strong at 70%. Below it, 18px lanes hold grant blocks in each CBSD's patch colour with white mono MHz labels; non-authorized grants drop to 60% opacity and suspended grants are hatched. Mono tick labels sit every 10 MHz, and an empty state is a dashed hairline box.
 
+### Band Plan
+The spectrum page's full plan: GAA, PAL, protection and grant lanes on one MHz axis. The GAA lane is neutral, because availability is not a status: available ranges are an opaque 50% mix of line-strong into panel, drawn over a hatched "not available" track. Grant blocks are opaque patch colour with `--pN-fg` labels reading `serial · N dBm`; keyboard focus thickens the block outline to 2.5px in sel.
+
+### Live Wire Column
+The overview's right column streams exchanges newest first and fills the column's height. Consecutive good heartbeats from one CBSD fold into a single line that updates in place with a xN count; a non-zero response code or any other method gets its own row, and a new row for that CBSD ends the fold. Pause holds incoming rows and offers "Resume (N new)".
+
 ### Change Mark
-A 6px warn dot beside a row whose state changed, which stays until the row is hovered. It enters with a 400ms scale-in.
+A 7px hollow ring (1.5px inset, sel) beside a row whose state changed, which stays until the row is hovered, focused or touched. It is selection blue rather than an LED hue, because a change is news, not a fault. It enters with a 400ms scale-in.
 
 ### Feedback
 - **Note / ErrorNote:** 3px box with a tone `-soft` fill, tinted border and 12.5px `-ink` text.

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { SquareTerminal } from 'lucide-react';
 import { api } from '../lib/api';
-import { navigate, Link } from '../lib/router';
+import { navigate } from '../lib/router';
+import { CbsdName } from './rack';
 import { clockMs, iso, parseCodes, RC_NAMES } from '../lib/format';
 import type { MessageRow } from '../lib/types';
 import { Button, CodeTag, CopyButton, Drawer, ErrorNote, HttpTag, JsonView, Readout, SkeletonRows, Tag } from './ui';
@@ -10,7 +11,8 @@ import { Button, CodeTag, CopyButton, Drawer, ErrorNote, HttpTag, JsonView, Read
 
 export function transportTag(t: string | null | undefined) {
   const v = (t ?? '').toLowerCase();
-  return <Tag tone={v === 'https' ? 'ok' : v === 'http' ? 'off' : 'info'}>{v ? v.toUpperCase() : '—'}</Tag>;
+  // Neutral on purpose: transport is a fact about the link, not a status.
+  return <Tag mono>{v ? v.toUpperCase() : '—'}</Tag>;
 }
 
 export function msgCbsdIds(m: MessageRow): string[] {
@@ -55,7 +57,7 @@ export function MessageDrawer({ id, onClose }: { id: number | null; onClose: () 
               ['Client certificate', m.cert_subject ? <span className="break-all font-mono text-xs">{m.cert_subject}</span> : <span className="text-ink-3">none presented</span>],
               ['CBSDs', msgCbsdIds(m).length ? (
                 <span className="flex flex-col">
-                  {msgCbsdIds(m).map((c) => <Link key={c} to={`/cbsds/${encodeURIComponent(c)}`} className="truncate font-mono text-xs text-sel-ink hover:underline">{c}</Link>)}
+                  {msgCbsdIds(m).map((c) => <CbsdName key={c} cbsdId={c} className="text-sel-ink" />)}
                 </span>
               ) : '—'],
             ]}
