@@ -14,6 +14,7 @@
     "test": "node --test --test-concurrency=1 server/test/*.test.ts",
     "build:web": "npm --prefix web run build",
     "basemap": "scripts/build-basemap.sh",
+    "terrain": "node server/src/tools/fetch-terrain.ts",
     "notices": "node scripts/third-party-notices.mjs",
     "notices:check": "node scripts/third-party-notices.mjs --check"
   },

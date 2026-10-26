@@ -31,7 +31,8 @@ services:
       # UI_PORT: "8080"
       # SAS_HTTP_PORT: "8000"
       # SAS_HTTPS_PORT: "8443"
-      # Directory with USGS NED GridFloat tiles for the Category A HAAT check (default /data/terrain).
+      # Elevation tiles for the Category A HAAT check (default /data/terrain): USGS GeoTIFF or NED
+      # GridFloat. Fetch with `docker exec cbrs-lab-sas node server/src/tools/fetch-terrain.ts --around LAT,LON`.
       # SAS_TERRAIN_DIR: "/data/terrain"
       # Offline map tile store: MBTiles files and z/x/y folders (default /data/tiles). Copy files in
       # with `docker cp lab.mbtiles cbrs-lab-sas:/data/tiles/`, or download an area in Settings → Map.

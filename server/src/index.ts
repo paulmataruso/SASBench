@@ -40,8 +40,10 @@ const bus = new Bus(db, settings);
 const pki = new Pki(db, path.join(DATA_DIR, 'tmp'));
 const engine = new Engine(db, settings, bus);
 engine.terrain = new Terrain(process.env.SAS_TERRAIN_DIR ?? path.join(DATA_DIR, 'terrain'));
-if (!engine.terrain.tileCount) {
-  log(`No terrain tiles in ${process.env.SAS_TERRAIN_DIR ?? path.join(DATA_DIR, 'terrain')}: the Category A HAAT check is skipped`);
+if (engine.terrain.tileCount) {
+  log(`Terrain: ${engine.terrain.tileCount} elevation tile(s) in ${engine.terrain.directory} for the Category A HAAT check`);
+} else {
+  log(`No terrain tiles in ${engine.terrain.directory}: the Category A HAAT check is skipped until tiles are added (node server/src/tools/fetch-terrain.ts)`);
 }
 const faults = new FaultInjector(db, bus);
 const admin = new SasAdmin(db, engine, bus, settings, pki, RESOURCE_DIR);

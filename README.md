@@ -171,6 +171,30 @@ OpenStreetMap's tile servers forbid bulk downloading ([tile usage policy](https:
 
 `npm run basemap` rebuilds the built-in basemap (`web/public/basemap/north-america.json`) from Natural Earth with `scripts/build-basemap.sh`. It needs Node.js, `curl` and internet access, and downloads about 130 MB. The generated file is committed, so this is only needed to change the basemap.
 
+## Terrain (Category A HAAT)
+
+A Category A CBSD installed outdoors may not have its antenna more than 6 m above average terrain (HAAT, FCC 96.43(b)). The SAS computes HAAT the way the WInnForum reference model does: 8 radials, 50 points each from 3 to 16 km. It reads 1-arc-second elevation tiles from `/data/terrain` (`SAS_TERRAIN_DIR`) and rejects a violation with 103 (INVALID_VALUE). Where no tile covers a location, the check is skipped and the registration logs a warning. Only Category A outdoor registrations use terrain.
+
+Fetch tiles from USGS (3DEP, public domain; 40–70 MB per 1°×1° tile):
+
+```bash
+# Docker
+docker exec cbrs-lab-sas node server/src/tools/fetch-terrain.ts --around 39.74,-104.99
+docker exec cbrs-lab-sas node server/src/tools/fetch-terrain.ts --harness
+
+# Local
+npm run terrain -- n39w078 n39w077
+```
+
+- `--around LAT,LON` fetches every tile a HAAT check at that point reads.
+- `--harness` fetches the 25 tiles (1.2 GB) for the CBSD locations in the WInnForum harness's CBSD-facing suites.
+- Tiles can also be named directly after their north-west corner, such as `n39w078`.
+
+The running SAS picks new tiles up within 30 seconds. It reads two formats, and recognises a tile by the `n39w078` part of its file name:
+
+- USGS GeoTIFF (`USGS_1_n39w078.tif`), the format USGS publishes;
+- NED GridFloat (`.flt` + `.hdr`), as in the WInnForum Common-Data repository the reference models use.
+
 ## Running the WInnForum test harness
 
 The harness is at <https://github.com/Wireless-Innovation-Forum/Spectrum-Access-System>.
@@ -178,10 +202,7 @@ The harness is at <https://github.com/Wireless-Innovation-Forum/Spectrum-Access-
 1. Apply the **WInnForum strict** profile (Settings), or start with `SAS_PROFILE=winnforum`.
 2. Import the harness CA certificates on the **Certificates** page so its client certificates are trusted. Also import their CRLs if you run the security tests. Install the SAS root CA (`/api/trust-bundle`) as the harness's trusted CA.
 3. Download a matching `sas.cfg` from `GET /api/harness/sas.cfg?host=<name-in-the-server-cert>`. Every base URL points at the HTTPS port, where the admin API (`/admin/reset`, `/admin/injectdata/...`, `/admin/trigger/...`, `/admin/get_daily_activities_status`, ...) is also served.
-4. **Terrain for HAAT (REG test for Category A outdoor height).** The rule needs USGS NED 1-arc-second GridFloat tiles (`.flt` + `.hdr`, as in the WInnForum SAS-Data repository).
-   - Put them in `/data/terrain`, or point `SAS_TERRAIN_DIR` at them.
-   - Tiles are found by the `n40w101`-style key in the file name, e.g. `floatn40w101_1_std.flt`.
-   - Without tiles the HAAT check is skipped, so the harness test that expects a HAAT rejection fails.
+4. **Terrain for the HAAT check (REG.7).** Fetch the harness tiles with `node server/src/tools/fetch-terrain.ts --harness` (see [Terrain](#terrain-category-a-haat)). Without them the HAAT check is skipped, and REG.7, which expects a HAAT rejection, fails.
 
 ## Environment variables
 
@@ -194,7 +215,7 @@ The harness is at <https://github.com/Wireless-Innovation-Forum/Spectrum-Access-
 | `SAS_HOSTNAMES` | — | Extra comma-separated names/IPs for the auto-generated server certificates (checked on every start; the host's own IPs are always included) and shown as SAS URLs |
 | `SAS_PROFILE` | — | `lab`, `winnforum` or `open`, applied once on first start |
 | `SAS_UI_PASSWORD` | — | Protects the UI with HTTP Basic auth (any user name, this password); applied on every start |
-| `SAS_TERRAIN_DIR` | `$SAS_DATA_DIR/terrain` | USGS NED GridFloat tiles for the HAAT check |
+| `SAS_TERRAIN_DIR` | `$SAS_DATA_DIR/terrain` | 1-arc-second elevation tiles (USGS GeoTIFF or NED GridFloat) for the HAAT check |
 | `SAS_TILES_DIR` | `$SAS_DATA_DIR/tiles` | Offline map tile store (MBTiles files and z/x/y folders) |
 | `SAS_WEB_DIR` | `web/dist` | Location of the built UI |
 
@@ -240,4 +261,4 @@ npm run typecheck
 - Single node: SAS–SAS exchange is limited to pulling peer full-activity dumps during daily activities.
 - Spectrum inquiry ignores DPAs by default, as the harness expects; this can be changed in Settings.
 - A client certificate that fails verification (untrusted CA, expired) ends the TLS connection without a TLS alert. Node.js verifies the client chain after the handshake and then closes the socket, so the radio sees the connection drop instead of an `unknown_ca` or `certificate_expired` alert. The connection is still refused, and the WInnForum security tests accept this.
-- Without terrain tiles the Category A HAAT check is skipped. The server says so at startup and logs a warning for each registration it could not check.
+- Without terrain tiles the Category A HAAT check is skipped. The server says so at startup and logs a warning for each registration it could not check. See [Terrain](#terrain-category-a-haat) for fetching them.

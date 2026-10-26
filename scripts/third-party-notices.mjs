@@ -76,6 +76,9 @@ L.push(`- **Natural Earth** vector map data (public domain), used for the built-
 L.push(`  Made with Natural Earth. Free vector and raster map data @ naturalearthdata.com.`);
 L.push(`- **NTIA DPA definitions** (E-DPA and P-DPA KML files), U.S. National Telecommunications and Information`);
 L.push(`  Administration. Works of the U.S. Government, not subject to copyright in the United States.`);
+L.push(`- **USGS 3DEP** 1-arc-second elevation tiles, when fetched for the Category A HAAT check, and **NED**`);
+L.push(`  GridFloat tiles from the WInnForum Common-Data repository when installed. Works of the U.S. Geological`);
+L.push(`  Survey, public domain. Credit: U.S. Geological Survey, 3D Elevation Program.`);
 L.push(`- **USGS The National Map** tiles, when selected as the map source or downloaded for offline use.`);
 L.push(`  Works of the U.S. Geological Survey, public domain. Credit: USGS The National Map.`);
 L.push(`- **OpenStreetMap** tiles, only when an operator selects them as the map source: map data`);

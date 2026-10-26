@@ -191,7 +191,7 @@ export function processRegistration(e: Engine, item: any, ctx: RequestCtx): Resp
     if (haat == null) {
       warn(e.terrain?.tileCount
         ? 'HAAT not checked: no terrain tile covers this location'
-        : `HAAT not checked: no terrain tiles loaded (add NED 1-arc-second .flt tiles to ${e.terrain?.directory ?? 'SAS_TERRAIN_DIR, default <data>/terrain'})`);
+        : `HAAT not checked: no terrain tiles loaded (add 1-arc-second elevation tiles to ${e.terrain?.directory ?? 'SAS_TERRAIN_DIR, default <data>/terrain'}; see server/src/tools/fetch-terrain.ts)`);
     } else if (haat > 6) {
       return fail(RC.INVALID_VALUE, ['installationParam.height'], `Category A outdoor antenna HAAT ${haat.toFixed(1)} m exceeds 6 m`);
     }
