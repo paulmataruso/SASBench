@@ -654,6 +654,8 @@ export function buildApi(d: ApiDeps): Router {
       case 'der': return sendBuffer(res, 200, pki.der(params.id), 'application/pkix-cert', `${base}.der`);
       case 'chain': return sendBuffer(res, 200, row.cert_pem + pki.pemChain(params.id, false), 'application/x-pem-file', `${base}-chain.pem`);
       case 'fullchain': return sendBuffer(res, 200, row.cert_pem + pki.pemChain(params.id, true), 'application/x-pem-file', `${base}-fullchain.pem`);
+      case 'all-in-one': return sendBuffer(res, 200, row.cert_pem + pki.pemChain(params.id, true) + pki.keyPem(params.id, 'pkcs8'), 'application/x-pem-file', `${base}-all-in-one.pem`);
+      case 'all-in-one-traditional': return sendBuffer(res, 200, row.cert_pem + pki.pemChain(params.id, true) + pki.keyPem(params.id, 'traditional'), 'application/x-pem-file', `${base}-all-in-one-traditional.pem`);
       case 'key': return sendBuffer(res, 200, pki.keyPem(params.id, 'pkcs8'), 'application/x-pem-file', `${base}-key.pem`);
       case 'key-traditional': return sendBuffer(res, 200, pki.keyPem(params.id, 'traditional'), 'application/x-pem-file', `${base}-key-traditional.pem`);
       case 'p12': return sendBuffer(res, 200, pki.pkcs12(params.id, password, false), 'application/x-pkcs12', `${base}.p12`);

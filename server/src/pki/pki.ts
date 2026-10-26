@@ -528,6 +528,8 @@ export class Pki {
     files[`${base}/device-chain.pem`] = strToU8(r.cert_pem + chain);
     files[`${base}/device-fullchain.pem`] = strToU8(r.cert_pem + full);
     files[`${base}/device-cert-and-key.pem`] = strToU8(r.cert_pem + chain + this.keyPem(id, 'pkcs8'));
+    files[`${base}/device-all-in-one.pem`] = strToU8(r.cert_pem + full + this.keyPem(id, 'pkcs8'));
+    files[`${base}/device-all-in-one-traditional.pem`] = strToU8(r.cert_pem + full + this.keyPem(id, 'traditional'));
     files[`${base}/device.p12`] = this.pkcs12(id, opts.password, false);
     files[`${base}/device-legacy.p12`] = this.pkcs12(id, opts.password, true);
     const own = this.rootOf(id);
@@ -729,6 +731,8 @@ Device identity (the radio presents this to the SAS — TLS client certificate)
   device-chain.pem                 Device cert + issuing CA (no root)
   device-fullchain.pem             Device cert + issuing CA + root
   device-cert-and-key.pem          Chain followed by the key (single-file format)
+  device-all-in-one.pem            Device cert + issuing CA + root + key (PKCS#8), one file
+  device-all-in-one-traditional.pem  Same, key as PKCS#1/SEC1 ("BEGIN RSA PRIVATE KEY")
   device.p12                       PKCS#12 (AES), password: ${opts.password}
   device-legacy.p12                PKCS#12 (3DES/SHA1, for older firmware), password: ${opts.password}
 

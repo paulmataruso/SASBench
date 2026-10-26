@@ -36,6 +36,8 @@ const FORMATS: Array<{ fmt: string; label: string; needsKey?: boolean; caOnly?: 
   { fmt: 'der', label: 'Certificate DER', hint: 'Binary X.509' },
   { fmt: 'chain', label: 'Cert + chain', hint: 'Leaf followed by intermediate CAs (no root)' },
   { fmt: 'fullchain', label: 'Cert + full chain', hint: 'Leaf, intermediates and root' },
+  { fmt: 'all-in-one', label: 'All-in-one PEM', needsKey: true, hint: 'Leaf, intermediates, root and private key (PKCS#8) in one file' },
+  { fmt: 'all-in-one-traditional', label: 'All-in-one PEM, traditional key', needsKey: true, hint: 'Same, key as BEGIN RSA / EC PRIVATE KEY' },
   { fmt: 'key', label: 'Private key PKCS#8', needsKey: true, hint: 'BEGIN PRIVATE KEY' },
   { fmt: 'key-traditional', label: 'Private key traditional', needsKey: true, hint: 'BEGIN RSA / EC PRIVATE KEY' },
   { fmt: 'p12', label: 'PKCS#12', needsKey: true, hint: 'AES-256 / SHA-256 (OpenSSL 3 default)' },
