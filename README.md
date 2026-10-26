@@ -132,9 +132,16 @@ Settings are live-edited on the **Settings** page and stored in the database. Th
 |---------|-----|
 | `lab` (default behaviour) | Bring-up of real radios: HTTP and HTTPS, optional client certificates, unknown FCC/user IDs accepted, CPI and identity problems logged as warnings, 7-day grants |
 | `winnforum` | Matches the test harness: mutual TLS required, FCC and user IDs must be injected, strict CPI rules, cbsdId bound to the registering certificate, 15-minute grants, 200 s transmit window |
-| `open` | No client certificates, no role or identity checks; for simulators and `curl` |
+| `open` | No client certificates, no role or identity checks, and radios that send no location still register; for simulators, `curl` and quick bring-up |
 
 `SAS_PROFILE=<name>` applies a profile once, on the first start with an empty data volume.
+
+**Radios that send no location.** Many Category B radios (Nokia AirScale, for one) register without installation data, expecting a CPI-signed block or SAS-side data. The **Radio sends no location** setting (Settings → Registration policy) decides what happens when nothing is preloaded for the radio:
+
+- **Hold:** 200 REG_PENDING until the data is preloaded (Registry → Conditional registration). This is the WInnForum behaviour, used by `lab` and `winnforum`.
+- **Register anyway:** used by `open`. The location stays unknown: the radio counts as inside every active protection area and is not drawn on the map.
+
+Either way the SAS uses everything the radio does send. Preloaded data only fills fields the radio leaves out, and CPI-signed data overrides both.
 
 ## Features
 

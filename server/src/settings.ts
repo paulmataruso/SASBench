@@ -61,6 +61,12 @@ export interface Settings {
    * and its JWS signature valid, measCapability is REG-conditional. lenient = accept and log warnings instead.
    */
   registrationPolicy: 'strict' | 'lenient';
+  /**
+   * A registration without location / installation data and nothing preloaded for the device:
+   * pending = 200 REG_PENDING until the data is provided (WINNF-TS-0016); register = accept it with
+   * an unknown location (treated as inside every active protection area, not shown on the map).
+   */
+  missingInstallParams: 'pending' | 'register';
   /** Compare FCCID/SERIAL in the CBSD client certificate with the registration request. */
   certIdentityCheck: IdentityCheck;
   /** Default certified max EIRP (dBm/10MHz) used when an FCC ID has no injected value. */
@@ -136,6 +142,7 @@ export const DEFAULT_SETTINGS: Settings = {
   requireKnownFccId: false,
   requireKnownUserId: false,
   registrationPolicy: 'lenient',
+  missingInstallParams: 'pending',
   certIdentityCheck: 'warn',
   defaultFccMaxEirp: 47,
   manualApproval: false,

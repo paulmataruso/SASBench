@@ -242,7 +242,7 @@ export function SpectrumMap({ data, followed, config: c }: { data: SpectrumData;
       </div>
       {(noLoc > 0 || bandWide > 0) && (
         <div className="border-t border-line px-3 py-1.5 text-xs text-ink-3">
-          {noLoc > 0 && <span>{noLoc} registered CBSD{noLoc > 1 ? 's have' : ' has'} no location. </span>}
+          {noLoc > 0 && <span>{noLoc} registered CBSD{noLoc > 1 ? 's have' : ' has'} no location and {noLoc > 1 ? 'are' : 'is'} not drawn. </span>}
           {bandWide > 0 && <span>{bandWide} active protection{bandWide > 1 ? 's are' : ' is'} band-wide (affects every CBSD, not drawn).</span>}
         </div>
       )}

@@ -54,6 +54,30 @@ describe('registration', () => {
     assert.equal(r.cbsdId, undefined);
   });
 
+  test('no installation data: 200 by default; with missingInstallParams=register the radio registers and gets a grant', async () => {
+    // Like a Nokia AirScale BBU: Category B, no installationParam, nothing preloaded.
+    const { installationParam: _none, ...req } = regRequest('FCCNOLOC', 'SN-NL1', { cbsdCategory: 'B' });
+    const [held] = await sas.sas('registration', [req]);
+    assert.equal(code(held), 200);
+    assert.ok(held.response.responseData.includes('installationParam.antennaBeamwidth'));
+    await assert.rejects(sas.api('PUT', '/api/settings', { missingInstallParams: 'always' }), /400/);
+    await sas.api('PUT', '/api/settings', { missingInstallParams: 'register' });
+    try {
+      const [r] = await sas.sas('registration', [req]);
+      assert.equal(code(r), 0, JSON.stringify(r));
+      const gid = await grant(r.cbsdId, 3600, 3610);
+      const [h] = await hb(r.cbsdId, gid);
+      assert.equal(code(h), 0);
+      // Other REG-conditional parameters are still required.
+      const { airInterface: _a, ...noAir } = req;
+      const [p] = await sas.sas('registration', [{ ...noAir, cbsdSerialNumber: 'SN-NL2' }]);
+      assert.equal(code(p), 200);
+      assert.ok(p.response.responseData.includes('airInterface.radioTechnology'));
+    } finally {
+      await sas.api('PUT', '/api/settings', { missingInstallParams: 'pending' });
+    }
+  });
+
   test('cbsdId is stable across re-registration and re-registration removes grants', async () => {
     const id1 = await register('FCCREREG', 'SN-R1');
     const gid = await grant(id1, 3550, 3560);

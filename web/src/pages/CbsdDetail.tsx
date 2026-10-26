@@ -116,7 +116,7 @@ export function CbsdDetailPage({ id }: { id: string }) {
               ['Category', d.category ? `Category ${d.category}` : '—'],
               ['Air interface', d.radioTechnology ?? '—'],
               ['Call sign', d.callSign || '—'],
-              ['Latitude, longitude', ip.latitude != null ? <span className="num font-mono text-sm">{ip.latitude}, {ip.longitude}</span> : '—'],
+              ['Latitude, longitude', ip.latitude != null ? <span className="num font-mono text-sm">{ip.latitude}, {ip.longitude}</span> : <span className="text-ink-3">Unknown (not sent, not preloaded)</span>],
               ['Height', ip.height != null ? `${ip.height} m ${ip.heightType ?? ''}` : '—'],
               ['Deployment', ip.indoorDeployment === true ? 'Indoor' : ip.indoorDeployment === false ? 'Outdoor' : '—'],
               ['Antenna', ip.antennaGain != null ? `${ip.antennaGain} dBi · az ${ip.antennaAzimuth ?? '—'}° · tilt ${ip.antennaDowntilt ?? '—'}° · bw ${ip.antennaBeamwidth ?? '—'}°` : '—'],

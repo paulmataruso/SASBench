@@ -108,6 +108,7 @@ export function SettingsPage() {
           <Module id="registration" title="Registration policy">
             <Grid>
               <Choice {...field} k="registrationPolicy" label="Policy" options={[['lenient', 'Lenient: accept and log warnings'], ['strict', 'Strict: WInnForum rules']]} hint="Strict: Category B needs CPI-signed or preloaded installation data, CPI keys must verify, measCapability is required." />
+              <Choice {...field} k="missingInstallParams" label="Radio sends no location" options={[['pending', 'Hold: 200 REG_PENDING until data is preloaded (WInnForum)'], ['register', 'Register anyway, location unknown']]} hint="Applies when the request has no installation data and nothing is preloaded for the radio. A radio with an unknown location counts as inside every active protection area and is not drawn on the map." />
               <Choice {...field} k="certIdentityCheck" label="Certificate identity check" options={[['warn', 'Warn on mismatch'], ['enforce', 'Enforce (104 on mismatch)'], ['off', 'Off']]} hint="Compares the FCC ID and serial in the client certificate with the registration request." />
               <Toggle {...field} k="requireKnownFccId" label="Require known FCC ID" desc="Unknown FCC IDs get 103. Add them on the Registry page." />
               <Toggle {...field} k="requireKnownUserId" label="Require known user ID" desc="Unknown user IDs get 103." />

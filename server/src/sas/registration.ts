@@ -204,7 +204,12 @@ export function processRegistration(e: Engine, item: any, ctx: RequestCtx): Resp
   if (eff.measCapability === undefined) need.push('measCapability');
   const ipNeed = ['latitude', 'longitude', 'height', 'heightType', 'indoorDeployment', 'antennaGain'];
   if (eff.cbsdCategory === 'B') ipNeed.push('antennaAzimuth', 'antennaDowntilt', 'antennaBeamwidth');
-  for (const k of ipNeed) if (ip?.[k] === undefined || ip?.[k] === null) need.push(`installationParam.${k}`);
+  const ipMissing = ipNeed.filter((k) => ip?.[k] === undefined || ip?.[k] === null).map((k) => `installationParam.${k}`);
+  if (s.missingInstallParams === 'register' && ipMissing.length && !need.length) {
+    warn(`registered without installation data (${ipMissing.map((k) => k.slice('installationParam.'.length)).join(', ')})${ip?.latitude == null || ip?.longitude == null ? '; location unknown, so every active protection area applies to it' : ''}`);
+  } else {
+    need.push(...ipMissing);
+  }
   if (need.length) return fail(RC.REG_PENDING, need, `Missing REG-conditional parameter(s): ${need.join(', ')}`);
 
   // Client certificate identity (WINNF-TS-0065): a CBSD certificate must name this device.

@@ -32,7 +32,7 @@ export const PRESETS: Record<string, Preset> = {
       tlsMinVersion: 'TLSv1.2', tlsMaxVersion: 'TLSv1.2', tlsCipherPolicy: 'winnforum', tlsCheckCrl: true, certRoleCheck: 'lenient',
       supportedVersions: ['v1.2'], acceptVersionlessPaths: false, versionErrorAsResponseCode: false,
       heartbeatIntervalSec: 60, transmitExpireSec: 200, grantExpireSec: 900,
-      requireKnownFccId: true, requireKnownUserId: true, registrationPolicy: 'strict', certIdentityCheck: 'enforce',
+      requireKnownFccId: true, requireKnownUserId: true, registrationPolicy: 'strict', missingInstallParams: 'pending', certIdentityCheck: 'enforce',
       manualApproval: false, haatCheck: true, rejectIndoorCatB: true, strictOperationState: false,
       siqIncludeDpa: false, siqChannelization: 'none', harnessAdminEnabled: true, defaultFccMaxEirp: 47,
       maxEirpCatA: 20, maxEirpCatB: 37, gaaRanges: [{ low: 3550e6, high: 3700e6 }], maxGrantBandwidthHz: 150e6,
@@ -41,11 +41,11 @@ export const PRESETS: Record<string, Preset> = {
   },
   open: {
     label: 'Open (no security)',
-    description: 'Everything accepted: no client certificates requested, no role/identity checks. Useful with simulators and curl.',
+    description: 'Everything accepted: no client certificates requested, no role/identity checks, and radios that send no location still register. Useful with simulators and curl.',
     patch: {
       sasHttpEnabled: true, sasHttpsEnabled: true, tlsClientAuth: 'none', rejectUnverifiedClientCert: false, certRoleCheck: 'off',
       certIdentityCheck: 'off', requireKnownFccId: false, requireKnownUserId: false, registrationPolicy: 'lenient',
-      acceptVersionlessPaths: true, haatCheck: false,
+      missingInstallParams: 'register', acceptVersionlessPaths: true, haatCheck: false,
     },
   },
 };

@@ -890,6 +890,7 @@ function validateSettings(p: any) {
     throw new HttpError(400, 'supportedVersions must look like ["v1.2"]');
   }
   if ('gaaRanges' in p && (!Array.isArray(p.gaaRanges) || p.gaaRanges.some((r: any) => !(r.low < r.high)))) throw new HttpError(400, 'Invalid GAA ranges');
+  if ('missingInstallParams' in p && !['pending', 'register'].includes(p.missingInstallParams)) throw new HttpError(400, 'missingInstallParams must be pending or register');
   if ('mapSource' in p && !['builtin', 'local', 'url'].includes(p.mapSource)) throw new HttpError(400, 'mapSource must be builtin, local or url');
   if ('mapTileUrl' in p) {
     try {
