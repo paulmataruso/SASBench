@@ -108,6 +108,8 @@ export function CertificatesPage() {
       <div className="space-y-4">
         {d ? <RadioKit certs={d.certs} /> : <Module title="Radio certificate kit"><SkeletonRows rows={4} cols={3} /></Module>}
 
+        {d && <NokiaCard certs={d.certs} serverCertIds={d.serverCertIds} />}
+
         <Inventory data={d} loading={res.loading} openId={openId} onOpen={setOpenId} />
 
         <div className="grid gap-4 xl:grid-cols-2">
@@ -125,6 +127,67 @@ export function CertificatesPage() {
         />
       )}
     </div>
+  );
+}
+
+// ====================================================================== Nokia
+
+/** The CAs above the active SAS server certificate, root first: what a radio must trust. */
+function serverTrustChain(certs: CertRecord[], serverCertIds: string[]): CertRecord[] {
+  const byId = new Map(certs.map((c) => [c.id, c]));
+  const chain: CertRecord[] = [];
+  let c = byId.get(byId.get(serverCertIds[0] ?? '')?.parentId ?? '');
+  while (c && chain.length < 5) {
+    chain.unshift(c);
+    c = c.parentId ? byId.get(c.parentId) : undefined;
+  }
+  return chain;
+}
+
+function NokiaCard({ certs, serverCertIds }: { certs: CertRecord[]; serverCertIds: string[] }) {
+  const chain = serverTrustChain(certs, serverCertIds);
+  const step = (n: number, body: ReactNode) => (
+    <li className="flex gap-2.5">
+      <span className="num w-4 flex-none pt-px text-right font-mono text-sm text-ink-3">{n}</span>
+      <div className="min-w-0 flex-1">{body}</div>
+    </li>
+  );
+  return (
+    <Module title="Nokia radios" meta="Make an AirScale BBU trust this SAS (WebEM)">
+      <ol className="space-y-2 text-base text-ink-2">
+        {step(1, 'Log in to WebEM.')}
+        {step(2, 'Click the shield icon in the left-hand navigation bar.')}
+        {step(3, <>Go to <span className="font-medium text-ink">CBRS Certificate Management › CBRS Certificates</span>.</>)}
+        {step(4, (
+          <>
+            <p>
+              Select <span className="font-medium text-ink">CBRS additional CA certificates</span>
+              {chain.length ? ` and add ${chain.map((c) => `the ${c.name}`).join(', then ')}.` : '.'}
+            </p>
+            {chain.length ? (
+              <div className="mt-2 grid gap-1.5 sm:grid-cols-2 xl:max-w-[48rem]">
+                {chain.map((c, i) => (
+                  <a
+                    key={c.id}
+                    href={`/api/certs/${encodeURIComponent(c.id)}/download?format=pem`}
+                    download
+                    className="group flex items-center gap-2.5 rounded border border-line bg-panel px-2.5 py-1.5 transition-colors duration-150 hover:border-ink-3 hover:bg-panel-2"
+                  >
+                    <Download className="size-3.5 flex-none text-ink-3 group-hover:text-ink" aria-hidden />
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium text-ink">{i + 1}. {c.name}</span>
+                      <span className="block truncate text-xs text-ink-3">PEM · valid until {iso(c.notAfter).slice(0, 10)} · SHA-256 {c.fingerprint.slice(0, 11)}…</span>
+                    </span>
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-1 text-sm text-warn-ink">The active SAS server certificate was not issued by a CA in this PKI, so there is no chain to download here. Install the CA that issued it.</p>
+            )}
+          </>
+        ))}
+      </ol>
+    </Module>
   );
 }
 
