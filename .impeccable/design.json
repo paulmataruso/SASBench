@@ -1,0 +1,978 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-25T23:35:47+00:00",
+  "title": "Design System: CBRS Lab SAS",
+  "extensions": {
+    "colorMeta": {
+      "rail": {
+        "role": "primary",
+        "displayName": "Anodized Rail Black",
+        "canonical": "rgb(var(--rail)) = rgb(20 24 31)",
+        "dark": "#090b0f",
+        "cssVar": "--rail",
+        "tonalRamp": [
+          "#21252b",
+          "#363d49",
+          "#4b576c",
+          "#617394",
+          "#8694ac",
+          "#acb5c3",
+          "#d1d5db",
+          "#f1f2f4"
+        ]
+      },
+      "rail-2": {
+        "role": "primary",
+        "displayName": "Rail Hover",
+        "canonical": "rgb(var(--rail-2)) = rgb(30 35 45)",
+        "dark": "#151920",
+        "cssVar": "--rail-2",
+        "tonalRamp": [
+          "#22252b",
+          "#373d49",
+          "#4d576b",
+          "#637292",
+          "#8793ab",
+          "#adb4c2",
+          "#d1d5db",
+          "#f1f2f3"
+        ]
+      },
+      "rail-3": {
+        "role": "primary",
+        "displayName": "Rail Active",
+        "canonical": "rgb(var(--rail-3)) = rgb(44 51 63)",
+        "dark": "#232934",
+        "cssVar": "--rail-3",
+        "tonalRamp": [
+          "#22252a",
+          "#383e48",
+          "#4e5869",
+          "#657590",
+          "#8995a9",
+          "#aeb5c1",
+          "#d2d5da",
+          "#f1f2f3"
+        ]
+      },
+      "rail-fg": {
+        "role": "primary",
+        "displayName": "Rail Legend",
+        "canonical": "rgb(var(--rail-fg)) = rgb(226 231 238)",
+        "dark": "#e2e7ee",
+        "cssVar": "--rail-fg",
+        "tonalRamp": [
+          "#20252c",
+          "#343e4b",
+          "#485870",
+          "#5b759a",
+          "#8295b0",
+          "#aab5c5",
+          "#d0d5dd",
+          "#f1f2f4"
+        ]
+      },
+      "rail-mute": {
+        "role": "primary",
+        "displayName": "Rail Muted Legend",
+        "canonical": "rgb(var(--rail-mute)) = rgb(139 150 166)",
+        "dark": "#808b9c",
+        "cssVar": "--rail-mute",
+        "tonalRamp": [
+          "#232629",
+          "#3a3f46",
+          "#525a66",
+          "#6b778a",
+          "#8d97a5",
+          "#b1b6bf",
+          "#d3d6d9",
+          "#f1f2f3"
+        ]
+      },
+      "ground": {
+        "role": "neutral",
+        "displayName": "Aluminium Ground",
+        "canonical": "rgb(var(--ground)) = rgb(231 234 239)",
+        "dark": "#0e1116",
+        "cssVar": "--ground",
+        "tonalRamp": [
+          "#22252b",
+          "#373e49",
+          "#4d586b",
+          "#637492",
+          "#8795ab",
+          "#adb5c2",
+          "#d1d5db",
+          "#f1f2f3"
+        ]
+      },
+      "panel": {
+        "role": "neutral",
+        "displayName": "Panel Face",
+        "canonical": "rgb(var(--panel)) = rgb(255 255 255)",
+        "dark": "#161a21",
+        "cssVar": "--panel",
+        "tonalRamp": [
+          "#262626",
+          "#404040",
+          "#5c5c5c",
+          "#7a7a7a",
+          "#999999",
+          "#b8b8b8",
+          "#d6d6d6",
+          "#f2f2f2"
+        ]
+      },
+      "panel-2": {
+        "role": "neutral",
+        "displayName": "Header Strip",
+        "canonical": "rgb(var(--panel-2)) = rgb(245 247 249)",
+        "dark": "#1b2028",
+        "cssVar": "--panel-2",
+        "tonalRamp": [
+          "#21262c",
+          "#35404b",
+          "#495c6f",
+          "#5d7a98",
+          "#8399af",
+          "#aab8c5",
+          "#d0d6dc",
+          "#f1f2f4"
+        ]
+      },
+      "panel-3": {
+        "role": "neutral",
+        "displayName": "Panel Recess",
+        "canonical": "rgb(var(--panel-3)) = rgb(237 240 244)",
+        "dark": "#212731",
+        "cssVar": "--panel-3",
+        "tonalRamp": [
+          "#21252c",
+          "#353e4b",
+          "#49596e",
+          "#5e7697",
+          "#8396af",
+          "#abb6c4",
+          "#d0d5dc",
+          "#f1f2f4"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "rgb(var(--line)) = rgb(218 223 230)",
+        "dark": "#292f3a",
+        "cssVar": "--line",
+        "tonalRamp": [
+          "#22262b",
+          "#373e48",
+          "#4d596b",
+          "#637792",
+          "#8896aa",
+          "#adb6c2",
+          "#d2d5db",
+          "#f1f2f3"
+        ]
+      },
+      "line-strong": {
+        "role": "neutral",
+        "displayName": "Strong Hairline",
+        "canonical": "rgb(var(--line-strong)) = rgb(186 194 205)",
+        "dark": "#3c4452",
+        "cssVar": "--line-strong",
+        "tonalRamp": [
+          "#23262a",
+          "#393f47",
+          "#505a68",
+          "#67778d",
+          "#8b97a7",
+          "#afb6c0",
+          "#d2d6da",
+          "#f1f2f3"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "rgb(var(--ink)) = rgb(19 25 33)",
+        "dark": "#e4e9f0",
+        "cssVar": "--ink",
+        "tonalRamp": [
+          "#20252c",
+          "#343e4c",
+          "#475970",
+          "#5a769b",
+          "#8196b1",
+          "#a9b6c6",
+          "#d0d5dd",
+          "#f1f2f4"
+        ]
+      },
+      "ink-2": {
+        "role": "neutral",
+        "displayName": "Ink Secondary",
+        "canonical": "rgb(var(--ink-2)) = rgb(60 71 87)",
+        "dark": "#acb6c4",
+        "cssVar": "--ink-2",
+        "tonalRamp": [
+          "#22252a",
+          "#383e48",
+          "#4e596a",
+          "#647690",
+          "#8996a9",
+          "#aeb6c1",
+          "#d2d5db",
+          "#f1f2f3"
+        ]
+      },
+      "ink-3": {
+        "role": "neutral",
+        "displayName": "Ink Muted",
+        "canonical": "rgb(var(--ink-3)) = rgb(96 108 125)",
+        "dark": "#8792a2",
+        "cssVar": "--ink-3",
+        "tonalRamp": [
+          "#232629",
+          "#3a3f46",
+          "#525a66",
+          "#6b788a",
+          "#8d97a5",
+          "#b1b6be",
+          "#d3d6d9",
+          "#f1f2f3"
+        ]
+      },
+      "primary": {
+        "role": "primary",
+        "displayName": "Primary Control",
+        "canonical": "rgb(var(--primary)) = rgb(20 24 31)",
+        "dark": "#dee4ec",
+        "cssVar": "--primary",
+        "tonalRamp": [
+          "#21252b",
+          "#363d49",
+          "#4b576c",
+          "#617394",
+          "#8694ac",
+          "#acb5c3",
+          "#d1d5db",
+          "#f1f2f4"
+        ]
+      },
+      "primary-hover": {
+        "role": "primary",
+        "displayName": "Primary Control Hover",
+        "canonical": "rgb(var(--primary-hover)) = rgb(44 51 63)",
+        "dark": "#fafbfd",
+        "cssVar": "--primary-hover",
+        "tonalRamp": [
+          "#22252a",
+          "#383e48",
+          "#4e5869",
+          "#657590",
+          "#8995a9",
+          "#aeb5c1",
+          "#d2d5da",
+          "#f1f2f3"
+        ]
+      },
+      "primary-fg": {
+        "role": "primary",
+        "displayName": "Primary Control Text",
+        "canonical": "rgb(var(--primary-fg)) = rgb(240 243 247)",
+        "dark": "#0e1116",
+        "cssVar": "--primary-fg",
+        "tonalRamp": [
+          "#1f252d",
+          "#323e4d",
+          "#455873",
+          "#56759f",
+          "#7e95b4",
+          "#a8b5c8",
+          "#cfd5de",
+          "#f0f2f4"
+        ]
+      },
+      "sel": {
+        "role": "secondary",
+        "displayName": "Selection Blue",
+        "canonical": "rgb(var(--sel)) = rgb(36 87 197)",
+        "dark": "#6896ff",
+        "cssVar": "--sel",
+        "tonalRamp": [
+          "#172136",
+          "#21345f",
+          "#274891",
+          "#285ccd",
+          "#5b82d7",
+          "#93aadc",
+          "#c6d0e7",
+          "#eef1f6"
+        ]
+      },
+      "sel-soft": {
+        "role": "secondary",
+        "displayName": "Selection Wash",
+        "canonical": "rgb(var(--sel-soft)) = rgb(230 237 251)",
+        "dark": "#1e2a46",
+        "cssVar": "--sel-soft",
+        "tonalRamp": [
+          "#162136",
+          "#1f3560",
+          "#244993",
+          "#245ed1",
+          "#5883da",
+          "#92abde",
+          "#c5d0e8",
+          "#eef1f6"
+        ]
+      },
+      "sel-ink": {
+        "role": "secondary",
+        "displayName": "Selection Ink",
+        "canonical": "rgb(var(--sel-ink)) = rgb(29 69 160)",
+        "dark": "#a4c1ff",
+        "cssVar": "--sel-ink",
+        "tonalRamp": [
+          "#172036",
+          "#21345f",
+          "#274791",
+          "#285acd",
+          "#5b81d7",
+          "#93a9dc",
+          "#c5d0e7",
+          "#eef1f6"
+        ]
+      },
+      "ok": {
+        "role": "tertiary",
+        "displayName": "LED Green",
+        "canonical": "rgb(var(--ok)) = rgb(30 160 84)",
+        "dark": "#33d17a",
+        "cssVar": "--ok",
+        "tonalRamp": [
+          "#173524",
+          "#215e3b",
+          "#289053",
+          "#29cc6d",
+          "#5cd68f",
+          "#94dcb2",
+          "#c6e7d3",
+          "#eef6f2"
+        ]
+      },
+      "ok-soft": {
+        "role": "tertiary",
+        "displayName": "Green Wash",
+        "canonical": "rgb(var(--ok-soft)) = rgb(226 244 233)",
+        "dark": "#112e20",
+        "cssVar": "--ok-soft",
+        "tonalRamp": [
+          "#1c3024",
+          "#2c543b",
+          "#397e54",
+          "#45b06e",
+          "#71c190",
+          "#a0cfb2",
+          "#cbe1d4",
+          "#f0f5f2"
+        ]
+      },
+      "ok-ink": {
+        "role": "tertiary",
+        "displayName": "Green Ink",
+        "canonical": "rgb(var(--ok-ink)) = rgb(17 106 54)",
+        "dark": "#70e2a2",
+        "cssVar": "--ok-ink",
+        "tonalRamp": [
+          "#163624",
+          "#1f603a",
+          "#259352",
+          "#24d16c",
+          "#58da8e",
+          "#92deb1",
+          "#c5e8d3",
+          "#eef6f2"
+        ]
+      },
+      "warn": {
+        "role": "tertiary",
+        "displayName": "LED Amber",
+        "canonical": "rgb(var(--warn)) = rgb(226 152 16)",
+        "dark": "#f5b83d",
+        "cssVar": "--warn",
+        "tonalRamp": [
+          "#3a2c13",
+          "#664b19",
+          "#9e6f1a",
+          "#e29913",
+          "#e7b04b",
+          "#e5c58a",
+          "#ebdcc1",
+          "#f7f4ed"
+        ]
+      },
+      "warn-soft": {
+        "role": "tertiary",
+        "displayName": "Amber Wash",
+        "canonical": "rgb(var(--warn-soft)) = rgb(252 242 218)",
+        "dark": "#32270e",
+        "cssVar": "--warn-soft",
+        "tonalRamp": [
+          "#392e13",
+          "#664f1a",
+          "#9d771b",
+          "#e0a415",
+          "#e5b84d",
+          "#e4ca8b",
+          "#ebdfc2",
+          "#f7f4ed"
+        ]
+      },
+      "warn-ink": {
+        "role": "tertiary",
+        "displayName": "Amber Ink",
+        "canonical": "rgb(var(--warn-ink)) = rgb(128 80 0)",
+        "dark": "#f7ca70",
+        "cssVar": "--warn-ink",
+        "tonalRamp": [
+          "#3c2c10",
+          "#6c4b13",
+          "#a86f0f",
+          "#f29803",
+          "#f3af3f",
+          "#ecc583",
+          "#eedcbe",
+          "#f8f4ec"
+        ]
+      },
+      "bad": {
+        "role": "tertiary",
+        "displayName": "LED Red",
+        "canonical": "rgb(var(--bad)) = rgb(220 52 60)",
+        "dark": "#ff6369",
+        "cssVar": "--bad",
+        "tonalRamp": [
+          "#361718",
+          "#5f2023",
+          "#92262b",
+          "#cf262e",
+          "#d85a60",
+          "#dd9396",
+          "#e7c5c7",
+          "#f6eeef"
+        ]
+      },
+      "bad-soft": {
+        "role": "tertiary",
+        "displayName": "Red Wash",
+        "canonical": "rgb(var(--bad-soft)) = rgb(252 231 231)",
+        "dark": "#3a1619",
+        "cssVar": "--bad-soft",
+        "tonalRamp": [
+          "#381515",
+          "#621d1d",
+          "#972020",
+          "#d71d1d",
+          "#df5353",
+          "#e08f8f",
+          "#e9c3c3",
+          "#f7eeee"
+        ]
+      },
+      "bad-ink": {
+        "role": "tertiary",
+        "displayName": "Red Ink",
+        "canonical": "rgb(var(--bad-ink)) = rgb(166 28 36)",
+        "dark": "#ff989c",
+        "cssVar": "--bad-ink",
+        "tonalRamp": [
+          "#361618",
+          "#5f2024",
+          "#92252c",
+          "#cf252f",
+          "#d95961",
+          "#dd9297",
+          "#e7c5c7",
+          "#f6eeef"
+        ]
+      },
+      "info": {
+        "role": "tertiary",
+        "displayName": "LED Blue",
+        "canonical": "rgb(var(--info)) = rgb(52 114 222)",
+        "dark": "#6298ff",
+        "cssVar": "--info",
+        "tonalRamp": [
+          "#162236",
+          "#203760",
+          "#254d93",
+          "#2463d0",
+          "#5888da",
+          "#92addd",
+          "#c5d1e8",
+          "#eef1f6"
+        ]
+      },
+      "info-soft": {
+        "role": "tertiary",
+        "displayName": "Blue Wash",
+        "canonical": "rgb(var(--info-soft)) = rgb(231 239 252)",
+        "dark": "#162440",
+        "cssVar": "--info-soft",
+        "tonalRamp": [
+          "#152238",
+          "#1d3762",
+          "#204e97",
+          "#1d64d7",
+          "#5388df",
+          "#8faee0",
+          "#c3d2e9",
+          "#eef1f7"
+        ]
+      },
+      "info-ink": {
+        "role": "tertiary",
+        "displayName": "Blue Ink",
+        "canonical": "rgb(var(--info-ink)) = rgb(30 80 166)",
+        "dark": "#98bbff",
+        "cssVar": "--info-ink",
+        "tonalRamp": [
+          "#172236",
+          "#21385f",
+          "#274e91",
+          "#2864cd",
+          "#5b89d7",
+          "#93aedc",
+          "#c5d2e7",
+          "#eef1f6"
+        ]
+      },
+      "led-off": {
+        "role": "tertiary",
+        "displayName": "LED Off",
+        "canonical": "rgb(var(--led-off)) = rgb(205 211 220)",
+        "dark": "#343b48",
+        "cssVar": "--led-off",
+        "tonalRamp": [
+          "#22252a",
+          "#383e48",
+          "#4e5969",
+          "#65768f",
+          "#8996a9",
+          "#aeb6c1",
+          "#d2d5da",
+          "#f1f2f3"
+        ]
+      },
+      "patch-orange": {
+        "role": "tertiary",
+        "displayName": "Patch Orange",
+        "canonical": "rgb(var(--p0)) = rgb(232 113 28)",
+        "dark": "#f58838",
+        "cssVar": "--p0",
+        "tonalRamp": [
+          "#382314",
+          "#643a1b",
+          "#9a511d",
+          "#dc6a19",
+          "#e28d50",
+          "#e2b08d",
+          "#ead3c2",
+          "#f7f1ed"
+        ]
+      },
+      "patch-green": {
+        "role": "tertiary",
+        "displayName": "Patch Green",
+        "canonical": "rgb(var(--p1)) = rgb(47 158 68)",
+        "dark": "#48be60",
+        "cssVar": "--p1",
+        "tonalRamp": [
+          "#1a321f",
+          "#285831",
+          "#328542",
+          "#3abb52",
+          "#68ca7b",
+          "#9bd4a6",
+          "#c9e3ce",
+          "#eff5f0"
+        ]
+      },
+      "patch-blue": {
+        "role": "tertiary",
+        "displayName": "Patch Blue",
+        "canonical": "rgb(var(--p2)) = rgb(28 126 214)",
+        "dark": "#409aee",
+        "cssVar": "--p2",
+        "tonalRamp": [
+          "#152737",
+          "#1d4262",
+          "#215f97",
+          "#1f7fd6",
+          "#549dde",
+          "#8fbae0",
+          "#c4d7e9",
+          "#eef2f7"
+        ]
+      },
+      "patch-brown": {
+        "role": "tertiary",
+        "displayName": "Patch Brown",
+        "canonical": "rgb(var(--p3)) = rgb(141 90 43)",
+        "dark": "#b8804c",
+        "cssVar": "--p3",
+        "tonalRamp": [
+          "#32261a",
+          "#583f28",
+          "#845a33",
+          "#ba783b",
+          "#c99769",
+          "#d4b69c",
+          "#e3d6c9",
+          "#f5f2ef"
+        ]
+      },
+      "patch-slate": {
+        "role": "tertiary",
+        "displayName": "Patch Slate",
+        "canonical": "rgb(var(--p4)) = rgb(92 107 122)",
+        "dark": "#8c9aaa",
+        "cssVar": "--p4",
+        "tonalRamp": [
+          "#232629",
+          "#394046",
+          "#515c67",
+          "#6a7a8b",
+          "#8c99a6",
+          "#b0b8bf",
+          "#d3d6da",
+          "#f1f2f3"
+        ]
+      },
+      "patch-violet": {
+        "role": "tertiary",
+        "displayName": "Patch Violet",
+        "canonical": "rgb(var(--p5)) = rgb(123 79 214)",
+        "dark": "#9c76f0",
+        "cssVar": "--p5",
+        "tonalRamp": [
+          "#211834",
+          "#36245c",
+          "#4b2c8b",
+          "#6130c5",
+          "#8661d1",
+          "#ac97d8",
+          "#d1c7e5",
+          "#f1eff6"
+        ]
+      },
+      "patch-rose": {
+        "role": "tertiary",
+        "displayName": "Patch Rose",
+        "canonical": "rgb(var(--p6)) = rgb(214 51 108)",
+        "dark": "#f0568c",
+        "cssVar": "--p6",
+        "tonalRamp": [
+          "#351722",
+          "#5d2237",
+          "#8f294d",
+          "#ca2b63",
+          "#d55d87",
+          "#db95ad",
+          "#e6c6d1",
+          "#f6eef1"
+        ]
+      },
+      "patch-teal": {
+        "role": "tertiary",
+        "displayName": "Patch Teal",
+        "canonical": "rgb(var(--p7)) = rgb(15 148 136)",
+        "dark": "#28beb0",
+        "cssVar": "--p7",
+        "tonalRamp": [
+          "#143835",
+          "#1b645e",
+          "#1d9a8f",
+          "#19dcca",
+          "#50e2d5",
+          "#8de2db",
+          "#c2eae6",
+          "#edf7f6"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Page Headline",
+        "purpose": "Page titles in the page header."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Drawer, dialog and empty-state titles; rail product name."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Default interface text, inputs, buttons, nav, readout values."
+      },
+      "body-sm": {
+        "displayName": "Body Small",
+        "purpose": "Table cells, field labels, notes, small buttons."
+      },
+      "label": {
+        "displayName": "Silkscreen Legend",
+        "purpose": "Uppercase tracked legends: module headers, table heads, readout keys."
+      },
+      "mono": {
+        "displayName": "Machine Value",
+        "purpose": "IDs, codes, frequencies, timers, URLs, JSON."
+      }
+    },
+    "shadows": [
+      {
+        "name": "panel",
+        "value": "0 1px 2px rgb(var(--shadow) / 0.06), 0 1px 1px rgb(var(--shadow) / 0.04)",
+        "purpose": "Resting modules and the selected segmented option."
+      },
+      {
+        "name": "pop",
+        "value": "0 12px 32px -8px rgb(var(--shadow) / 0.28), 0 2px 6px rgb(var(--shadow) / 0.12)",
+        "purpose": "Drawers, confirm dialogs, toasts."
+      },
+      {
+        "name": "focus-halo",
+        "value": "0 0 0 3px rgb(var(--sel) / 0.18)",
+        "purpose": "Focused text fields, alongside a sel border."
+      },
+      {
+        "name": "led-glow",
+        "value": "0 0 5px rgb(var(--led-c) / 0.55)",
+        "purpose": "Lit LEDs only."
+      },
+      {
+        "name": "led-off-ring",
+        "value": "inset 0 0 0 1px rgb(var(--shadow) / 0.12)",
+        "purpose": "Unlit LED edge."
+      },
+      {
+        "name": "map-popup",
+        "value": "0 8px 24px -6px rgb(var(--shadow) / 0.35)",
+        "purpose": "Leaflet popups themed to the panel face."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "All entrances and the LED flash."
+      },
+      {
+        "name": "state-150",
+        "value": "150ms",
+        "purpose": "Colour/border transitions on buttons, fields, tabs, nav, switch."
+      },
+      {
+        "name": "row-hover-100",
+        "value": "100ms",
+        "purpose": "Table row hover tint."
+      },
+      {
+        "name": "led-200",
+        "value": "200ms",
+        "purpose": "LED colour and glow change."
+      },
+      {
+        "name": "led-flash",
+        "value": "900ms",
+        "purpose": "HB LED white-hot flash per received heartbeat."
+      },
+      {
+        "name": "change-mark",
+        "value": "400ms scale 0.2 to 1",
+        "purpose": "Changed-row dot entrance."
+      },
+      {
+        "name": "drawer-in",
+        "value": "220ms translateX(24px)",
+        "purpose": "Drawer and mobile rail entrance."
+      },
+      {
+        "name": "toast-in",
+        "value": "200ms translateY(8px)",
+        "purpose": "Toast entrance."
+      },
+      {
+        "name": "shimmer",
+        "value": "1.4s linear infinite",
+        "purpose": "Skeleton loading."
+      },
+      {
+        "name": "tx-drain",
+        "value": "1000ms linear width",
+        "purpose": "TX drain bar countdown."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px",
+        "note": "rail appears, icon-only 56px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px",
+        "note": "rail labels, 216px"
+      },
+      {
+        "name": "xl",
+        "value": "1280px",
+        "note": "overview side column 380px"
+      },
+      {
+        "name": "2xl",
+        "value": "1536px",
+        "note": "side column 440px"
+      }
+    ],
+    "themes": {
+      "mechanism": "prefers-color-scheme with :root[data-theme='light'|'dark'] override; Leaflet tiles inverted in dark."
+    }
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Strongest action in a toolbar or dialog; rail-black face.",
+      "html": "<button class=\"ds-btn ds-btn-primary\">Issue certificate</button>",
+      "css": ".ds-btn{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border:1px solid;border-radius:3px;font:500 13.5px/20px Barlow,system-ui,sans-serif;cursor:pointer;transition:background-color 150ms,border-color 150ms,color 150ms}.ds-btn:focus-visible{outline:2px solid rgb(var(--sel));outline-offset:1px}.ds-btn-primary{background:rgb(var(--primary));color:rgb(var(--primary-fg));border-color:rgb(var(--primary))}.ds-btn-primary:hover{background:rgb(var(--primary-hover));border-color:rgb(var(--primary-hover))}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Default button: panel face with strong hairline.",
+      "html": "<button class=\"ds-btn2\">Cancel</button>",
+      "css": ".ds-btn2{display:inline-flex;align-items:center;height:32px;padding:0 12px;background:rgb(var(--panel));color:rgb(var(--ink));border:1px solid rgb(var(--line-strong));border-radius:3px;font:500 13.5px/20px Barlow,system-ui,sans-serif;cursor:pointer;transition:background-color 150ms,border-color 150ms}.ds-btn2:hover{border-color:rgb(var(--ink-3));background:rgb(var(--panel-2))}.ds-btn2:active{background:rgb(var(--panel-3))}.ds-btn2:focus-visible{outline:2px solid rgb(var(--sel));outline-offset:1px}"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Toolbar and copy actions.",
+      "html": "<button class=\"ds-btn-ghost\" aria-label=\"Copy\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect width=\"14\" height=\"14\" x=\"8\" y=\"8\" rx=\"2\"/><path d=\"M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2\"/></svg></button>",
+      "css": ".ds-btn-ghost{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;background:transparent;color:rgb(var(--ink-2));border:1px solid transparent;border-radius:3px;cursor:pointer;transition:background-color 150ms,color 150ms}.ds-btn-ghost:hover{background:rgb(var(--panel-3));color:rgb(var(--ink))}.ds-btn-ghost:focus-visible{outline:2px solid rgb(var(--sel));outline-offset:1px}"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "All inputs, selects and textareas share the field style.",
+      "html": "<label class=\"ds-label\">FCC ID<input class=\"ds-field\" value=\"ABC123\"></label>",
+      "css": ".ds-label{display:block;font:500 12.5px/18px Barlow,system-ui,sans-serif;color:rgb(var(--ink-2))}.ds-field{display:block;width:100%;margin-top:4px;padding:5px 8px;background:rgb(var(--panel));color:rgb(var(--ink));border:1px solid rgb(var(--line-strong));border-radius:3px;font:400 13.5px/20px Barlow,system-ui,sans-serif;transition:border-color 150ms}.ds-field:hover:not(:focus){border-color:rgb(var(--ink-3))}.ds-field:focus{outline:none;border-color:rgb(var(--sel));box-shadow:0 0 0 3px rgb(var(--sel) / 0.18)}"
+    },
+    {
+      "name": "Rail Navigation",
+      "kind": "nav",
+      "refersTo": "rail-nav-item",
+      "description": "Anodized rail with silkscreen group labels and 32px items.",
+      "html": "<nav class=\"ds-rail\"><div class=\"ds-rail-group\">Operate</div><a class=\"ds-rail-item ds-active\" href=\"#\">Overview</a><a class=\"ds-rail-item\" href=\"#\">CBSDs<span class=\"ds-rail-badge\">4</span></a><a class=\"ds-rail-item\" href=\"#\">Grants</a></nav>",
+      "css": ".ds-rail{width:216px;padding:8px;background:rgb(var(--rail));color:rgb(var(--rail-fg))}.ds-rail-group{padding:8px 10px 4px;font:600 10.5px/14px 'Barlow Condensed',Barlow,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:rgb(var(--rail-mute))}.ds-rail-item{display:flex;align-items:center;height:32px;padding:0 10px;border-radius:3px;font:400 13.5px/20px Barlow,sans-serif;color:rgb(var(--rail-fg) / .8);text-decoration:none;transition:background-color 150ms,color 150ms}.ds-rail-item:hover{background:rgb(var(--rail-2));color:#fff}.ds-rail-item.ds-active{background:rgb(var(--rail-3));color:#fff}.ds-rail-item:focus-visible{outline:2px solid rgb(var(--sel));outline-offset:1px}.ds-rail-badge{margin-left:auto;font-size:11.5px;font-variant-numeric:tabular-nums;color:rgb(var(--rail-mute))}"
+    },
+    {
+      "name": "Status Tags",
+      "kind": "chip",
+      "refersTo": "tag",
+      "description": "Grant-state and response-code tags in the LED vocabulary.",
+      "html": "<span class=\"ds-tag ds-ok\">AUTHORIZED</span> <span class=\"ds-tag ds-warn\">GRANTED · SUSPENDED</span> <span class=\"ds-tag ds-bad ds-mono\">103</span> <span class=\"ds-tag\">CAT A</span>",
+      "css": ".ds-tag{display:inline-flex;align-items:center;height:20px;padding:0 6px;border:1px solid rgb(var(--line-strong));border-radius:2px;background:rgb(var(--panel-3));color:rgb(var(--ink-2));font:500 11.5px/16px 'Barlow Condensed',Barlow,sans-serif;letter-spacing:.04em}.ds-ok{background:rgb(var(--ok-soft));color:rgb(var(--ok-ink));border-color:rgb(var(--ok) / .3)}.ds-warn{background:rgb(var(--warn-soft));color:rgb(var(--warn-ink));border-color:rgb(var(--warn) / .4)}.ds-bad{background:rgb(var(--bad-soft));color:rgb(var(--bad-ink));border-color:rgb(var(--bad) / .3)}.ds-mono{font:500 10.5px/14px 'JetBrains Mono',monospace;letter-spacing:0}"
+    },
+    {
+      "name": "Module",
+      "kind": "card",
+      "refersTo": "module",
+      "description": "Rack module: flat panel face, hairline border, silkscreen header strip.",
+      "html": "<section class=\"ds-module\"><header class=\"ds-module-h\"><h2>Point radios at</h2><span class=\"ds-meta\">2 listeners</span></header><div class=\"ds-module-b\"><code>https://lab-sas:8443/v1.2/</code></div></section>",
+      "css": ".ds-module{background:rgb(var(--panel));border:1px solid rgb(var(--line));border-radius:3px;box-shadow:0 1px 2px rgb(var(--shadow) / .06),0 1px 1px rgb(var(--shadow) / .04)}.ds-module-h{display:flex;align-items:center;gap:12px;min-height:34px;padding:4px 12px;background:rgb(var(--panel-2));border-bottom:1px solid rgb(var(--line))}.ds-module-h h2{margin:0;font:600 11.5px/16px 'Barlow Condensed',Barlow,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:rgb(var(--ink-2))}.ds-meta{font:400 11.5px/16px Barlow,sans-serif;color:rgb(var(--ink-3))}.ds-module-b{padding:12px;font:400 12.5px/18px 'JetBrains Mono',monospace;color:rgb(var(--ink))}"
+    },
+    {
+      "name": "CBSD Rack Row",
+      "kind": "custom",
+      "refersTo": "table-row",
+      "description": "Signature 1U row: patch swatch, REG/GNT/HB LEDs, TX drain bar, mono identity.",
+      "html": "<div class=\"ds-row\"><span class=\"ds-sw\"></span><span class=\"ds-leds\"><span class=\"ds-led ds-lok\"></span><span class=\"ds-led ds-lok\"></span><span class=\"ds-led ds-lok ds-flash\"></span></span><span class=\"ds-tx\"><span class=\"ds-led ds-lok\"></span><span class=\"ds-track\"><span class=\"ds-fill\"></span></span><span class=\"ds-t\">3m 12s</span></span><span class=\"ds-id\">FCCABC / SN-0042</span><span class=\"ds-rng\">3550.0–3560.0</span></div>",
+      "css": ".ds-row{display:flex;align-items:center;gap:16px;height:36px;padding:0 12px;background:rgb(var(--panel));border-bottom:1px solid rgb(var(--line));transition:background-color 100ms}.ds-row:hover{background:rgb(var(--panel-3) / .7)}.ds-sw{width:10px;height:10px;border-radius:2px;background:rgb(var(--p2))}.ds-leds{display:inline-flex;gap:19px}.ds-led{display:inline-block;width:8px;height:8px;border-radius:9999px;background:rgb(var(--led-off));box-shadow:inset 0 0 0 1px rgb(var(--shadow) / .12)}.ds-lok{background:rgb(var(--ok));box-shadow:0 0 5px rgb(var(--ok) / .55)}.ds-flash{animation:ds-flash 900ms cubic-bezier(.16,1,.3,1) infinite 1.5s}@keyframes ds-flash{0%{background:#fff;box-shadow:0 0 0 2px rgb(var(--ok) / .55),0 0 12px 2px rgb(var(--ok) / .9)}35%{background:rgb(var(--ok));box-shadow:0 0 9px 1px rgb(var(--ok) / .8)}}.ds-tx{display:inline-flex;align-items:center;gap:6px}.ds-track{position:relative;width:40px;height:3px;border-radius:9999px;background:rgb(var(--line));overflow:hidden}.ds-fill{position:absolute;inset:0 auto 0 0;width:64%;background:rgb(var(--ok));border-radius:9999px}.ds-t{width:46px;font:400 10.5px/14px 'JetBrains Mono',monospace;color:rgb(var(--ink-3));font-variant-numeric:tabular-nums}.ds-id{font:500 11.5px/16px 'JetBrains Mono',monospace;color:rgb(var(--ink))}.ds-rng{font:400 11.5px/16px 'JetBrains Mono',monospace;color:rgb(var(--ink));font-variant-numeric:tabular-nums}@media (prefers-reduced-motion:reduce){.ds-flash{animation:none}}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Lab Rack Elevation",
+    "overview": "**Creative North Star: \"The Lab Rack Elevation\"**\n\nThe console is drawn as a front elevation of an equipment rack. A cool blue-black anodized rail runs down the left edge and carries navigation and listener status; the working area is an aluminium-tinted ground on which flat white panel faces sit, each ruled by hairlines and topped by a silkscreened header strip. Every radio (CBSD) is a single dense row in that rack, and its state is read from small front-panel LEDs that change as wire events arrive over SSE, not from cards, KPIs or charts.\n\nDensity is high and deliberate: a 13.5px body, 36px table rows, 12px module padding, 16px gutters. The type system splits three ways: Barlow for interface text, Barlow Condensed in tracked caps for the printed legends, and JetBrains Mono with slashed zero and tabular figures for every identifier, timer, frequency and JSON payload. Colour is functional: neutrals for the hardware, a four-state LED vocabulary for status, one blue for selection and focus, and an eight-colour patch-cable code that gives each CBSD a single identity colour reused across the rack, band plan and map.\n\nThe material is flat. There are no screws, brushed textures, bezels or skeuomorphic depth; the only glow in the system belongs to a lit LED. Light and dark themes are both first-class and follow `prefers-color-scheme` unless overridden with `data-theme`.",
+    "keyCharacteristics": [
+      "Dark rail plus light panels: the hardware frame and the faces it holds.",
+      "Silkscreen legends (condensed, tracked caps) label modules, table heads and readout keys.",
+      "8px flat LEDs as the main status signal; a soft glow only while lit.",
+      "Patch-cable identity colour per CBSD, shared across every view.",
+      "Mono with tabular figures for all machine values.",
+      "Hairline borders and tonal panel steps; near-zero shadow."
+    ],
+    "rules": [
+      {
+        "name": "The LED Vocabulary Rule",
+        "body": "Status colour means exactly one thing everywhere: green authorized/ok, amber pending/suspended, red terminated/error, blue granted-not-transmitting, grey off. Don't reuse these hues for decoration or emphasis.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Cable Per Radio Rule",
+        "body": "A CBSD's patch colour is its identity across every page. Use `patchColor(cbsdId)`; never assign patch colours by list position or reuse them for anything that is not a CBSD.",
+        "section": "colors"
+      },
+      {
+        "name": "The Selection Is Not Status Rule",
+        "body": "Blue `sel` marks focus, selection and links only. A GRANTED grant uses `info`, which is a different token even though the hue is close.",
+        "section": "colors"
+      },
+      {
+        "name": "The Silkscreen Legend Rule",
+        "body": "Condensed tracked caps label a thing that sits right below or beside them: a module, a column, a readout value, a block of data. They are legends, not decoration.",
+        "section": "typography"
+      },
+      {
+        "name": "The Machine Values Are Mono Rule",
+        "body": "Anything a radio sent or a spec defines (IDs, codes, frequencies, EIRP, timers, URLs, payloads) is set in JetBrains Mono with tabular figures, so columns line up and zeros can't be read as O.",
+        "section": "typography"
+      },
+      {
+        "name": "The 1U Rhythm Rule",
+        "body": "Rows are 36px, controls are 32px (28px small), header strips are 34px. New dense lists use the same heights so the rack keeps one cadence.",
+        "section": "layout"
+      },
+      {
+        "name": "The Flat Faces Rule",
+        "body": "Panels are flat at rest. Only floating layers (drawer, dialog, toast, popup) use the pop shadow, and only a lit LED glows.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do show live state with 8px LEDs in the fixed vocabulary (ok / warn / bad / info / off), and keep the glow to lit LEDs only.",
+      "Do mark every CBSD with its patch-cable colour from `patchColor(cbsdId)`, wherever it appears (rack swatch, band blocks, map).",
+      "Do label modules, table columns and readout keys with silkscreen legends (Barlow Condensed, 10.5px, 600, uppercase, 0.09em).",
+      "Do set IDs, codes, frequencies, timers, URLs and JSON in JetBrains Mono with tabular figures.",
+      "Do build new surfaces from modules: panel face, 1px line border, 3px corners, a 34px panel-2 header strip, 12px body padding.",
+      "Do keep to the 1U rhythm: 36px rows, 32px controls, 16px gutters between modules.",
+      "Do define any new colour as an RGB triplet on `:root` with a dark-theme value, and consume it through the Tailwind role names.",
+      "Do honour `prefers-reduced-motion`: flashes collapse and slide or scale entrances are removed."
+    ],
+    "donts": [
+      "Don't add KPI stat cards, hero numbers or charts that duplicate what the rack and band strip already show.",
+      "Don't dress the rack up as hardware. No screws, brushed metal, bezels, decorative gradients or 3D LEDs; faces stay flat. The only gradients allowed are functional: the diagonal hatch on suspended spectrum and the skeleton shimmer.",
+      "Don't use status hues (ok, warn, bad, info) or patch colours for decoration, or use sel blue to signal status.",
+      "Don't put a shadow on a resting panel beyond panel contact; the pop shadow belongs to floating layers only.",
+      "Don't round containers past 6px; circles are reserved for LEDs, marks, switches and drain tracks.",
+      "Don't set font sizes off the px ramp or hard-code colours outside the token set."
+    ]
+  }
+}

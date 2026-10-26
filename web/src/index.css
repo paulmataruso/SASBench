@@ -1,0 +1,420 @@
+@import '@fontsource/barlow/400.css';
+@import '@fontsource/barlow/500.css';
+@import '@fontsource/barlow/600.css';
+@import '@fontsource/barlow/700.css';
+@import '@fontsource/barlow-condensed/500.css';
+@import '@fontsource/barlow-condensed/600.css';
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/500.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Palette: anodized rack rail, aluminium ground, white panel faces; LED state colours; patch-cable identity colours. */
+:root {
+  color-scheme: light;
+  --rail: 20 24 31;
+  --rail-2: 30 35 45;
+  --rail-3: 44 51 63;
+  --rail-fg: 226 231 238;
+  --rail-mute: 139 150 166;
+  --rail-sel: 140 175 255;
+  --ground: 231 234 239;
+  --panel: 255 255 255;
+  --panel-2: 245 247 249;
+  --panel-3: 237 240 244;
+  --line: 218 223 230;
+  --line-strong: 186 194 205;
+  --ink: 19 25 33;
+  --ink-2: 60 71 87;
+  --ink-3: 96 108 125;
+  --sel: 36 87 197;
+  --sel-soft: 230 237 251;
+  --sel-ink: 29 69 160;
+  --ok: 30 160 84;
+  --ok-soft: 226 244 233;
+  --ok-ink: 17 106 54;
+  --warn: 226 152 16;
+  --warn-soft: 252 242 218;
+  --warn-ink: 128 80 0;
+  --bad: 220 52 60;
+  --bad-soft: 252 231 231;
+  --bad-ink: 166 28 36;
+  --info: 52 114 222;
+  --info-soft: 231 239 252;
+  --info-ink: 30 80 166;
+  --shadow: 15 20 30;
+  --led-off: 205 211 220;
+  --primary: 20 24 31;
+  --primary-hover: 44 51 63;
+  --primary-fg: 240 243 247;
+  /* T568-style patch cable colours: one identity colour per CBSD, reused in the band plan and the map. */
+  --p0: 232 113 28;
+  --p1: 47 158 68;
+  --p2: 28 126 214;
+  --p3: 141 90 43;
+  --p4: 92 107 122;
+  --p5: 123 79 214;
+  --p6: 214 51 108;
+  --p7: 15 148 136;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --rail: 9 11 15;
+    --rail-2: 21 25 32;
+    --rail-3: 35 41 52;
+    --rail-fg: 226 231 238;
+    --rail-mute: 128 139 156;
+    --rail-sel: 140 175 255;
+    --ground: 18 21 28;
+    --panel: 24 28 36;
+    --panel-2: 29 34 43;
+    --panel-3: 33 39 49;
+    --line: 41 47 58;
+    --line-strong: 60 68 82;
+    --ink: 228 233 240;
+    --ink-2: 172 182 196;
+    --ink-3: 135 146 162;
+    --sel: 104 150 255;
+    --sel-soft: 30 42 70;
+    --sel-ink: 164 193 255;
+    --ok: 51 209 122;
+    --ok-soft: 17 46 32;
+    --ok-ink: 112 226 162;
+    --warn: 245 184 61;
+    --warn-soft: 50 39 14;
+    --warn-ink: 247 202 112;
+    --bad: 255 99 105;
+    --bad-soft: 58 22 25;
+    --bad-ink: 255 152 156;
+    --info: 98 152 255;
+    --info-soft: 22 36 64;
+    --info-ink: 152 187 255;
+    --shadow: 0 0 0;
+    --led-off: 52 59 72;
+    --primary: 222 228 236;
+    --primary-hover: 250 251 253;
+    --primary-fg: 14 17 22;
+    --p0: 245 136 56;
+    --p1: 72 190 96;
+    --p2: 64 154 238;
+    --p3: 184 128 76;
+    --p4: 140 154 170;
+    --p5: 156 118 240;
+    --p6: 240 86 140;
+    --p7: 40 190 176;
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --rail: 9 11 15;
+  --rail-2: 21 25 32;
+  --rail-3: 35 41 52;
+  --rail-fg: 226 231 238;
+  --rail-mute: 128 139 156;
+  --rail-sel: 140 175 255;
+  --ground: 18 21 28;
+  --panel: 24 28 36;
+  --panel-2: 29 34 43;
+  --panel-3: 33 39 49;
+  --line: 41 47 58;
+  --line-strong: 60 68 82;
+  --ink: 228 233 240;
+  --ink-2: 172 182 196;
+  --ink-3: 135 146 162;
+  --sel: 104 150 255;
+  --sel-soft: 30 42 70;
+  --sel-ink: 164 193 255;
+  --ok: 51 209 122;
+  --ok-soft: 17 46 32;
+  --ok-ink: 112 226 162;
+  --warn: 245 184 61;
+  --warn-soft: 50 39 14;
+  --warn-ink: 247 202 112;
+  --bad: 255 99 105;
+  --bad-soft: 58 22 25;
+  --bad-ink: 255 152 156;
+  --info: 98 152 255;
+  --info-soft: 22 36 64;
+  --info-ink: 152 187 255;
+  --shadow: 0 0 0;
+  --led-off: 52 59 72;
+  --primary: 222 228 236;
+  --primary-hover: 250 251 253;
+  --primary-fg: 14 17 22;
+  --p0: 245 136 56;
+  --p1: 72 190 96;
+  --p2: 64 154 238;
+  --p3: 184 128 76;
+  --p4: 140 154 170;
+  --p5: 156 118 240;
+  --p6: 240 86 140;
+  --p7: 40 190 176;
+}
+
+@layer base {
+  html {
+    background: rgb(var(--ground));
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-ground font-sans text-base text-ink antialiased;
+    font-feature-settings: 'tnum' 1;
+    caret-color: rgb(var(--sel));
+    scrollbar-color: rgb(var(--line-strong)) transparent;
+  }
+  ::selection {
+    background: rgb(var(--sel) / 0.22);
+    color: inherit;
+  }
+  :focus-visible {
+    outline: 2px solid rgb(var(--sel));
+    outline-offset: 1px;
+  }
+  a {
+    text-underline-offset: 3px;
+  }
+  code,
+  kbd,
+  pre,
+  .font-mono {
+    font-feature-settings: 'zero' 1, 'tnum' 1;
+  }
+  input::placeholder,
+  textarea::placeholder {
+    color: rgb(var(--ink-3) / 0.85);
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgb(var(--line-strong));
+    border: 3px solid transparent;
+    border-radius: 6px;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(var(--ink-3));
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+@layer components {
+  /* Silkscreen legend: the small condensed caps printed on rack front panels. */
+  .silk {
+    @apply font-label text-2xs font-semibold uppercase tracking-[0.09em] text-ink-3;
+  }
+  .num {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .field {
+    @apply block w-full rounded border border-line-strong bg-panel px-2 py-[5px] text-base text-ink transition-colors duration-150;
+  }
+  .field:hover:not(:disabled):not(:focus) {
+    @apply border-ink-3;
+  }
+  .field:focus {
+    @apply border-sel outline-none;
+    box-shadow: 0 0 0 3px rgb(var(--sel) / 0.18);
+  }
+  .field:disabled {
+    @apply cursor-not-allowed bg-panel-2 text-ink-3;
+  }
+  .field[aria-invalid='true'] {
+    @apply border-bad;
+  }
+  select.field {
+    @apply appearance-none pr-7;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23808a99' stroke-width='1.5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 9px center;
+  }
+
+  /* Data tables: hairline rules, dense rows (the 1U rhythm), sticky silkscreen headers. */
+  .dtable {
+    @apply w-full border-collapse text-sm;
+  }
+  .dtable th {
+    @apply sticky top-0 z-[1] whitespace-nowrap border-b border-line bg-panel-2 px-3 py-[7px] text-left font-label text-2xs font-semibold uppercase tracking-[0.09em] text-ink-3;
+  }
+  .dtable td {
+    @apply h-9 border-b border-line px-3 py-1 align-middle;
+  }
+  .dtable tbody tr {
+    @apply transition-colors duration-100;
+  }
+  .dtable tbody tr:hover {
+    @apply bg-panel-3/70;
+  }
+  .dtable tbody tr[aria-selected='true'] {
+    @apply bg-sel-soft;
+  }
+  .dtable tbody tr:last-child td {
+    @apply border-b-0;
+  }
+
+  .json {
+    @apply font-mono text-xs leading-[18px] text-ink-2;
+  }
+  .json .k {
+    color: rgb(var(--sel-ink));
+  }
+  .json .s {
+    color: rgb(var(--ok-ink));
+  }
+  .json .n {
+    color: rgb(var(--warn-ink));
+  }
+  .json .b {
+    color: rgb(var(--p5));
+  }
+}
+
+/* Status LEDs ---------------------------------------------------------------- */
+.led {
+  display: inline-block;
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: rgb(var(--led-off));
+  box-shadow: inset 0 0 0 1px rgb(var(--shadow) / 0.12);
+  transition: background-color 200ms, box-shadow 200ms;
+}
+.led[data-c='ok'] {
+  --led-c: var(--ok);
+}
+.led[data-c='warn'] {
+  --led-c: var(--warn);
+}
+.led[data-c='bad'] {
+  --led-c: var(--bad);
+}
+.led[data-c='info'] {
+  --led-c: var(--info);
+}
+.led[data-c] {
+  background: rgb(var(--led-c));
+  box-shadow: 0 0 5px rgb(var(--led-c) / 0.55);
+}
+.led[data-flash] {
+  animation: led-flash 900ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes led-flash {
+  0% {
+    background: rgb(255 255 255);
+    box-shadow: 0 0 0 2px rgb(var(--led-c, var(--ok)) / 0.55), 0 0 12px 2px rgb(var(--led-c, var(--ok)) / 0.9);
+  }
+  35% {
+    background: rgb(var(--led-c, var(--ok)));
+    box-shadow: 0 0 9px 1px rgb(var(--led-c, var(--ok)) / 0.8);
+  }
+}
+
+/* "Changed since you looked": a hollow selection-blue ring, so amber stays an LED meaning. */
+.changed-mark {
+  display: inline-block;
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 9999px;
+  box-shadow: inset 0 0 0 1.5px rgb(var(--sel));
+  animation: changed-in 400ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes changed-in {
+  from {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, rgb(var(--panel-3)) 0%, rgb(var(--line) / 0.7) 50%, rgb(var(--panel-3)) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+  border-radius: 3px;
+}
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.drawer-in {
+  animation: drawer-in 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes drawer-in {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+}
+.toast-in {
+  animation: toast-in 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes toast-in {
+  from {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .led[data-flash] {
+    animation-duration: 1ms;
+    animation-iteration-count: 1;
+  }
+  .changed-mark,
+  .drawer-in,
+  .toast-in,
+  .skeleton {
+    animation: none;
+  }
+}
+
+/* Leaflet: theme the parts the map library draws. */
+.leaflet-container {
+  font: inherit;
+  background: rgb(var(--panel-2));
+}
+.leaflet-container .leaflet-control-attribution {
+  background: rgb(var(--panel) / 0.85);
+  color: rgb(var(--ink-3));
+  font-size: 10px;
+}
+.leaflet-container .leaflet-control-attribution a {
+  color: rgb(var(--ink-2));
+}
+.leaflet-bar a,
+.leaflet-bar a:hover {
+  background: rgb(var(--panel));
+  color: rgb(var(--ink));
+  border-color: rgb(var(--line));
+}
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: rgb(var(--panel));
+  color: rgb(var(--ink));
+  box-shadow: 0 8px 24px -6px rgb(var(--shadow) / 0.35);
+}
+.leaflet-popup-content {
+  margin: 10px 12px;
+  font-size: 12.5px;
+  line-height: 18px;
+}
+[data-theme='dark'] .leaflet-tile-pane {
+  filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .leaflet-tile-pane {
+    filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9);
+  }
+}

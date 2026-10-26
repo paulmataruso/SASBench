@@ -1,0 +1,9 @@
+node_modules
+web/node_modules
+web/dist
+data
+server/test
+.git
+.impeccable
+*.log
+.DS_Store

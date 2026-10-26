@@ -1,0 +1,22 @@
+{
+  "name": "cbrs-lab-sas",
+  "version": "1.0.0",
+  "private": true,
+  "description": "WInnForum-compliant CBRS Spectrum Access System for lab testing of CBSDs and Domain Proxies",
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "start": "node server/src/index.ts",
+    "dev": "SAS_DATA_DIR=./data node --watch server/src/index.ts",
+    "typecheck": "tsc -p server/tsconfig.json",
+    "test": "node --test --test-concurrency=1 server/test/*.test.ts",
+    "build:web": "npm --prefix web run build"
+  },
+  "dependencies": {
+    "fflate": "0.8.2"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "typescript": "5.9.3"
+  }
+}
