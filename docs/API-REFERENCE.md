@@ -1177,7 +1177,7 @@ Response `200`:
     "siqIncludeDpa": false,
     "strictOperationState": false,
     "responseDelayMs": 0,
-    "…": "28 more"
+    "…": "29 more"
   },
   "profile": "lab",
   "fromEnv": {"sasHttpPort": "SAS_HTTP_PORT", "sasHttpsPort": "SAS_HTTPS_PORT"}
@@ -1270,6 +1270,7 @@ Request body (JSON, required):
 | `manualApproval` | boolean |  | Hold every new registration at REG_PENDING until approved (POST /cbsds/{cbsdId}/approve). |
 | `haatCheck` | boolean |  | Category A outdoor HAAT ≤ 6 m check (needs terrain tiles). |
 | `rejectIndoorCatB` | boolean |  | Reject Category B registrations with indoorDeployment=true (FCC Part 96.45). |
+| `acceptMicrodegrees` | boolean |  | Read a latitude or longitude sent in millionths of a degree (e.g. 43375246 for 43.375246, as some Sercomm LTE radios send it) as degrees, with a warning event. Only whole numbers of magnitude 1000 or more are read that way; any other out-of-range value still gets responseCode 103. |
 | `bandLowHz` | integer |  | Lower edge of the band the SAS manages. · ≥ 0 |
 | `bandHighHz` | integer |  | Upper edge of the band the SAS manages. · ≥ 0 |
 | `gaaRanges` | array of object |  | Ranges available for GAA. Spectrum outside them is unavailable for GAA grants. |
@@ -1344,7 +1345,7 @@ Response `200`:
       "restartsListeners": true,
       "fromEnv": "SAS_HTTP_PORT"
     },
-    "… 50 more"
+    "… 51 more"
   ]
 }
 ```
@@ -1542,7 +1543,7 @@ Path parameters:
 
 | Name | Type | Description |
 |---|---|---|
-| `key` | `"sasHttpEnabled"` \| `"sasHttpPort"` \| `"sasHttpsEnabled"` \| `"sasHttpsPort"` \| `"tlsClientAuth"` \| `"tlsMinVersion"` \| `"tlsMaxVersion"` \| `"tlsCipherPolicy"` \| `"serverCertIds"` \| `"trustedClientCaIds"` \| `"tlsCheckCrl"` \| `"certRoleCheck"` \| `"rejectUnverifiedClientCert"` \| `"supportedVersions"` \| `"acceptVersionlessPaths"` \| `"heartbeatIntervalSec"` \| `"transmitExpireSec"` \| `"grantExpireSec"` \| `"connectivityLostSec"` \| `"versionErrorAsResponseCode"` \| `"siqChannelization"` \| `"siqIncludeDpa"` \| `"strictOperationState"` \| `"responseDelayMs"` \| `"includeResponseMessage"` \| `"requireKnownFccId"` \| `"requireKnownUserId"` \| `"registrationPolicy"` \| `"missingInstallParams"` \| `"certIdentityCheck"` \| `"defaultFccMaxEirp"` \| `"manualApproval"` \| `"haatCheck"` \| `"rejectIndoorCatB"` \| `"bandLowHz"` \| `"bandHighHz"` \| `"gaaRanges"` \| `"maxEirpCatA"` \| `"maxEirpCatB"` \| `"maxGrantBandwidthHz"` \| `"maxGrantsPerCbsd"` \| `"grantFrequencyStepHz"` \| `"suggestOperationParam"` \| `"harnessAdminEnabled"` \| `"msgLogLimit"` \| `"eventLogLimit"` \| `"mapSource"` \| `"mapLocalTiles"` \| `"mapTileUrl"` \| `"mapTileAttribution"` \| `"mapTileMaxZoom"` \| `"mapDarkenTiles"` | Setting name, e.g. heartbeatIntervalSec (see GET /settings/schema). |
+| `key` | `"sasHttpEnabled"` \| `"sasHttpPort"` \| `"sasHttpsEnabled"` \| `"sasHttpsPort"` \| `"tlsClientAuth"` \| `"tlsMinVersion"` \| `"tlsMaxVersion"` \| `"tlsCipherPolicy"` \| `"serverCertIds"` \| `"trustedClientCaIds"` \| `"tlsCheckCrl"` \| `"certRoleCheck"` \| `"rejectUnverifiedClientCert"` \| `"supportedVersions"` \| `"acceptVersionlessPaths"` \| `"heartbeatIntervalSec"` \| `"transmitExpireSec"` \| `"grantExpireSec"` \| `"connectivityLostSec"` \| `"versionErrorAsResponseCode"` \| `"siqChannelization"` \| `"siqIncludeDpa"` \| `"strictOperationState"` \| `"responseDelayMs"` \| `"includeResponseMessage"` \| `"requireKnownFccId"` \| `"requireKnownUserId"` \| `"registrationPolicy"` \| `"missingInstallParams"` \| `"certIdentityCheck"` \| `"defaultFccMaxEirp"` \| `"manualApproval"` \| `"haatCheck"` \| `"rejectIndoorCatB"` \| `"acceptMicrodegrees"` \| `"bandLowHz"` \| `"bandHighHz"` \| `"gaaRanges"` \| `"maxEirpCatA"` \| `"maxEirpCatB"` \| `"maxGrantBandwidthHz"` \| `"maxGrantsPerCbsd"` \| `"grantFrequencyStepHz"` \| `"suggestOperationParam"` \| `"harnessAdminEnabled"` \| `"msgLogLimit"` \| `"eventLogLimit"` \| `"mapSource"` \| `"mapLocalTiles"` \| `"mapTileUrl"` \| `"mapTileAttribution"` \| `"mapTileMaxZoom"` \| `"mapDarkenTiles"` | Setting name, e.g. heartbeatIntervalSec (see GET /settings/schema). |
 
 Responses:
 
@@ -1588,7 +1589,7 @@ Path parameters:
 
 | Name | Type | Description |
 |---|---|---|
-| `key` | `"sasHttpEnabled"` \| `"sasHttpPort"` \| `"sasHttpsEnabled"` \| `"sasHttpsPort"` \| `"tlsClientAuth"` \| `"tlsMinVersion"` \| `"tlsMaxVersion"` \| `"tlsCipherPolicy"` \| `"serverCertIds"` \| `"trustedClientCaIds"` \| `"tlsCheckCrl"` \| `"certRoleCheck"` \| `"rejectUnverifiedClientCert"` \| `"supportedVersions"` \| `"acceptVersionlessPaths"` \| `"heartbeatIntervalSec"` \| `"transmitExpireSec"` \| `"grantExpireSec"` \| `"connectivityLostSec"` \| `"versionErrorAsResponseCode"` \| `"siqChannelization"` \| `"siqIncludeDpa"` \| `"strictOperationState"` \| `"responseDelayMs"` \| `"includeResponseMessage"` \| `"requireKnownFccId"` \| `"requireKnownUserId"` \| `"registrationPolicy"` \| `"missingInstallParams"` \| `"certIdentityCheck"` \| `"defaultFccMaxEirp"` \| `"manualApproval"` \| `"haatCheck"` \| `"rejectIndoorCatB"` \| `"bandLowHz"` \| `"bandHighHz"` \| `"gaaRanges"` \| `"maxEirpCatA"` \| `"maxEirpCatB"` \| `"maxGrantBandwidthHz"` \| `"maxGrantsPerCbsd"` \| `"grantFrequencyStepHz"` \| `"suggestOperationParam"` \| `"harnessAdminEnabled"` \| `"msgLogLimit"` \| `"eventLogLimit"` \| `"mapSource"` \| `"mapLocalTiles"` \| `"mapTileUrl"` \| `"mapTileAttribution"` \| `"mapTileMaxZoom"` \| `"mapDarkenTiles"` | Setting name, e.g. heartbeatIntervalSec (see GET /settings/schema). |
+| `key` | `"sasHttpEnabled"` \| `"sasHttpPort"` \| `"sasHttpsEnabled"` \| `"sasHttpsPort"` \| `"tlsClientAuth"` \| `"tlsMinVersion"` \| `"tlsMaxVersion"` \| `"tlsCipherPolicy"` \| `"serverCertIds"` \| `"trustedClientCaIds"` \| `"tlsCheckCrl"` \| `"certRoleCheck"` \| `"rejectUnverifiedClientCert"` \| `"supportedVersions"` \| `"acceptVersionlessPaths"` \| `"heartbeatIntervalSec"` \| `"transmitExpireSec"` \| `"grantExpireSec"` \| `"connectivityLostSec"` \| `"versionErrorAsResponseCode"` \| `"siqChannelization"` \| `"siqIncludeDpa"` \| `"strictOperationState"` \| `"responseDelayMs"` \| `"includeResponseMessage"` \| `"requireKnownFccId"` \| `"requireKnownUserId"` \| `"registrationPolicy"` \| `"missingInstallParams"` \| `"certIdentityCheck"` \| `"defaultFccMaxEirp"` \| `"manualApproval"` \| `"haatCheck"` \| `"rejectIndoorCatB"` \| `"acceptMicrodegrees"` \| `"bandLowHz"` \| `"bandHighHz"` \| `"gaaRanges"` \| `"maxEirpCatA"` \| `"maxEirpCatB"` \| `"maxGrantBandwidthHz"` \| `"maxGrantsPerCbsd"` \| `"grantFrequencyStepHz"` \| `"suggestOperationParam"` \| `"harnessAdminEnabled"` \| `"msgLogLimit"` \| `"eventLogLimit"` \| `"mapSource"` \| `"mapLocalTiles"` \| `"mapTileUrl"` \| `"mapTileAttribution"` \| `"mapTileMaxZoom"` \| `"mapDarkenTiles"` | Setting name, e.g. heartbeatIntervalSec (see GET /settings/schema). |
 
 Request body (JSON, required):
 
@@ -10780,7 +10781,7 @@ Response `200`:
     "siqIncludeDpa": false,
     "strictOperationState": false,
     "responseDelayMs": 0,
-    "…": "28 more"
+    "…": "29 more"
   },
   "fccIds": ["{…}", "… 1 more"],
   "userIds": [{"user_id": "lab-user", "created_at": 1793120787858}],
@@ -11829,6 +11830,7 @@ A console sign-in.
 | `manualApproval` | boolean | yes | Hold every new registration at REG_PENDING until approved (POST /cbsds/{cbsdId}/approve). |
 | `haatCheck` | boolean | yes | Category A outdoor HAAT ≤ 6 m check (needs terrain tiles). |
 | `rejectIndoorCatB` | boolean | yes | Reject Category B registrations with indoorDeployment=true (FCC Part 96.45). |
+| `acceptMicrodegrees` | boolean | yes | Read a latitude or longitude sent in millionths of a degree (e.g. 43375246 for 43.375246, as some Sercomm LTE radios send it) as degrees, with a warning event. Only whole numbers of magnitude 1000 or more are read that way; any other out-of-range value still gets responseCode 103. |
 | `bandLowHz` | integer | yes | Lower edge of the band the SAS manages. · ≥ 0 |
 | `bandHighHz` | integer | yes | Upper edge of the band the SAS manages. · ≥ 0 |
 | `gaaRanges` | array of object | yes | Ranges available for GAA. Spectrum outside them is unavailable for GAA grants. |

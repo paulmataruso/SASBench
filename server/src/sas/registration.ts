@@ -156,6 +156,19 @@ export function processRegistration(e: Engine, item: any, ctx: RequestCtx): Resp
   if (eff.groupingParam !== undefined && !Array.isArray(eff.groupingParam)) inv.push('groupingParam');
   if (eff.cbsdInfo !== undefined && !isObj(eff.cbsdInfo)) inv.push('cbsdInfo');
   const ip = eff.installationParam;
+  if (ip && s.acceptMicrodegrees) {
+    // Some radios (Sercomm LTE) send their TR-069 location: degrees × 1,000,000. Only whole numbers
+    // that cannot be degrees are read that way; anything else out of range still fails below.
+    const read: string[] = [];
+    for (const [k, max] of [['latitude', 90], ['longitude', 180]] as const) {
+      const v = ip[k];
+      if (Number.isInteger(v) && Math.abs(v) >= 1000 && Math.abs(v) <= max * 1e6) {
+        ip[k] = v / 1e6;
+        read.push(`${k} ${v} as ${ip[k]}`);
+      }
+    }
+    if (read.length) warn(`location sent in millionths of a degree; read ${read.join(', ')}`);
+  }
   if (ip) {
     for (const [k, [lo, hi]] of Object.entries(RANGES)) {
       if (ip[k] === undefined || ip[k] === null) continue;

@@ -79,6 +79,31 @@ describe('registration', () => {
     }
   });
 
+  test('a location in millionths of a degree (Sercomm LTE) is read as degrees; other out-of-range values stay 103', async () => {
+    const micro = (serial: string, latitude: number, longitude: number) => {
+      const r = regRequest('FCCMICRO', serial);
+      Object.assign(r.installationParam, { latitude, longitude });
+      return r;
+    };
+    const [ok] = await sas.sas('registration', [micro('SN-M1', 43375246, -72180291)]);
+    assert.equal(code(ok), 0, JSON.stringify(ok));
+    const c = await sas.api('GET', `/api/v1/cbsds/${encodeURIComponent(ok.cbsdId)}`);
+    assert.deepEqual([c.effective.installationParam.latitude, c.effective.installationParam.longitude], [43.375246, -72.180291]);
+
+    // Too large even in millionths, too small to be millionths, or not a whole number.
+    const bad = await sas.sas('registration', [micro('SN-M2', 95_000_000, -72.18), micro('SN-M3', 43.37, 181), micro('SN-M4', 43375246.5, -72.18)]);
+    assert.deepEqual(bad.map(code), [103, 103, 103]);
+    assert.deepEqual(bad.map((r) => r.response.responseData), [['installationParam.latitude'], ['installationParam.longitude'], ['installationParam.latitude']]);
+
+    await sas.api('PUT', '/api/settings', { acceptMicrodegrees: false });
+    try {
+      const [off] = await sas.sas('registration', [micro('SN-M5', 43375246, -72180291)]);
+      assert.equal(code(off), 103);
+    } finally {
+      await sas.api('PUT', '/api/settings', { acceptMicrodegrees: true });
+    }
+  });
+
   test('cbsdId is stable across re-registration and re-registration removes grants', async () => {
     const id1 = await register('FCCREREG', 'SN-R1');
     const gid = await grant(id1, 3550, 3560);

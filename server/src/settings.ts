@@ -77,6 +77,11 @@ export interface Settings {
   haatCheck: boolean;
   /** Category B must be indoorDeployment=false (FCC Part 96.45). */
   rejectIndoorCatB: boolean;
+  /**
+   * Read a latitude or longitude sent in millionths of a degree (TR-069 units, as some Sercomm LTE
+   * radios send it) as degrees: whole numbers of magnitude 1000 or more that only make sense that way.
+   */
+  acceptMicrodegrees: boolean;
 
   // --- Spectrum policy -----------------------------------------------------
   bandLowHz: number;
@@ -147,6 +152,7 @@ export const DEFAULT_SETTINGS: Settings = {
   manualApproval: false,
   haatCheck: true,
   rejectIndoorCatB: true,
+  acceptMicrodegrees: true,
 
   bandLowHz: 3550e6,
   bandHighHz: 3700e6,

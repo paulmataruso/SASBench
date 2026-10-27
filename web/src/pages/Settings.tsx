@@ -116,6 +116,7 @@ export function SettingsPage() {
               <Num {...field} k="defaultFccMaxEirp" label="Default certified max EIRP (dBm/10MHz)" hint="Used when an FCC ID has no registered value." />
               <Toggle {...field} k="haatCheck" label="HAAT check for outdoor Category A" desc="Rejects HAAT above 6 m. Needs terrain tiles; skipped without them." />
               <Toggle {...field} k="rejectIndoorCatB" label="Reject indoor Category B" desc="FCC Part 96.45: Category B must be outdoor." />
+              <Toggle {...field} k="acceptMicrodegrees" label="Accept location in millionths of a degree" desc="Some Sercomm LTE radios send latitude 43375246 for 43.375246. Read as degrees, with a warning; other out-of-range values still get 103." />
             </Grid>
           </Module>
 

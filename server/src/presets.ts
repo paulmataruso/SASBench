@@ -19,7 +19,7 @@ export const PRESETS: Record<string, Preset> = {
       acceptVersionlessPaths: true, versionErrorAsResponseCode: false,
       heartbeatIntervalSec: 60, transmitExpireSec: 240, grantExpireSec: 7 * 86400,
       requireKnownFccId: false, requireKnownUserId: false, registrationPolicy: 'lenient', certIdentityCheck: 'warn',
-      manualApproval: false, haatCheck: true, rejectIndoorCatB: true, strictOperationState: false,
+      manualApproval: false, haatCheck: true, rejectIndoorCatB: true, acceptMicrodegrees: true, strictOperationState: false,
       siqIncludeDpa: false, siqChannelization: 'none', harnessAdminEnabled: true,
     },
   },
@@ -33,7 +33,7 @@ export const PRESETS: Record<string, Preset> = {
       supportedVersions: ['v1.2'], acceptVersionlessPaths: false, versionErrorAsResponseCode: false,
       heartbeatIntervalSec: 60, transmitExpireSec: 200, grantExpireSec: 900,
       requireKnownFccId: true, requireKnownUserId: true, registrationPolicy: 'strict', missingInstallParams: 'pending', certIdentityCheck: 'enforce',
-      manualApproval: false, haatCheck: true, rejectIndoorCatB: true, strictOperationState: false,
+      manualApproval: false, haatCheck: true, rejectIndoorCatB: true, acceptMicrodegrees: false, strictOperationState: false,
       siqIncludeDpa: false, siqChannelization: 'none', harnessAdminEnabled: true, defaultFccMaxEirp: 47,
       maxEirpCatA: 20, maxEirpCatB: 37, gaaRanges: [{ low: 3550e6, high: 3700e6 }], maxGrantBandwidthHz: 150e6,
       grantFrequencyStepHz: 0, responseDelayMs: 0,
@@ -45,7 +45,7 @@ export const PRESETS: Record<string, Preset> = {
     patch: {
       sasHttpEnabled: true, sasHttpsEnabled: true, tlsClientAuth: 'none', rejectUnverifiedClientCert: false, certRoleCheck: 'off',
       certIdentityCheck: 'off', requireKnownFccId: false, requireKnownUserId: false, registrationPolicy: 'lenient',
-      missingInstallParams: 'register', acceptVersionlessPaths: true, haatCheck: false,
+      missingInstallParams: 'register', acceptVersionlessPaths: true, haatCheck: false, acceptMicrodegrees: true,
     },
   },
 };

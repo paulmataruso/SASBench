@@ -67,6 +67,10 @@ export const SETTINGS_META: Record<keyof Settings, SettingMeta> = {
   manualApproval: { group: 'Registration policy', schema: S.bool(), description: 'Hold every new registration at REG_PENDING until approved (POST /cbsds/{cbsdId}/approve).' },
   haatCheck: { group: 'Registration policy', schema: S.bool(), description: 'Category A outdoor HAAT ≤ 6 m check (needs terrain tiles).' },
   rejectIndoorCatB: { group: 'Registration policy', schema: S.bool(), description: 'Reject Category B registrations with indoorDeployment=true (FCC Part 96.45).' },
+  acceptMicrodegrees: {
+    group: 'Registration policy', schema: S.bool(),
+    description: 'Read a latitude or longitude sent in millionths of a degree (e.g. 43375246 for 43.375246, as some Sercomm LTE radios send it) as degrees, with a warning event. Only whole numbers of magnitude 1000 or more are read that way; any other out-of-range value still gets responseCode 103.',
+  },
 
   bandLowHz: { group: 'Spectrum policy', schema: S.hz(), unit: 'Hz', description: 'Lower edge of the band the SAS manages.' },
   bandHighHz: { group: 'Spectrum policy', schema: S.hz(), unit: 'Hz', description: 'Upper edge of the band the SAS manages.' },

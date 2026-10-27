@@ -163,6 +163,10 @@ Many Category B radios (Nokia AirScale, for one) register without installation d
 
 Either way the SAS uses everything the radio does send. Preloaded data only fills fields the radio leaves out, and CPI-signed data overrides both.
 
+### Radios that send the location in millionths of a degree
+
+Some radios (Sercomm LTE units, for one) send the latitude and longitude in TR-069 units, degrees multiplied by 1,000,000: `43375246` for 43.375246. A SAS must answer that with 103 INVALID_VALUE. While **Accept location in millionths of a degree** is on (Settings → Registration policy; on in `lab` and `open`, off in `winnforum`), SASBench reads such values as degrees and logs a warning in **Events**. Only whole numbers of magnitude 1000 or more are read that way, so a latitude of 95 still gets 103. The CBSD's registration keeps the values as sent; its effective data holds the converted ones. A production SAS would refuse this radio, so expect it to need a firmware fix before it is deployed.
+
 ## Registry
 
 The **Registry** page holds what the SAS knows about radios before they ask: FCC IDs (with their maximum EIRP), user IDs, the blacklist, preloaded registration data (conditional registration) and CPI users. The `winnforum` profile and the **Require known FCC ID** and **Require known user ID** settings refuse radios that are not in it.
