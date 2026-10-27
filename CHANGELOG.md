@@ -13,5 +13,6 @@ First release.
 - WInnForum test harness admin API, a strict settings profile and a generated `sas.cfg`.
 - Web console: CBSD rack with live LEDs, band plan and map, wire log with full JSON and NDJSON export, events, request console, certificates, registry and live settings.
 - Offline map: built-in North America basemap, offline MBTiles and tile folders, and area downloads from a tile server.
+- REST API at `/api/v1` (165 operations): CBSDs and grants, protocol requests over the internal path or the real HTTP/HTTPS listeners (with lab client certificates), registry, spectrum and incumbents, fault rules, wire and event logs with a live Server-Sent Events stream, PKI and TLS, harness admin calls, every setting, map and terrain, configuration export/import, database backup and read-only access to every table. Read and write API tokens, an OpenAPI 3.1 description, a guide, a generated reference and an architecture document.
 - One Docker container with host networking, SQLite storage and a health check.
 - Radio compatibility list ([RADIOS.md](RADIOS.md)), starting with the Nokia AirScale AMIA + ASIA + AZQC on SBTS25R2.

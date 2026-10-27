@@ -854,7 +854,7 @@ export function harnessHook(admin: SasAdmin, bus: Bus) {
 
 // ====================================================================== helpers
 
-function sasUrls(s: Settings, hosts: string[]): string[] {
+export function sasUrls(s: Settings, hosts: string[]): string[] {
   const out: string[] = [];
   const v = s.supportedVersions[0] ?? 'v1.2';
   for (const h of hosts.length ? hosts : ['localhost']) {
@@ -864,14 +864,14 @@ function sasUrls(s: Settings, hosts: string[]): string[] {
   return out;
 }
 
-function detectProfile(s: Settings): string | null {
+export function detectProfile(s: Settings): string | null {
   for (const [k, p] of Object.entries(PRESETS)) {
     if (Object.entries(p.patch).every(([key, v]) => JSON.stringify((s as any)[key]) === JSON.stringify(v))) return k;
   }
   return null;
 }
 
-function redact(s: Settings): Settings {
+export function redact(s: Settings): Settings {
   return { ...s, uiPassword: s.uiPassword ? '********' : '' };
 }
 
@@ -902,7 +902,7 @@ function validateSettings(p: any) {
   if ('mapTileMaxZoom' in p && (!Number.isInteger(p.mapTileMaxZoom) || p.mapTileMaxZoom < 1 || p.mapTileMaxZoom > 22)) throw new HttpError(400, 'mapTileMaxZoom must be 1–22');
 }
 
-function cbsdOut(c: Row, grants: Record<string, number>) {
+export function cbsdOut(c: Row, grants: Record<string, number>) {
   const eff = jparse<any>(c.effective, {});
   const ip = eff.installationParam ?? {};
   return {
@@ -920,7 +920,7 @@ function cbsdOut(c: Row, grants: Record<string, number>) {
   };
 }
 
-function grantOut(g: Row) {
+export function grantOut(g: Row) {
   return {
     grantId: g.grant_id, cbsdId: g.cbsd_id, fccId: g.fcc_id, serial: g.serial, category: g.category, state: g.state, suspended: !!g.suspended,
     low: g.low_freq, high: g.high_freq, maxEirp: g.max_eirp, channelType: g.channel_type,
@@ -930,7 +930,7 @@ function grantOut(g: Row) {
   };
 }
 
-function protectionOut(p: Row) {
+export function protectionOut(p: Row) {
   return {
     id: p.id, name: p.name, kind: p.kind, source: p.source, low: p.low_freq, high: p.high_freq, active: !!p.active,
     channels: jparse(p.channels, null), action: p.action, geometry: jparse(p.geometry, null), latitude: p.latitude, longitude: p.longitude,
@@ -938,11 +938,11 @@ function protectionOut(p: Row) {
   };
 }
 
-function ppaOut(p: Row) {
+export function ppaOut(p: Row) {
   return { id: p.id, name: p.name, channels: jparse(p.channels, []), members: jparse(p.members, []), geometry: jparse(p.geometry, null), expiration: p.expiration, source: p.source };
 }
 
-function upsertProtection(db: Db, id: string, b: any) {
+export function upsertProtection(db: Db, id: string, b: any) {
   if (!b.name) throw new HttpError(400, 'name is required');
   const low = Number(b.low), high = Number(b.high);
   if (!(low < high)) throw new HttpError(400, 'low must be below high');
@@ -957,7 +957,7 @@ function upsertProtection(db: Db, id: string, b: any) {
     numOrNull(b.latitude), numOrNull(b.longitude), numOrNull(b.radiusKm), b.neighborhood ? JSON.stringify(b.neighborhood) : null, b.notes ?? null, now, now);
 }
 
-function upsertPpa(db: Db, id: string, b: any) {
+export function upsertPpa(db: Db, id: string, b: any) {
   if (!b.name) throw new HttpError(400, 'name is required');
   const channels = (b.channels ?? []).map((c: any) => ({ low: Number(c.low), high: Number(c.high), palId: c.palId ?? null, licenseExpiration: c.licenseExpiration ?? null }));
   if (!channels.length || channels.some((c: any) => !(c.low < c.high))) throw new HttpError(400, 'At least one valid PAL channel is required');
@@ -967,7 +967,7 @@ function upsertPpa(db: Db, id: string, b: any) {
     b.expiration ? Number(b.expiration) : null, 'ui', null, Date.now());
 }
 
-function faultVals(b: any): any[] {
+export function faultVals(b: any): any[] {
   return [
     b.enabled === false ? 0 : 1, b.name ?? null, b.method || '*', b.match_cbsd || null, need2(b.action),
     b.response_code === '' || b.response_code == null ? null : Number(b.response_code),
@@ -1000,7 +1000,7 @@ function numOrNull(v: any): number | null {
   return num(v) ?? null;
 }
 
-function safe(s: string): string {
+export function safe(s: string): string {
   return s.replace(/[^A-Za-z0-9._-]+/g, '_').slice(0, 80) || 'file';
 }
 

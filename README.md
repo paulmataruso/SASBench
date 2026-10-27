@@ -15,7 +15,7 @@ Register, grant and heartbeat real CBSDs on your bench, see exactly what the rad
 [![Node.js 24](https://img.shields.io/badge/Node.js-24-5FA04E?logo=nodedotjs&logoColor=white)](docs/DEVELOPMENT.md)
 [![License: proprietary](https://img.shields.io/badge/license-proprietary-14181f)](LICENSE)
 
-[Install](docs/INSTALL.md) · [User guide](docs/GUIDE.md) · [Radios](RADIOS.md) · [Development](docs/DEVELOPMENT.md) · [Changelog](CHANGELOG.md)
+[Install](docs/INSTALL.md) · [User guide](docs/GUIDE.md) · [REST API](docs/API.md) · [Radios](RADIOS.md) · [Development](docs/DEVELOPMENT.md) · [Changelog](CHANGELOG.md)
 
 </div>
 
@@ -37,6 +37,7 @@ Commercial SAS services give a lab little visibility and no control. Simple stub
 - **Make the SAS misbehave on purpose.** Suspend or terminate grants, change heartbeat intervals, send 105 deregistrations, or inject faults: rewritten response codes, HTTP errors, delays, dropped connections and malformed JSON.
 - **Incumbents and protection.** NTIA E-DPA and P-DPA definitions, PPAs, FSS earth stations and exclusion zones, plus the Category A HAAT check from USGS terrain data.
 - **Ready for the WInnForum harness.** Its admin API, a strict profile that matches its expectations, and a generated `sas.cfg`.
+- **A complete REST API.** Everything the console does, every harness admin call and every stored record, over HTTP with scoped API tokens and an OpenAPI 3.1 description, for test rigs and CI pipelines.
 - **Offline and self-contained.** One Docker container, a SQLite database, a built-in basemap and offline map tiles. No cloud account.
 
 Radios that register without location data, as many Category B units do, are handled explicitly: hold them for preloaded data, or register them anyway. The console includes step-by-step certificate instructions for Nokia AirScale BBUs.
@@ -84,12 +85,27 @@ Then open the console at `http://<host-ip>:8080` and point the radio at the SAS:
 
 The **Overview** page lists the exact URLs, and the **Certificates** page makes the radio's credentials. [INSTALL.md](docs/INSTALL.md) covers requirements, configuration, Docker Desktop, upgrades and backups.
 
+## REST API
+
+Everything is scriptable through the REST API at `http://<host>:8080/api/v1`:
+
+```bash
+curl -s http://<host>:8080/api/v1/cbsds | jq '.items[] | {cbsdId, state}'
+curl -s -X POST http://<host>:8080/api/v1/faults -H 'Content-Type: application/json' \
+  -d '{"method": "heartbeat", "action": "response_code", "responseCode": 501, "remaining": 1}'
+```
+
+The [API guide](docs/API.md) covers authentication and conventions, with recipes for every area. The [API reference](docs/API-REFERENCE.md) lists all 165 operations. The running SAS serves its OpenAPI 3.1 description at `/api/v1/openapi.json`.
+
 ## Documentation
 
 | Document | Covers |
 |---|---|
 | [Install](docs/INSTALL.md) | Requirements, Docker Compose, configuration, firewall, upgrading, backup and restore, troubleshooting |
 | [User guide](docs/GUIDE.md) | The console, connecting radios, certificates, TLS, settings profiles, map, terrain, the WInnForum test harness, limitations |
+| [API guide](docs/API.md) | The REST API: authentication, tokens and scopes, conventions, and recipes for every area |
+| [API reference](docs/API-REFERENCE.md) | Every endpoint, parameter and schema (generated from the code) |
+| [API architecture](docs/API-ARCHITECTURE.md) | How the API is built and secured, how it is tested, how to extend it |
 | [Development](docs/DEVELOPMENT.md) | Running from source, project layout, tests, third-party notices |
 | [Radio compatibility](RADIOS.md) | Radios confirmed to work with SASBench, and how to add yours |
 | [Changelog](CHANGELOG.md) | Release notes |

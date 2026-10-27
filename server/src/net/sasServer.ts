@@ -95,6 +95,11 @@ export class SasServer {
     return this.restarting;
   }
 
+  /** Resolves once any pending listener restart has finished. */
+  idle(): Promise<void> {
+    return this.restarting;
+  }
+
   /** Swap certificates / trust anchors on the running HTTPS listener without dropping connections. */
   reloadTls() {
     if (!this.httpsServer) return void this.restart();

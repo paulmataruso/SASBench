@@ -61,7 +61,7 @@ sudo firewall-cmd --permanent --add-port={8080,8000,8443}/tcp
 sudo firewall-cmd --reload
 ```
 
-To keep the console private, allow `8080` only from your own subnet and set a [UI password](#configuration).
+To keep the console and REST API private, allow `8080` only from your own subnet and set a [UI password](#configuration).
 
 ## Configuration
 
@@ -71,7 +71,7 @@ Settings that belong to the host live in the `environment:` block of `docker-com
     environment:
       SAS_HOSTNAMES: "sas.lab.local"   # extra names/IPs radios use to reach the SAS
       SAS_PROFILE: "lab"               # lab | winnforum | open, applied on first start
-      SAS_UI_PASSWORD: "change-me"     # HTTP Basic auth on the console (any user name)
+      SAS_UI_PASSWORD: "change-me"     # HTTP Basic auth on the console and REST API (any user name)
       TZ: "UTC"
 ```
 
@@ -79,7 +79,7 @@ Settings that belong to the host live in the `environment:` block of `docker-com
 |----------|---------|---------|
 | `SAS_HOSTNAMES` | — | Extra comma-separated names or IPs for the auto-generated server certificates, also shown as SAS URLs. The host's own IPs are always included. Checked on every start. |
 | `SAS_PROFILE` | — | `lab`, `winnforum` or `open`. Applied once, on the first start with an empty data volume. |
-| `SAS_UI_PASSWORD` | — | Protects the web console with HTTP Basic auth (any user name, this password). Applied on every start. |
+| `SAS_UI_PASSWORD` | — | Protects the web console and the REST API with HTTP Basic auth (any user name, this password). Applied on every start. API tokens work alongside it; see the [API guide](API.md#authentication). |
 | `UI_PORT` | `8080` | Web console and REST API port. |
 | `SAS_HTTP_PORT` | `8000` | SAS HTTP port. Overrides the port set in Settings on every start. |
 | `SAS_HTTPS_PORT` | `8443` | SAS HTTPS port. Overrides the port set in Settings on every start. |
@@ -87,6 +87,8 @@ Settings that belong to the host live in the `environment:` block of `docker-com
 | `SAS_TILES_DIR` | `/data/tiles` | Offline map tile store. |
 | `SAS_DATA_DIR` | `/data` | Database, PKI working files and the default terrain and tile folders. |
 | `SAS_WEB_DIR` | `web/dist` | Location of the built web console. |
+| `SAS_API_CORS_ORIGINS` | — | Comma-separated browser origins allowed to call the REST API from another site (`*` for any). Scripts and tools need nothing. See [Browsers and CORS](API.md#browsers-and-cors). |
+| `SAS_TERRAIN_SOURCE_URL` | USGS | A mirror of the USGS 3DEP staged products, with the same layout, for terrain downloads. |
 | `TZ` | `UTC` | Time zone for log timestamps. |
 
 ### Addresses and certificates
@@ -201,7 +203,9 @@ docker run --rm -v sasbench_sas-data:/data -v "$PWD":/backup alpine \
 docker compose start
 ```
 
-To copy just the configuration (settings, registries, protections, PPAs and fault rules, but not certificates, CBSDs or logs) to another install, use **Settings → Maintenance → Export JSON** and **Import JSON**.
+While SASBench runs, `GET /api/v1/system/backup` returns a consistent copy of the whole database without stopping it (see the [API guide](API.md#configuration-backups-and-raw-data)).
+
+To copy just the configuration (settings, registries, protections, PPAs and fault rules, but not certificates, CBSDs or logs) to another install, use **Settings → Maintenance → Export JSON** and **Import JSON**, or `GET /api/v1/config/export` and `POST /api/v1/config/import`.
 
 ## Uninstalling
 

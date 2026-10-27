@@ -221,6 +221,18 @@ CREATE TABLE IF NOT EXISTS events (
   grant_id    TEXT
 );
 CREATE INDEX IF NOT EXISTS events_ts ON events(ts);
+
+CREATE TABLE IF NOT EXISTS api_tokens (
+  id          TEXT PRIMARY KEY,
+  name        TEXT NOT NULL,
+  scope       TEXT NOT NULL,                -- read | write
+  token_hash  TEXT NOT NULL UNIQUE,         -- SHA-256 of the secret; the secret itself is never stored
+  prefix      TEXT NOT NULL,                -- first characters of the secret, to recognise it
+  created_at  INTEGER NOT NULL,
+  expires_at  INTEGER,
+  last_used_at INTEGER,
+  last_used_addr TEXT
+);
 `;
 
 export class Db {

@@ -21,18 +21,19 @@ The server is TypeScript run directly by Node 24's type stripping, so it needs n
 ```
 server/src/
   index.ts          entry point: listeners, PKI bootstrap, web console
-  api.ts            REST API used by the console (/api/...)
+  api.ts            private API used by the console (/api/...)
+  api/v1/           public REST API (/api/v1): route table, validation, auth, OpenAPI
   sas/              protocol engine: registration, grants, heartbeats, policy,
                     CPI checks, fault injection, terrain (HAAT), harness admin API
   net/              SAS HTTP/HTTPS listeners (WINNF-TS-0065 TLS profile)
   pki/              lab PKI and X.509 helpers
   map/              offline map tile store and area downloads
-  tools/            command-line tools (fetch-terrain.ts)
+  tools/            terrain download (terrainFetch.ts) and its command-line tool (fetch-terrain.ts)
 server/data/ntia/   NTIA E-DPA and P-DPA definitions (KML)
 server/test/        integration tests
 web/src/            React console: pages/, components/, lib/
-scripts/            third-party notices generator, basemap builder
-docs/               installation, user guide, screenshots
+scripts/            third-party notices, API reference and API coverage scripts, basemap builder
+docs/               installation, user guide, API guide, reference and architecture, screenshots
 ```
 
 The console's visual design is documented in [DESIGN.md](../DESIGN.md).
@@ -42,11 +43,15 @@ The console's visual design is documented in [DESIGN.md](../DESIGN.md).
 ```bash
 npm run typecheck        # server
 npm --prefix web run typecheck
-npm test                 # integration tests (about a minute)
+npm test                 # integration tests (about two minutes)
 npm run notices:check    # third-party notices are up to date
+npm run api:docs:check   # docs/API-REFERENCE.md matches the route table
+npm run api:coverage     # API test with line and function coverage of server/src/api/v1
 ```
 
 The tests start the real server on free ports and exercise the SAS–CBSD protocol over HTTP and HTTPS (including mutual TLS and revocation), the harness admin API, terrain reading and the map tile store.
+
+`server/test/api-v1.test.ts` calls every REST API operation and fails if one never succeeded, a response does not match its documented schema, or an error status is undocumented. After changing the API, run `npm run api:docs` to regenerate the reference. [API-ARCHITECTURE.md](API-ARCHITECTURE.md) explains the design and how to add an endpoint.
 
 The same checks, plus a Docker image build, run on every push to `main` and every pull request: see [`.github/workflows/ci.yml`](../.github/workflows/ci.yml).
 

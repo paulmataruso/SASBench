@@ -11,6 +11,7 @@ How to connect radios, issue their certificates, control what the SAS does, and 
 - [Map](#map)
 - [Terrain (Category A HAAT)](#terrain-category-a-haat)
 - [Running the WInnForum test harness](#running-the-winnforum-test-harness)
+- [Automating with the REST API](#automating-with-the-rest-api)
 - [Data and persistence](#data-and-persistence)
 - [Limitations](#limitations)
 
@@ -187,9 +188,29 @@ The running SAS picks new tiles up within 30 seconds. It reads two formats, and 
 The harness is at <https://github.com/Wireless-Innovation-Forum/Spectrum-Access-System>.
 
 1. Apply the **WInnForum strict** profile (Settings), or start with `SAS_PROFILE=winnforum`.
-2. Import the harness CA certificates on the **Certificates** page so its client certificates are trusted. Also import their CRLs if you run the security tests. Install the SAS root CA (`/api/trust-bundle`) as the harness's trusted CA.
-3. Download a matching `sas.cfg` from `GET /api/harness/sas.cfg?host=<name-in-the-server-cert>`. Every base URL points at the HTTPS port, where the admin API (`/admin/reset`, `/admin/injectdata/...`, `/admin/trigger/...`, `/admin/get_daily_activities_status`, ...) is also served.
+2. Import the harness CA certificates on the **Certificates** page so its client certificates are trusted. Also import their CRLs if you run the security tests. Install the SAS root CA (`GET /api/v1/trust-bundle?which=roots`) as the harness's trusted CA.
+3. Download a matching `sas.cfg` from `GET /api/v1/harness/sas.cfg?host=<name-in-the-server-cert>`. Every base URL points at the HTTPS port, where the admin API (`/admin/reset`, `/admin/injectdata/...`, `/admin/trigger/...`, `/admin/get_daily_activities_status`, ...) is also served.
 4. **Terrain for the HAAT check (REG.7).** Fetch the harness tiles with `node server/src/tools/fetch-terrain.ts --harness` (see [Terrain](#terrain-category-a-haat)). Without them the HAAT check is skipped, and REG.7, which expects a HAAT rejection, fails.
+
+## Automating with the REST API
+
+Everything on these pages can also be done through the REST API at `/api/v1`, on the console port. That includes:
+
+- sending protocol requests as a radio would (internally, or through the real HTTP and HTTPS listeners with a lab client certificate);
+- suspending grants and injecting faults;
+- issuing certificates;
+- making harness admin calls;
+- changing settings;
+- following the wire log live.
+
+Test rigs use the API to set up the SAS before a radio test and to check what happened afterwards.
+
+```bash
+curl -s http://<host>:8080/api/v1/status | jq
+curl -sN "http://<host>:8080/api/v1/stream?types=message"     # live exchanges
+```
+
+While no UI password is set, the API is open like the console. With a password, use HTTP Basic or create API tokens with `read` or `write` scope (`POST /api/v1/tokens`). See the [API guide](API.md) for authentication, conventions and recipes, and the [API reference](API-REFERENCE.md) for every endpoint.
 
 ## Data and persistence
 

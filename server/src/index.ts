@@ -2,7 +2,6 @@ import http from 'node:http';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import crypto from 'node:crypto';
 import zlib from 'node:zlib';
 import { Db } from './db.ts';
 import { SettingsStore, LISTENER_KEYS, type Settings } from './settings.ts';
@@ -15,13 +14,17 @@ import { Terrain } from './sas/terrain.ts';
 import { SasServer } from './net/sasServer.ts';
 import { TileDownloader, TileStore } from './map/tiles.ts';
 import { buildApi, harnessHook } from './api.ts';
+import { BASE as API_V1, buildApiV1 } from './api/v1/index.ts';
+import { ApiTokens, authenticate } from './api/v1/auth.ts';
+import { TerrainDownloader } from './tools/terrainFetch.ts';
 import { sendJson } from './net/http.ts';
 import { PRESETS } from './presets.ts';
 
 // SASBench — entry point. One process serves:
 //   - the SAS-CBSD protocol on HTTP (default 8000) and HTTPS/mTLS (default 8443), plus the
 //     WInnForum test-harness admin API under /admin/ on the same listeners;
-//   - the web UI and its REST API on UI_PORT (default 8080).
+//   - the web UI, its private REST API (/api/*) and the public REST API (/api/v1, see docs/API.md)
+//     on UI_PORT (default 8080).
 
 const ROOT = path.resolve(import.meta.dirname, '..', '..');
 const VERSION = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version as string;
@@ -83,7 +86,15 @@ engine.startSweeper();
 
 // ---------------------------------------------------------------- UI / REST server
 
-const api = buildApi({ db, settings, bus, pki, engine, sas, admin, startedAt: Date.now(), version: VERSION, uiPort: UI_PORT, hostnames, tiles, tileDownloader });
+const startedAt = Date.now();
+const api = buildApi({ db, settings, bus, pki, engine, sas, admin, startedAt, version: VERSION, uiPort: UI_PORT, hostnames, tiles, tileDownloader });
+const apiTokens = new ApiTokens(db);
+const terrainDownloader = new TerrainDownloader(() => engine.terrain?.directory ?? null, () => engine.terrain?.reindex(), bus);
+const apiV1 = buildApiV1({
+  db, settings, bus, pki, engine, sas, admin, tiles, tileDownloader, terrainDownloader, tokens: apiTokens, startedAt, version: VERSION,
+  uiPort: UI_PORT, hostnames, dataDir: DATA_DIR,
+  corsOrigins: (process.env.SAS_API_CORS_ORIGINS ?? '').split(',').map((s) => s.trim()).filter(Boolean),
+});
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png',
@@ -96,10 +107,17 @@ const gzipped = new Map<string, { mtime: number; data: Buffer }>();
 const ui = http.createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', 'http://x');
   try {
-    if (!authorized(req)) {
+    // The public API authenticates and reports errors itself.
+    if (url.pathname === API_V1 || url.pathname.startsWith(`${API_V1}/`)) return await apiV1.handle(req, res, url);
+    const auth = authenticate(req, settings, apiTokens, null, 'ignore');
+    if (!auth.ok) {
       res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="SASBench", charset="UTF-8"', 'Content-Type': 'text/plain' });
       res.end('Authentication required');
       return;
+    }
+    // The console's private API can change anything and download private keys: read-only tokens stop at /api/v1.
+    if (auth.principal.scope !== 'write' && url.pathname.startsWith('/api/')) {
+      return sendJson(res, 403, { error: `A read-only API token cannot use ${url.pathname}; use ${API_V1}` });
     }
     if (url.pathname === '/api/stream') return stream(req, res);
     if (url.pathname.startsWith('/api/')) {
@@ -121,17 +139,6 @@ ui.on('error', (e: NodeJS.ErrnoException) => {
   process.exit(1);
 });
 ui.listen(UI_PORT, '0.0.0.0', () => log(`Web UI on http://0.0.0.0:${UI_PORT}`));
-
-function authorized(req: http.IncomingMessage): boolean {
-  const pw = settings.get().uiPassword;
-  if (!pw) return true;
-  const h = req.headers.authorization ?? '';
-  if (!h.startsWith('Basic ')) return false;
-  const [, given = ''] = Buffer.from(h.slice(6), 'base64').toString('utf8').split(/:(.*)/s);
-  const a = crypto.createHash('sha256').update(given).digest();
-  const b = crypto.createHash('sha256').update(pw).digest();
-  return crypto.timingSafeEqual(a, b);
-}
 
 function stream(req: http.IncomingMessage, res: http.ServerResponse) {
   res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });

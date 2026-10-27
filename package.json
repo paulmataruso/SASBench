@@ -17,7 +17,10 @@
     "basemap": "scripts/build-basemap.sh",
     "terrain": "node server/src/tools/fetch-terrain.ts",
     "notices": "node scripts/third-party-notices.mjs",
-    "notices:check": "node scripts/third-party-notices.mjs --check"
+    "notices:check": "node scripts/third-party-notices.mjs --check",
+    "api:docs": "node scripts/api-reference.mjs",
+    "api:docs:check": "node scripts/api-reference.mjs --check",
+    "api:coverage": "node scripts/api-coverage.mjs"
   },
   "dependencies": {
     "fflate": "0.8.2"

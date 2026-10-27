@@ -24,8 +24,10 @@ services:
       # SAS_HOSTNAMES: "sas.lab.local"
       # Settings profile applied once on first start: lab | winnforum | open
       # SAS_PROFILE: "lab"
-      # Protect the web UI with HTTP Basic auth (any user name, this password).
+      # Protect the web UI and the REST API with HTTP Basic auth (any user name, this password).
       # SAS_UI_PASSWORD: "change-me"
+      # Browser origins allowed to call the REST API from another site (scripts need nothing).
+      # SAS_API_CORS_ORIGINS: "http://dashboard.lab:3000"
       # Listener ports; with host networking these are the ports on the host. Applied on every
       # start, so they override the ports set in Settings.
       # UI_PORT: "8080"

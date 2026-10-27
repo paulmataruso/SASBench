@@ -7,26 +7,12 @@
 //   docker exec sasbench node server/src/tools/fetch-terrain.ts --harness
 //
 // Files go to SAS_TERRAIN_DIR, else $SAS_DATA_DIR/terrain (./data/terrain); --dir DIR overrides.
+// SAS_TERRAIN_SOURCE_URL replaces the USGS address with a mirror that has the same layout.
 // Existing tiles are kept unless --force. A running SAS picks new tiles up within 30 s.
 import fs from 'node:fs';
 import path from 'node:path';
-import { Readable } from 'node:stream';
-import { pipeline } from 'node:stream/promises';
 import { haatTiles } from '../sas/terrain.ts';
-
-const USGS = 'https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/1/TIFF/current';
-
-// CBSD installation points in the harness's CBSD-facing suites (REG, DRG, SIQ, GRA, HBT, RLQ, MES,
-// SCS): testcases/testdata/device_*.json plus the locations the test cases set themselves.
-const HARNESS_POINTS: Array<[number, number]> = [
-  [39.0119, -98.4842], [39.139836, -97.770094], [38.815291, -97.198805], [39.190944, -99.022535], // device_a–d
-  [39.173912, -99.923414], [38.815291, -100.253004], [39.32705, -100.604567], // device_e–g
-  [42.0001, -110.0001], [42.6001, -105.0001], [41.6001, -105.0001], // device_h–j
-  [38.882162, -77.113755], [38.882162, -77.013055], // REG.7 elements 7 and 13
-  [36.711538, -76.016275], // HBT
-  [30.7157, -88.0935], [38.2, -99.5], [38.4, -98.9], [38.775, -97.291], [38.82767, -97.20497], // SIQ
-  [38.854, -97.195], [39.0, -98.6], [40.0, -97.87],
-];
+import { HARNESS_POINTS, fetchTile, presentTiles } from './terrainFetch.ts';
 
 function usage(msg?: string): never {
   if (msg) console.error(msg);
@@ -53,22 +39,13 @@ for (let i = 0; i < args.length; i++) {
 if (!tiles.size) usage();
 fs.mkdirSync(dir, { recursive: true });
 
-// Tiles already present in any supported naming (USGS GeoTIFF, NED GridFloat).
-const present = new Set(
-  fs.readdirSync(dir).filter((f) => /\.(flt|tiff?)$/i.test(f)).map((f) => /([ns]\d{2}[ew]\d{3})/i.exec(f)?.[1].toLowerCase()).filter(Boolean),
-);
+const present = presentTiles(dir);
 
-async function fetchTile(name: string): Promise<string> {
-  if (!force && present.has(name)) return 'already present';
-  const file = path.join(dir, `USGS_1_${name}.tif`);
-  const res = await fetch(`${USGS}/${name}/USGS_1_${name}.tif`);
-  // S3 answers 403 or 404 for keys that do not exist: open ocean or outside USGS coverage.
-  if (res.status === 403 || res.status === 404) return 'not published by USGS (open water or outside coverage)';
-  if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
-  const part = `${file}.part`;
-  await pipeline(Readable.fromWeb(res.body as any), fs.createWriteStream(part));
-  fs.renameSync(part, file);
-  return `${(fs.statSync(file).size / 1e6).toFixed(0)} MB`;
+async function describeFetch(name: string): Promise<string> {
+  const r = await fetchTile(name, dir, { force, present });
+  if (r.status === 'present') return 'already present';
+  if (r.status === 'unavailable') return 'not published by USGS (open water or outside coverage)';
+  return `${(r.bytes / 1e6).toFixed(0)} MB`;
 }
 
 const queue = [...tiles].sort();
@@ -77,7 +54,7 @@ let failed = 0;
 await Promise.all(Array.from({ length: 3 }, async () => {
   for (let name = queue.shift(); name; name = queue.shift()) {
     try {
-      console.log(`  ${name}: ${await fetchTile(name)}`);
+      console.log(`  ${name}: ${await describeFetch(name)}`);
     } catch (e: any) {
       failed++;
       console.error(`  ${name}: failed (${e.message})`);

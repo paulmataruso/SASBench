@@ -34,6 +34,9 @@ jobs:
       - name: Check third-party notices
         run: npm run notices:check
 
+      - name: Check the API reference
+        run: npm run api:docs:check
+
       - name: Build the web console
         run: npm run build:web
 
