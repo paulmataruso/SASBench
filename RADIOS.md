@@ -10,7 +10,7 @@ Radios that have been tested against SASBench and confirmed to work. Every entry
 |--------|-------|----------------|------|---------------|------------|----------|----------|-------------|
 | Baicells | Nova 430i ([notes](#baicells-nova-430i)) | BaiBLQ_3.1.14.10 | A | LTE (E_UTRA) | plain HTTP | Registration, grant and heartbeat | 1.0.0 | [paulmataruso](https://github.com/paulmataruso) |
 | Nokia | AirScale AMIA + ASIA + AZQC ([notes](#nokia-airscale-amia--asia--azqc)) | SBTS25R2 | B | LTE (E_UTRA) | HTTPS, no client certificate | Registration, grant and heartbeat, deregistration (105) | 1.0.0 | [paulmataruso](https://github.com/paulmataruso) |
-| Sercomm | SCE4255W, LTE band 48 ([notes](#sercomm-sce4255w)) | not recorded | A | LTE (E_UTRA) | HTTPS, no client certificate | Registration, grant and heartbeat | 1.0.0 | [paulmataruso](https://github.com/paulmataruso) |
+| Sercomm | SCE4255W, LTE band 48 ([notes](#sercomm-sce4255w)) | DG3934v3@2308041842 | A | LTE (E_UTRA) | HTTPS, no client certificate | Registration, grant and heartbeat | 1.0.0 | [paulmataruso](https://github.com/paulmataruso) |
 | Sercomm | SCE5164-B48, n48 ([notes](#sercomm-sce5164-b48)) | RC5607@230707 | A | 5G NR (NR) | plain HTTP | Registration, grant and heartbeat | 1.0.0 | [paulmataruso](https://github.com/paulmataruso) |
 
 ### What the columns mean
