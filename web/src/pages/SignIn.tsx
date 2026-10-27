@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { LogIn } from 'lucide-react';
+import { ChevronRight, LogIn } from 'lucide-react';
 import { api } from '../lib/api';
 import { RackMark } from '../components/brand';
-import { Button, ErrorNote, Field, Input, Note } from '../components/ui';
+import { Button, CopyButton, ErrorNote, Field, Input, Note } from '../components/ui';
 
 /** The sign-in form, shown instead of the console until there is a session. */
 export function SignInPage({ note, onSignedIn }: { note?: string; onSignedIn: () => Promise<void> }) {
@@ -55,29 +55,58 @@ export function SignInPage({ note, onSignedIn }: { note?: string; onSignedIn: ()
           <span className="text-md font-semibold tracking-[-0.01em] text-white">SASBench</span>
           <span className="ml-auto font-label text-2xs font-semibold uppercase tracking-[0.12em] text-rail-mute">CBRS lab SAS</span>
         </div>
-        <form
-          className="space-y-4 rounded-b border border-line bg-panel px-5 pb-5 pt-4 shadow-panel"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void submit();
-          }}
-        >
-          <h1 className="text-lg font-semibold text-ink">Sign in</h1>
-          {note && <Note tone="warn">{note}</Note>}
-          <Field label="User name">
-            <Input ref={userRef} value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" autoCapitalize="none" spellCheck={false} className="w-full" />
-          </Field>
-          <Field label="Password">
-            <Input ref={pwRef} type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" className="w-full" />
-          </Field>
-          {error && <ErrorNote>{error}</ErrorNote>}
-          <Button type="submit" variant="primary" icon={LogIn} loading={busy} className="w-full">Sign in</Button>
-        </form>
-        <div className="mt-3 px-1 text-xs text-ink-3">
-          <p>Forgot the password? An administrator can set a new one under Users, or on the SAS host run:</p>
-          <p className="mt-1 select-all break-all font-mono text-ink-2">node server/src/tools/reset-password.ts admin</p>
+        <div className="rounded-b border border-line bg-panel shadow-panel">
+          <form
+            className="space-y-4 px-5 pb-5 pt-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void submit();
+            }}
+          >
+            <h1 className="text-lg font-semibold text-ink">Sign in</h1>
+            {note && <Note tone="warn">{note}</Note>}
+            <Field label="User name">
+              <Input ref={userRef} value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" autoCapitalize="none" spellCheck={false} className="w-full" />
+            </Field>
+            <Field label="Password">
+              <Input ref={pwRef} type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" className="w-full" />
+            </Field>
+            {error && <ErrorNote>{error}</ErrorNote>}
+            <Button type="submit" variant="primary" icon={LogIn} loading={busy} className="w-full">Sign in</Button>
+          </form>
+          <ForgotPassword username={username.trim()} />
         </div>
       </div>
     </main>
+  );
+}
+
+/** How to get back in: an admin resets it, or the reset tool on the SAS host. */
+function ForgotPassword({ username }: { username: string }) {
+  // The command names the user typed above when it is a valid user name (all shell-safe characters).
+  const user = /^[A-Za-z0-9._@][A-Za-z0-9._@-]{0,63}$/.test(username) ? username : 'admin';
+  const command = `docker exec sasbench node server/src/tools/reset-password.ts ${user}`;
+  return (
+    <details className="group border-t border-line">
+      <summary className="flex h-10 cursor-pointer list-none items-center gap-1.5 rounded-b px-5 focus-visible:outline-offset-[-2px] group-open:rounded-none text-sm text-ink-2 transition-colors hover:bg-panel-2 hover:text-ink [&::-webkit-details-marker]:hidden">
+        <ChevronRight className="size-3.5 text-ink-3 transition-transform duration-150 group-open:rotate-90 motion-reduce:transition-none" aria-hidden />
+        Forgot your password?
+      </summary>
+      <div className="space-y-3 px-5 pb-5 pt-1 text-sm text-ink-2">
+        <p>An admin can set a new one for you on the <span className="font-medium text-ink">Users</span> page.</p>
+        <div className="space-y-1.5">
+          <p>No admin can sign in? On the SAS host, run:</p>
+          <div className="flex items-start gap-1 rounded border border-line bg-panel-2 py-1 pl-2.5 pr-1">
+            <code className="min-w-0 flex-1 py-1 font-mono text-xs text-ink [overflow-wrap:anywhere]">
+              <span className="select-none text-ink-3">$ </span>{command}
+            </code>
+            <CopyButton text={command} label="Copy command" />
+          </div>
+        </div>
+        <p className="text-xs text-ink-3">
+          It prints a new password for <span className="font-mono">{user}</span>. On a source install, leave out <span className="font-mono">docker exec sasbench</span>.
+        </p>
+      </div>
+    </details>
   );
 }
