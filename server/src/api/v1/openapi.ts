@@ -9,7 +9,8 @@ import { ROUTES } from './routes/index.ts';
 
 export const TAGS: Array<{ name: string; description: string }> = [
   { name: 'System', description: 'Service index, health, OpenAPI document, status summary, process details, activity and reference data.' },
-  { name: 'Tokens', description: 'API tokens (read or write scope) and the identity of the caller.' },
+  { name: 'Tokens', description: 'API keys (read or write scope, owned by a user) and the identity of the caller.' },
+  { name: 'Users', description: 'User accounts (admins only), sessions and password changes.' },
   { name: 'Settings', description: 'Every runtime setting: read, change (validated), describe, profiles and defaults. Listener settings restart the SAS listeners; the call waits for them.' },
   { name: 'CBSDs', description: 'Registered and pending CBSDs: details, availability, grants, logs, and operator actions (approve, deregister, notes, EIRP cap, measurement requests).' },
   { name: 'Grants', description: 'Grants across all CBSDs, and SAS-side actions on them: suspend, resume, terminate, change heartbeat interval, expiry and suggested parameters.' },
@@ -37,10 +38,11 @@ export const TAGS: Array<{ name: string; description: string }> = [
 const ERROR = { 'application/json': { schema: ref('Error') } };
 const STD_ERRORS: Record<string, string> = {
   400: 'The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed).',
-  401: 'No valid credentials (unauthorized).',
-  403: 'The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed).',
+  401: 'No valid credentials (unauthorized), or the account is disabled (account_disabled).',
+  403: 'The caller\'s role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed).',
   404: 'The resource does not exist (not_found).',
   409: 'The resource is in a state that does not allow this (conflict).',
+  429: 'Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds.',
 };
 
 const oaPath = (p: string) => p.replace(/\{([A-Za-z]+)\+\}/g, '{$1}');
@@ -80,7 +82,7 @@ function operation(r: Route) {
   const hasInput = !!(r.params || r.query || r.body);
   const errs = [
     ...(hasInput || r.method !== 'GET' ? [400] : []),
-    ...(r.scope === 'public' ? [] : [401, 403]),
+    ...(r.scope === 'public' ? [] : [401, 403, 429]),
     ...(r.params ? [404] : []),
     ...(r.method !== 'GET' && r.params ? [409] : []),
     ...(r.errors ?? []),
@@ -100,7 +102,7 @@ function operation(r: Route) {
       },
     } : {}),
     responses,
-    security: r.scope === 'public' ? [] : [{ bearerAuth: [] }, { basicAuth: [] }],
+    security: r.scope === 'public' ? [] : [{ bearerAuth: [] }, { basicAuth: [] }, { cookieAuth: [] }],
     'x-sasbench-scope': r.scope,
   };
 }
@@ -126,10 +128,11 @@ export function buildOpenApi(version: string, routes: Route[] = ROUTES) {
     components: {
       schemas: COMPONENTS,
       securitySchemes: {
-        bearerAuth: { type: 'http', scheme: 'bearer', description: 'An API token (sasb_…) created with POST /tokens or in Settings. A read token may call the operations with scope read; everything else (changes, token management, backups, private-key downloads) needs a write token.' },
-        basicAuth: { type: 'http', scheme: 'basic', description: 'Any user name and the UI password (setting uiPassword). Full access.' },
+        bearerAuth: { type: 'http', scheme: 'bearer', description: 'An API key (sasb_…) created on the API keys page or with POST /tokens. It acts as its owner with at most its own scope: a read key may call the operations with scope read; scope write needs a write key of an operator or admin; scope admin a write key of an admin.' },
+        basicAuth: { type: 'http', scheme: 'basic', description: 'A user name and password. Viewers have scope read, operators read and write, admins everything.' },
+        cookieAuth: { type: 'apiKey', in: 'cookie', name: 'sasb_session', description: 'The web console\'s login session (POST /api/auth/login on the UI port).' },
       },
     },
-    security: [{ bearerAuth: [] }, { basicAuth: [] }],
+    security: [{ bearerAuth: [] }, { basicAuth: [] }, { cookieAuth: [] }],
   };
 }

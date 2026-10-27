@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-// Line and function coverage of the public API code (server/src/api/v1) by its test suite, from
-// V8's built-in coverage: no instrumentation and no dependencies. The test starts the SAS as a
-// child process, which inherits NODE_V8_COVERAGE and writes its coverage when it exits.
+// Line and function coverage of the public API and sign-in code (server/src/api/v1 and
+// server/src/auth) by their test suites, from V8's built-in coverage: no instrumentation and no
+// dependencies. The tests start the SAS as a child process, which inherits NODE_V8_COVERAGE and
+// writes its coverage when it exits.
 //
-//   npm run api:coverage                      # run server/test/api-v1.test.ts, print a summary
+//   npm run api:coverage                      # run api-v1.test.ts and auth.test.ts, print a summary
 //   npm run api:coverage -- --uncovered       # also list the uncovered lines and unrun functions
 //   npm run api:coverage -- --min 95          # exit non-zero below 95 % line coverage
 import { spawnSync } from 'node:child_process';
@@ -13,13 +14,14 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
-const SCOPE = path.join(ROOT, 'server', 'src', 'api', 'v1') + path.sep;
+const SCOPES = [path.join(ROOT, 'server', 'src', 'api', 'v1') + path.sep, path.join(ROOT, 'server', 'src', 'auth') + path.sep];
+const inScope = (file) => SCOPES.some((s) => file.startsWith(s));
 const args = process.argv.slice(2);
 const showUncovered = args.includes('--uncovered');
 const min = args.includes('--min') ? Number(args[args.indexOf('--min') + 1]) : null;
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sasbench-coverage-'));
-const run = spawnSync(process.execPath, ['--test', '--test-concurrency=1', 'server/test/api-v1.test.ts'], {
+const run = spawnSync(process.execPath, ['--test', '--test-concurrency=1', 'server/test/api-v1.test.ts', 'server/test/auth.test.ts'], {
   cwd: ROOT, stdio: 'inherit', env: { ...process.env, NODE_V8_COVERAGE: dir },
 });
 if (run.status !== 0) {
@@ -35,7 +37,7 @@ for (const f of fs.readdirSync(dir)) {
   for (const script of result) {
     if (!script.url.startsWith('file://')) continue;
     const file = fileURLToPath(script.url);
-    if (!file.startsWith(SCOPE)) continue;
+    if (!inScope(file)) continue;
     const src = fs.readFileSync(file, 'utf8');
     const len = src.length;
     const counts = new Int32Array(len).fill(0);
@@ -63,8 +65,10 @@ const isCode = (line) => {
 };
 
 const all = [];
-for (const f of fs.readdirSync(SCOPE, { recursive: true })) {
-  if (f.endsWith('.ts')) all.push(path.join(SCOPE, f));
+for (const scope of SCOPES) {
+  for (const f of fs.readdirSync(scope, { recursive: true })) {
+    if (f.endsWith('.ts')) all.push(path.join(scope, f));
+  }
 }
 let totalLines = 0, totalCovered = 0, totalFns = 0, totalFnsCovered = 0;
 const rows = [];
@@ -93,7 +97,7 @@ for (const file of all.sort()) {
 }
 
 const pct = (a, b) => (b ? ((100 * a) / b).toFixed(1) : '100.0').padStart(6);
-console.log('\nAPI v1 coverage (V8)\n');
+console.log('\nAPI v1 and auth coverage (V8)\n');
 console.log(`${'file'.padEnd(48)} ${'lines'.padStart(13)} ${'functions'.padStart(13)}`);
 for (const r of rows) {
   console.log(`${r.file.padEnd(48)} ${pct(r.covered, r.code)} % ${String(r.code).padStart(4)}  ${pct(r.fnsCovered, r.fns)} % ${String(r.fns).padStart(4)}`);

@@ -1,16 +1,18 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { Ban, BookUser, FileSignature, Fingerprint, MapPin, Plus, Trash2, UserCheck } from 'lucide-react';
+import { Ban, BookUser, Check, FileSignature, Fingerprint, ListPlus, MapPin, Minus, Plus, RadioTower, Trash2, UserCheck } from 'lucide-react';
 import { api } from '../lib/api';
 import { useResource } from '../lib/live';
 import { Link, setQuery, useLocation } from '../lib/router';
 import { clock } from '../lib/format';
 import type { CertRecord } from '../lib/types';
+import { CbsdName } from '../components/rack';
 import {
   Button, CopyButton, Drawer, Empty, ErrorNote, Field, Input, JsonView, Module, PageHeader, Segmented, Select, SkeletonRows,
-  Switch, Tabs, Tag, Textarea, useAction, useConfirm,
+  Switch, Tabs, Tag, Textarea, TwoUp, useAction, useConfirm,
 } from '../components/ui';
 
-// Registry: FCC IDs, user IDs, blacklist, REG-Conditional preloads, CPI users and a CPI signing tool.
+// Registry: registered radios to copy in, FCC IDs, user IDs, blacklist, REG-Conditional preloads,
+// CPI users and a CPI signing tool.
 
 interface FccRow { fcc_id: string; max_eirp: number | null; created_at: number }
 interface UserRow { user_id: string; created_at: number }
@@ -18,15 +20,23 @@ interface BlRow { id: number; fcc_id: string; serial: string | null; reason: str
 interface CondRow { fcc_id: string; serial: string; data: any; source: string | null; created_at: number }
 interface CpiRow { cpi_id: string; name: string | null; public_key: string; source: string; created_at: number }
 interface RegistryData { fccIds: FccRow[]; userIds: UserRow[]; blacklist: BlRow[]; conditional: CondRow[]; cpiUsers: CpiRow[] }
+export interface RadioRow {
+  cbsdId: string; fccId: string; serial: string; userId: string | null; state: string;
+  inRegistry: { fccId: boolean; userId: boolean; registration: boolean };
+}
 
-type TabKey = 'fcc' | 'users' | 'blacklist' | 'conditional' | 'cpi' | 'sign';
+/** Something about this radio is not in the registry yet. */
+export const notInRegistry = (r: RadioRow) => !r.inRegistry.fccId || (!!r.userId && !r.inRegistry.userId) || !r.inRegistry.registration;
+
+type TabKey = 'radios' | 'fcc' | 'users' | 'blacklist' | 'conditional' | 'cpi' | 'sign';
 
 const RADIO_TECH = ['E_UTRA', 'NR', 'CAMBIUM_NETWORKS', 'FOUR_G_BBW_SAA_1', 'REDLINE', 'TARANA_WIRELESS'];
 
 export function RegistryPage() {
   const { query } = useLocation();
-  const tab = ((query.get('tab') as TabKey) || 'fcc') as TabKey;
+  const tab = ((query.get('tab') as TabKey) || 'radios') as TabKey;
   const res = useResource<RegistryData>('/api/registry', ['registry']);
+  const radios = useResource<RadioRow[]>('/api/registry/from-cbsds', ['registry', 'cbsds']);
   const settings = useResource<{ settings: Record<string, any> }>('/api/settings', ['settings']);
   const s = settings.data?.settings;
   const d = res.data;
@@ -40,8 +50,9 @@ export function RegistryPage() {
       <Tabs
         className="mb-4"
         value={tab}
-        onChange={(v) => setQuery('tab', v === 'fcc' ? null : v)}
+        onChange={(v) => setQuery('tab', v === 'radios' ? null : v)}
         tabs={[
+          { value: 'radios', label: 'Registered radios', count: radios.data?.filter(notInRegistry).length || undefined },
           { value: 'fcc', label: 'FCC IDs', count: d?.fccIds.length },
           { value: 'users', label: 'User IDs', count: d?.userIds.length },
           { value: 'blacklist', label: 'Blacklist', count: d?.blacklist.length },
@@ -51,6 +62,7 @@ export function RegistryPage() {
         ]}
       />
       {res.error && !d && <ErrorNote>Could not load the registry: {res.error}</ErrorNote>}
+      {tab === 'radios' && <RadiosTab rows={radios.data} error={radios.error} enforced={s} />}
       {tab === 'fcc' && <FccTab rows={d?.fccIds} enforced={s?.requireKnownFccId} defaultEirp={s?.defaultFccMaxEirp} />}
       {tab === 'users' && <UsersTab rows={d?.userIds} enforced={s?.requireKnownUserId} />}
       {tab === 'blacklist' && <BlacklistTab rows={d?.blacklist} />}
@@ -62,10 +74,6 @@ export function RegistryPage() {
 }
 
 // ---------------------------------------------------------------- shared bits
-
-function TwoUp({ form, list }: { form: ReactNode; list: ReactNode }) {
-  return <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">{form}{list}</div>;
-}
 
 function Enforcement({ on, label }: { on: boolean | undefined; label: string }) {
   if (on === undefined) return null;
@@ -91,6 +99,80 @@ function useRemove() {
 }
 
 const num = (v: string) => (v.trim() === '' ? undefined : Number(v));
+
+// ---------------------------------------------------------------- registered radios
+
+function Held({ on, na, label }: { on: boolean; na?: boolean; label: string }) {
+  if (na) return <span className="text-ink-3" title={`No ${label}`}><Minus className="inline size-3.5" aria-label={`No ${label}`} /></span>;
+  return on
+    ? <span className="text-ok" title={`${label} in the registry`}><Check className="inline size-3.5" aria-label={`${label} in the registry`} /></span>
+    : <Tag tone="warn">missing</Tag>;
+}
+
+function RadiosTab({ rows, error, enforced }: { rows?: RadioRow[]; error?: string | null; enforced?: Record<string, any> }) {
+  const { run, busy } = useAction();
+  const [what, setWhat] = useState({ fccId: true, userId: true, registration: true });
+  const todo = useMemo(() => (rows ?? []).filter(notInRegistry), [rows]);
+  const nothing = !what.fccId && !what.userId && !what.registration;
+  const add = (key: string, cbsdIds: string[] | undefined, label: string) =>
+    run(key, () => api.post('/api/registry/from-cbsds', { cbsdIds, ...what }), label);
+  const plural = (n: number) => `${n} radio${n === 1 ? '' : 's'}`;
+  const rules = [enforced?.requireKnownFccId && 'known FCC IDs', enforced?.requireKnownUserId && 'known user IDs'].filter(Boolean);
+
+  return (
+    <TwoUp
+      form={
+        <Module title="Add registered radios">
+          <div className="space-y-3">
+            <p className="text-sm text-ink-2">
+              Copies what each radio sent when it registered into the registry, so it keeps registering when the registry is enforced{rules.length ? ` (now requiring ${rules.join(' and ')})` : ''}.
+              Entries already in the registry are kept.
+            </p>
+            <Switch checked={what.fccId} onChange={(v) => setWhat({ ...what, fccId: v })} label="FCC ID"
+              description={`New FCC IDs get the default max EIRP (${enforced?.defaultFccMaxEirp ?? 47} dBm/10 MHz)`} />
+            <Switch checked={what.userId} onChange={(v) => setWhat({ ...what, userId: v })} label="User ID" />
+            <Switch checked={what.registration} onChange={(v) => setWhat({ ...what, registration: v })} label="Registration data"
+              description="Category, air interface, installation parameters and measurement capability, preloaded as conditional registration data" />
+            <Button variant="primary" icon={ListPlus} disabled={!todo.length || nothing} loading={busy === 'all'}
+              onClick={() => add('all', todo.map((r) => r.cbsdId), `Added ${plural(todo.length)} to the registry`)}>
+              {todo.length ? `Add ${plural(todo.length)}` : 'Every radio is in the registry'}
+            </Button>
+          </div>
+        </Module>
+      }
+      list={
+        <Module title="Registered radios" meta={rows ? `${rows.length - todo.length} of ${rows.length} fully in the registry` : undefined} bodyClass="p-0">
+          {error && !rows && <div className="p-3"><ErrorNote>{error}</ErrorNote></div>}
+          {!rows ? <SkeletonRows rows={4} cols={6} /> : !rows.length ? (
+            <Empty icon={RadioTower} title="No radios yet">A radio appears here after its first registration request reaches the SAS.</Empty>
+          ) : (
+            <table className="dtable">
+              <thead><tr><th>Radio</th><th>State</th><th>User ID</th><th className="text-center">FCC ID</th><th className="text-center">User ID</th><th className="text-center">Registration</th><th /></tr></thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.cbsdId}>
+                    <td className="min-w-0"><CbsdName cbsdId={r.cbsdId} fccId={r.fccId} serial={r.serial} /></td>
+                    <td><Tag tone={r.state === 'REGISTERED' ? 'ok' : r.state === 'PENDING' ? 'warn' : 'off'}>{r.state.toLowerCase()}</Tag></td>
+                    <td className="font-mono text-xs text-ink-2">{r.userId ?? '—'}</td>
+                    <td className="text-center"><Held on={r.inRegistry.fccId} label="FCC ID" /></td>
+                    <td className="text-center"><Held on={r.inRegistry.userId} na={!r.userId} label="user ID" /></td>
+                    <td className="text-center"><Held on={r.inRegistry.registration} label="registration data" /></td>
+                    <td className="w-20 text-right">
+                      {notInRegistry(r) && (
+                        <Button size="sm" icon={Plus} disabled={nothing} loading={busy === r.cbsdId}
+                          onClick={() => add(r.cbsdId, [r.cbsdId], `${r.fccId} / ${r.serial} added to the registry`)}>Add</Button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Module>
+      }
+    />
+  );
+}
 
 // ---------------------------------------------------------------- FCC IDs
 

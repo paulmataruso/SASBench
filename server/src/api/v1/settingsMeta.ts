@@ -84,10 +84,6 @@ export const SETTINGS_META: Record<keyof Settings, SettingMeta> = {
   harnessAdminEnabled: { group: 'Administration', schema: S.bool(), description: 'Serve the WInnForum test-harness admin API under /admin/ on the SAS listeners. The /api/v1/harness endpoints work either way.' },
   msgLogLimit: { group: 'Administration', schema: S.int({ minimum: 100 }), description: 'Wire-log entries kept; older ones are pruned.' },
   eventLogLimit: { group: 'Administration', schema: S.int({ minimum: 100 }), description: 'Events kept; older ones are pruned.' },
-  uiPassword: {
-    group: 'Administration', schema: S.str({ maxLength: 200, writeOnly: true }),
-    description: 'Password for the web console and API (HTTP Basic, any user name). Empty: no password. Read back as "********" when set; sending "********" leaves it unchanged. SAS_UI_PASSWORD overrides it on every start.',
-  },
 
   mapSource: { group: 'Map', schema: S.enum(['builtin', 'local', 'url']), description: '`builtin`: bundled offline basemap. `local`: the offline tile store. `url`: an online tile server.' },
   mapLocalTiles: { group: 'Map', schema: S.str({ maxLength: 200 }), description: 'Tile set in the offline tile store (file or folder name). Empty: the first usable one.' },
@@ -115,8 +111,7 @@ export const settingsSchema: Schema = {
 export function describeSettings(current: Settings) {
   return settingKeys.map((key) => ({
     key, group: SETTINGS_META[key].group, description: SETTINGS_META[key].description, unit: SETTINGS_META[key].unit ?? null,
-    schema: SETTINGS_META[key].schema, default: key === 'uiPassword' ? '' : DEFAULT_SETTINGS[key],
-    value: key === 'uiPassword' ? (current.uiPassword ? '********' : '') : current[key],
+    schema: SETTINGS_META[key].schema, default: DEFAULT_SETTINGS[key], value: current[key],
     restartsListeners: LISTENER_KEYS.includes(key),
   }));
 }

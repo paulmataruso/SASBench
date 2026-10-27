@@ -63,3 +63,24 @@ test('injectdata/zone returns a zone id', async () => {
   assert.equal(typeof r.body, 'string');
   assert.ok(r.body.length > 0);
 });
+
+test('a registered radio added to the registry keeps registering when the registry is enforced', async () => {
+  const [known] = await sas.sas('registration', [regRequest('FCC-KEEP', 'SN-K1', { userId: 'keep-user' })]);
+  const [other] = await sas.sas('registration', [regRequest('FCC-DROP', 'SN-K2', { userId: 'drop-user' })]);
+  assert.equal(code(known), 0);
+  assert.equal(code(other), 0);
+  const added = await sas.api('POST', `/api/cbsds/${encodeURIComponent(known.cbsdId)}/registry`, {});
+  assert.deepEqual(added.added, { fccId: true, userId: true, registration: true });
+  await sas.api('PUT', '/api/settings', { requireKnownFccId: true, requireKnownUserId: true });
+  try {
+    // Re-registering with only the identity works: the preloaded parameters fill in the rest.
+    const [again] = await sas.sas('registration', [{ userId: 'keep-user', fccId: 'FCC-KEEP', cbsdSerialNumber: 'SN-K1' }]);
+    assert.equal(code(again), 0, JSON.stringify(again));
+    const detail = await sas.api('GET', `/api/cbsds/${encodeURIComponent(known.cbsdId)}`);
+    assert.equal(detail.effective.installationParam.latitude, regRequest('x', 'y').installationParam.latitude);
+    const [refused] = await sas.sas('registration', [regRequest('FCC-DROP', 'SN-K2', { userId: 'drop-user' })]);
+    assert.equal(code(refused), 103);
+  } finally {
+    await sas.api('PUT', '/api/settings', { requireKnownFccId: false, requireKnownUserId: false });
+  }
+});

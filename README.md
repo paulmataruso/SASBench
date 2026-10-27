@@ -37,7 +37,8 @@ Commercial SAS services give a lab little visibility and no control. Simple stub
 - **Make the SAS misbehave on purpose.** Suspend or terminate grants, change heartbeat intervals, send 105 deregistrations, or inject faults: rewritten response codes, HTTP errors, delays, dropped connections and malformed JSON.
 - **Incumbents and protection.** NTIA E-DPA and P-DPA definitions, PPAs, FSS earth stations and exclusion zones, plus the Category A HAAT check from USGS terrain data.
 - **Ready for the WInnForum harness.** Its admin API, a strict profile that matches its expectations, and a generated `sas.cfg`.
-- **A complete REST API.** Everything the console does, every harness admin call and every stored record, over HTTP with scoped API tokens and an OpenAPI 3.1 description, for test rigs and CI pipelines.
+- **A complete REST API.** Everything the console does, every harness admin call and every stored record, over HTTP with read-only or read-write API keys and an OpenAPI 3.1 description, for test rigs and CI pipelines.
+- **User accounts.** Sign-in for the console and the API, with admin, operator and viewer roles, managed on the Users page.
 - **Offline and self-contained.** One Docker container, a SQLite database, a built-in basemap and offline map tiles. No cloud account.
 
 Radios that register without location data, as many Category B units do, are handled explicitly: hold them for preloaded data, or register them anyway. The console includes step-by-step certificate instructions for Nokia AirScale BBUs.
@@ -75,7 +76,7 @@ cd SASBench
 docker compose up -d --build
 ```
 
-Then open the console at `http://<host-ip>:8080` and point the radio at the SAS:
+Then open the console at `http://<host-ip>:8080`, sign in as **`admin` / `admin`** and change the password (account menu → **Your account**). Point the radio at the SAS:
 
 | Port | Purpose |
 |------|---------|
@@ -83,27 +84,28 @@ Then open the console at `http://<host-ip>:8080` and point the radio at the SAS:
 | `8443` | SAS–CBSD protocol over HTTPS: `https://<host>:8443/v1.2/` |
 | `8000` | SAS–CBSD protocol over plain HTTP: `http://<host>:8000/v1.2/` |
 
-The **Overview** page lists the exact URLs, and the **Certificates** page makes the radio's credentials. [INSTALL.md](docs/INSTALL.md) covers requirements, configuration, Docker Desktop, upgrades and backups.
+The **Overview** page lists the exact URLs, and the **Certificates** page makes the radio's credentials. To set the name radios use (`SAS_FQDN`), the bind address, ports or the starting profile, copy `.env.example` to `.env` and edit it. [INSTALL.md](docs/INSTALL.md) covers requirements, configuration, Docker Desktop, upgrades and backups.
 
 ## REST API
 
-Everything is scriptable through the REST API at `http://<host>:8080/api/v1`:
+Everything is scriptable through the REST API at `http://<host>:8080/api/v1`. Create an API key on the console's **API keys** page, then:
 
 ```bash
-curl -s http://<host>:8080/api/v1/cbsds | jq '.items[] | {cbsdId, state}'
-curl -s -X POST http://<host>:8080/api/v1/faults -H 'Content-Type: application/json' \
+KEY=sasb_...
+curl -s -H "Authorization: Bearer $KEY" http://<host>:8080/api/v1/cbsds | jq '.items[] | {cbsdId, state}'
+curl -s -X POST http://<host>:8080/api/v1/faults -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
   -d '{"method": "heartbeat", "action": "response_code", "responseCode": 501, "remaining": 1}'
 ```
 
-The [API guide](docs/API.md) covers authentication and conventions, with recipes for every area. The [API reference](docs/API-REFERENCE.md) lists all 165 operations. The running SAS serves its OpenAPI 3.1 description at `/api/v1/openapi.json`.
+The [API guide](docs/API.md) covers authentication and conventions, with recipes for every area. The [API reference](docs/API-REFERENCE.md) lists all 176 operations. The running SAS serves its OpenAPI 3.1 description at `/api/v1/openapi.json`.
 
 ## Documentation
 
 | Document | Covers |
 |---|---|
 | [Install](docs/INSTALL.md) | Requirements, Docker Compose, configuration, firewall, upgrading, backup and restore, troubleshooting |
-| [User guide](docs/GUIDE.md) | The console, connecting radios, certificates, TLS, settings profiles, map, terrain, the WInnForum test harness, limitations |
-| [API guide](docs/API.md) | The REST API: authentication, tokens and scopes, conventions, and recipes for every area |
+| [User guide](docs/GUIDE.md) | The console, users and API keys, connecting radios, certificates, TLS, settings profiles, the registry, map, terrain, the WInnForum test harness, limitations |
+| [API guide](docs/API.md) | The REST API: authentication, users, API keys and scopes, conventions, and recipes for every area |
 | [API reference](docs/API-REFERENCE.md) | Every endpoint, parameter and schema (generated from the code) |
 | [API architecture](docs/API-ARCHITECTURE.md) | How the API is built and secured, how it is tested, how to extend it |
 | [Development](docs/DEVELOPMENT.md) | Running from source, project layout, tests, third-party notices |

@@ -24,7 +24,7 @@ export function statusOf(d: V1Deps) {
   const since = Date.now() - 3600e3;
   return {
     version: d.version, startedAt: d.startedAt, now: Date.now(), hostname: os.hostname(),
-    listeners: sas.getStatus(), urls: sasUrls(s, d.hostnames),
+    listeners: sas.getStatus(), urls: sasUrls(s, d.advertised),
     counts: {
       cbsdsRegistered: count("SELECT COUNT(*) AS n FROM cbsds WHERE state = 'REGISTERED'"),
       cbsdsPending: count("SELECT COUNT(*) AS n FROM cbsds WHERE state = 'PENDING'"),
@@ -103,14 +103,14 @@ export const systemRoutes: Route[] = [
   {
     method: 'GET', path: '/system', operationId: 'getSystem', tag: 'System', scope: 'read',
     summary: 'Process and host details',
-    description: 'Versions, uptime, memory, data locations and database size.',
+    description: 'Versions, uptime, memory, ports and addresses, data locations and database size.',
     responses: okRef('Process details.', 'SystemInfo'),
     handler: ({ d }) => {
       const dbFile = path.join(d.dataDir, 'sas.db');
       return {
         version: d.version, apiVersion: 'v1', node: process.version, platform: process.platform, arch: process.arch,
         hostname: os.hostname(), pid: process.pid, startedAt: d.startedAt, uptimeMs: Date.now() - d.startedAt, memory: process.memoryUsage(),
-        uiPort: d.uiPort, hostnames: d.hostnames, dataDir: d.dataDir,
+        uiPort: d.uiPort, apiPort: d.apiPort, bindIp: d.bindIp, hostnames: d.hostnames, advertised: d.advertised, dataDir: d.dataDir,
         database: { file: dbFile, sizeBytes: fileSize(dbFile), walSizeBytes: fileSize(`${dbFile}-wal`) },
         terrainDir: d.engine.terrain?.directory ?? null, tilesDir: d.tiles.dir,
       };
@@ -151,9 +151,12 @@ export const systemRoutes: Route[] = [
   {
     method: 'GET', path: '/auth/whoami', operationId: 'whoAmI', tag: 'Tokens', scope: 'read',
     summary: 'Who is calling',
-    description: 'How this request was authenticated (`open` when no UI password is set, `password` for HTTP Basic, `token` for an API token) and what it may do.',
+    description: 'How this request was authenticated (`session` for the console login, `password` for HTTP Basic, `token` for an API key, `open` when authentication is switched off), as which user, and with which role and scope.',
     responses: okRef('The caller.', 'Principal'),
-    handler: (c: Ctx) => ({ ...c.principal, passwordSet: !!c.d.settings.get().uiPassword }),
+    handler: (c: Ctx) => {
+      const { method, scope, role, userId, username, tokenId, tokenName } = c.principal;
+      return { method, scope, role, userId, username, tokenId, tokenName, authEnabled: !c.d.auth.off };
+    },
   },
 ];
 

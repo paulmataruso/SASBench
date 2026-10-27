@@ -15,6 +15,8 @@ export interface TestSas {
   httpPort: number;
   httpsPort: number;
   dataDir: string;
+  /** HTTP Basic header for the first-start admin account (api() and apiText() send it). */
+  authHeader: string;
   log: () => string;
   /** POST a SAS-CBSD request over HTTP; returns the response array. */
   sas: (method: string, items: unknown[], version?: string) => Promise<any[]>;
@@ -44,9 +46,13 @@ async function distinctPorts(n: number): Promise<number[]> {
   return [...out];
 }
 
-export async function startSas(env: Record<string, string> = {}): Promise<TestSas> {
+/**
+ * `dataDir`: reuse a data directory (to restart a SAS); the caller then deletes it.
+ * `adminPassword`: the admin's password, for authHeader (default SAS_ADMIN_PASSWORD, else admin).
+ */
+export async function startSas(env: Record<string, string> = {}, opts: { dataDir?: string; adminPassword?: string } = {}): Promise<TestSas> {
   const [uiPort, httpPort, httpsPort] = await distinctPorts(3);
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sasbench-test-'));
+  const dataDir = opts.dataDir ?? fs.mkdtempSync(path.join(os.tmpdir(), 'sasbench-test-'));
   let output = '';
   const child: ChildProcess = spawn(process.execPath, [path.join(ROOT, 'server', 'src', 'index.ts')], {
     cwd: ROOT,
@@ -67,10 +73,11 @@ export async function startSas(env: Record<string, string> = {}): Promise<TestSa
   child.on('exit', () => (exited = true));
 
   const ui = `http://127.0.0.1:${uiPort}`;
+  const authHeader = `Basic ${Buffer.from(`admin:${opts.adminPassword ?? (env.SAS_ADMIN_PASSWORD || 'admin')}`).toString('base64')}`;
   const api = async (method: string, urlPath: string, body?: unknown) => {
     const res = await fetch(ui + urlPath, {
       method,
-      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+      headers: { Authorization: authHeader, ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
     const text = await res.text();
@@ -79,7 +86,7 @@ export async function startSas(env: Record<string, string> = {}): Promise<TestSa
     return data;
   };
   const apiText = async (urlPath: string) => {
-    const res = await fetch(ui + urlPath);
+    const res = await fetch(ui + urlPath, { headers: { Authorization: authHeader } });
     if (!res.ok) throw new Error(`GET ${urlPath} → ${res.status}`);
     return res.text();
   };
@@ -109,8 +116,8 @@ export async function startSas(env: Record<string, string> = {}): Promise<TestSa
   for (;;) {
     if (exited) throw new Error(`SAS exited during startup:\n${output}`);
     try {
-      const s = await api('GET', '/api/status');
-      if (s.listeners.http.listening && s.listeners.https.listening) break;
+      const h = await (await fetch(`${ui}/api/v1/health`)).json() as any;
+      if (h.listeners.http && h.listeners.https) break;
     } catch { /* not up yet */ }
     if (Date.now() > deadline) {
       child.kill('SIGKILL');
@@ -126,11 +133,13 @@ export async function startSas(env: Record<string, string> = {}): Promise<TestSa
       await Promise.race([done, new Promise((r) => setTimeout(r, 5000))]);
       if (!exited) child.kill('SIGKILL');
     }
-    fs.rmSync(dataDir, { recursive: true, force: true });
+    if (!opts.dataDir) fs.rmSync(dataDir, { recursive: true, force: true });
   };
 
-  return { uiPort, httpPort, httpsPort, dataDir, log: () => output, sas, sasRaw, api, apiText, stop };
+  return { uiPort, httpPort, httpsPort, dataDir, authHeader, log: () => output, sas, sasRaw, api, apiText, stop };
 }
+
+export { freePort };
 
 export function cbsdIdFor(fccId: string, serial: string): string {
   return `${fccId}/${crypto.createHash('sha1').update(serial).digest('hex')}`;

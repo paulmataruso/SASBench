@@ -34,7 +34,7 @@ after(async () => {
   fs.rmSync(tilesDir, { recursive: true, force: true });
 });
 
-const tile = (p: string) => fetch(`http://127.0.0.1:${sas.uiPort}${p}`);
+const tile = (p: string, auth = true) => fetch(`http://127.0.0.1:${sas.uiPort}${p}`, { headers: auth ? { Authorization: sas.authHeader } : {} });
 
 test('the built-in offline basemap is the default source', async () => {
   const m = await sas.api('GET', '/api/map');
@@ -58,6 +58,7 @@ test('MBTiles and z/x/y folders in the tile store are listed and served', async 
   assert.equal(r.headers.get('content-type'), 'image/png');
   assert.deepEqual(Buffer.from(await r.arrayBuffer()), PNG);
   assert.equal((await tile('/tiles/lab.mbtiles/1/1/1')).status, 404);
+  assert.equal((await tile('/tiles/lab.mbtiles/1/0/0', false)).status, 401, 'tiles need a signed-in user');
   assert.equal((await tile('/tiles/folder/3/2/5.png')).status, 200);
   assert.equal((await tile('/tiles/nope.mbtiles/1/0/0')).status, 404);
   assert.equal((await tile('/tiles/..%2F..%2Fetc/1/0/0')).status, 404);

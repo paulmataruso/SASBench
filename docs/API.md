@@ -32,15 +32,32 @@ The running SAS also describes itself. `GET /api/v1/openapi.json` returns an Ope
 
 ## Quick start
 
-The API is served on the console port, under `/api/v1`:
+The API is served on the console port, under `/api/v1` (and on its own port too when `SAS_API_PORT` is set). Every endpoint except three public ones needs a user account or an API key. A new installation has one account: user name **`admin`**, password **`admin`**. Sign in to the console with it and change the password first (account menu, top right → **Your account**).
 
 ```bash
 export API=http://<host>:8080/api/v1
 
-curl -s $API/health
+curl -s $API/health                                   # public: no credentials
 # {"status":"ok","version":"1.0.0","uptimeMs":151,"listeners":{"http":true,"https":true}}
 
-curl -s $API/status | jq          # SAS URLs, listeners, counts, profile
+curl -s -u admin:'your password' $API/status | jq     # HTTP Basic with a user name and password
+```
+
+For scripts, create an API key instead of using your password: in the console under **API keys**, or with the API itself:
+
+```bash
+curl -s -u admin:'your password' -X POST $API/tokens -H 'Content-Type: application/json' \
+  -d '{"name": "my scripts", "scope": "write", "expiresInDays": 90}' | jq -r .token
+# sasb_N4iBU4EJFYl0G-0jCVKK6YfaEHVkq6Vx
+```
+
+The examples in this guide leave the credentials out. To send the key with every `curl` in your shell, put it in a curl config file and point `CURL_HOME` at it:
+
+```bash
+export KEY=sasb_N4iBU4EJFYl0G-0jCVKK6YfaEHVkq6Vx
+mkdir -p ~/.sasbench && printf 'header = "Authorization: Bearer %s"\n' "$KEY" > ~/.sasbench/.curlrc
+export CURL_HOME=~/.sasbench        # curl now reads ~/.sasbench/.curlrc
+
 curl -s $API/cbsds | jq '.items[] | {cbsdId, state}'
 ```
 
@@ -58,40 +75,49 @@ curl -s -X POST $API/sas/registration -H 'Content-Type: application/json' -d '{
 
 `jq` is used throughout this guide to pull values out of responses. Every example also works without it.
 
-A fresh installation has no UI password, so the API is open, as the console is. Set a password or create API tokens before exposing the port. See [Authentication](#authentication).
-
 ## Authentication
 
-### The three ways in
+### Users and roles
 
-| Method | How | Access |
+Everyone who uses the console or the API has a user account with one of three roles:
+
+| Role | May do | API scope |
 |---|---|---|
-| **Open** | No UI password is set (the default) and no token is sent | Full (write) |
-| **UI password** | HTTP Basic with any user name and the UI password (setting `uiPassword`) | Full (write) |
-| **API token** | `Authorization: Bearer sasb_…` | The token's scope: `read` or `write` |
+| **admin** | Everything, including user accounts, every API key and database backups | `write` + admin operations |
+| **operator** | Runs the SAS: settings, CBSDs, grants, certificates, registry, faults, harness calls | `write` |
+| **viewer** | Reads everything except private keys, backups, user accounts and other people's API keys | `read` |
 
-Whenever a token is sent, it is checked, even while the API is open. A wrong, revoked or expired token gets 401, never silent open access. This makes mistakes visible. (The console's own pages ignore Bearer credentials that are not SASBench tokens, so a reverse proxy that forwards its own OAuth tokens does not lock out an open console.)
+The first start creates the account `admin` with the password `admin` and logs a warning; the console shows a banner until the password is changed. To start with another password, set `SAS_ADMIN_PASSWORD` before the first start ([INSTALL.md](INSTALL.md#users-and-api-keys)). Upgrading from a version with a single UI password: that password becomes the `admin` account's password.
 
-Public endpoints need no credentials at all: `GET /api/v1/`, `/health` and `/openapi.json`. Container health checks and service discovery use them.
+There is always at least one enabled admin: the API refuses (409) to delete, disable or demote the last one, and nobody can delete their own account. User names are case-insensitive. Passwords need at least 8 characters and are stored as scrypt hashes.
+
+### Ways in
+
+| Method | How | Acts as |
+|---|---|---|
+| **Session** | The console's sign-in cookie (`sasb_session`), set by the sign-in form. Browsers only. | The signed-in user |
+| **Password** | HTTP Basic: `curl -u user:password` | That user |
+| **API key** | `Authorization: Bearer sasb_…` | The key's owner, limited to the key's scope |
+| **Open** | Only with `SAS_AUTH=off` ([below](#switching-sign-in-off)) | Admin |
+
+Public endpoints need no credentials: `GET /api/v1/`, `/health` and `/openapi.json`, for container health checks and service discovery.
 
 ```bash
-# UI password (any user name)
-curl -s -u admin:'my password' $API/status
-
-# Token
-curl -s -H "Authorization: Bearer $TOKEN" $API/status
-
 # Who am I?
-curl -s -H "Authorization: Bearer $TOKEN" $API/auth/whoami
-# {"method":"token","scope":"read","tokenId":"bd2b…","tokenName":"CI pipeline","passwordSet":true}
+curl -s -H "Authorization: Bearer $KEY" $API/auth/whoami
+# {"method":"token","scope":"write","role":"operator","userId":2,"username":"olivia","tokenId":"bd2b…","tokenName":"CI pipeline","authEnabled":true}
 ```
 
-### API tokens
+**Failed sign-ins.** A request without valid credentials gets `401` with `WWW-Authenticate` (Bearer, and Basic for clients that are not web pages). The error code is `unauthorized`, or `account_disabled` for a disabled user. After 10 wrong passwords from one address within 5 minutes, password checks from that address are refused with `429 too_many_attempts` and `Retry-After` until the window passes; this covers the sign-in form, HTTP Basic and password changes. API keys are not throttled.
 
-Tokens are created through the API itself, by a caller with write access:
+**Password caching.** Checking a password is deliberately slow (scrypt), so a password that was accepted is remembered for 5 minutes per `Authorization` header. A password change or reset, disabling the user, or a role change takes effect on the next request regardless.
+
+### API keys
+
+Keys are for scripts, CI pipelines, dashboards and other applications. Every key belongs to a user and acts as that user, never with more access than the user has *now*: a `write` key of an operator who is later made a viewer acts as a viewer, and a disabled or deleted user's keys stop working.
 
 ```bash
-curl -s -X POST $API/tokens -H 'Content-Type: application/json' \
+curl -s -u olivia:'her password' -X POST $API/tokens -H 'Content-Type: application/json' \
   -d '{"name": "CI pipeline", "scope": "write", "expiresInDays": 90}'
 ```
 
@@ -105,43 +131,88 @@ curl -s -X POST $API/tokens -H 'Content-Type: application/json' \
   "expiresAt": 1800857260357,
   "lastUsedAt": null,
   "lastUsedAddr": null,
+  "userId": 2,
+  "username": "olivia",
   "token": "sasb_N4iBU4EJFYl0G-0jCVKK6YfaEHVkq6Vx"
 }
 ```
 
-- **`token` is shown once.** The SAS stores only its SHA-256 hash, so a lost token cannot be recovered. Delete it and create a new one.
-- **Expiry.** `expiresInDays` (1–3650) or an absolute `expiresAt` (epoch milliseconds or RFC 3339). Omit both for a token that never expires.
-- **Identification.** `prefix` (the first characters of the secret), `lastUsedAt` and `lastUsedAddr` tell you which token a client is using. Last use is recorded at most once a minute per token.
-- **Management.** `GET /tokens`, `GET /tokens/{id}` and `DELETE /tokens/{id}`. A delete revokes the token at once and also closes its open live streams. Managing tokens requires write access, so a read token cannot list or mint tokens.
+- **`token` is shown once.** The SAS stores only its SHA-256 hash, so a lost key cannot be recovered. Revoke it and create a new one.
+- **Scope.** `read` (the default) or `write`. Viewers can create `read` keys only.
+- **Expiry.** `expiresInDays` (1–3650) or an absolute `expiresAt` (epoch milliseconds or RFC 3339). Omit both for a key that does not expire.
+- **Owner.** Your own account. Admins can pass `userId` to create a key for another user, for example a service account with the operator role.
+- **Identification.** `prefix` (the first characters of the secret), `lastUsedAt` and `lastUsedAddr` tell you which key a client is using. Last use is recorded at most once a minute per key.
+- **Management.** `GET /tokens` lists your keys (admins: every key), `GET /tokens/{id}` and `DELETE /tokens/{id}`. A delete revokes the key at once and closes its open live streams. Keys are created and revoked by people (a session or a password), not by other keys.
 
 ### Scopes
 
-| | `read` token | `write` token, UI password, open |
-|---|---|---|
-| Every `GET` that reads state: status, CBSDs, grants, logs, settings, certificates (public parts), spectrum, data tables… | yes | yes |
-| The live stream `GET /stream` | yes | yes |
-| Anything that changes state (`POST`, `PUT`, `PATCH`, `DELETE`) | **403** | yes |
-| Certificate downloads that contain a private key (`key`, `all-in-one`, `p12`, `bundle`…) | **403** | yes |
-| Database backup `GET /system/backup` (contains private keys) | **403** | yes |
-| Token management `/tokens`, and the rows of the `api_tokens` table | **403** | yes |
-| The console's private API (`/api/*` outside `/api/v1`) | **403** | yes |
+| | viewer, or a `read` key | operator, or an operator's `write` key | admin, or an admin's `write` key |
+|---|---|---|---|
+| Every `GET` that reads state: status, CBSDs, grants, logs, settings, certificates (public parts), spectrum, data tables… | yes | yes | yes |
+| The live stream `GET /stream` | yes | yes | yes |
+| Anything that changes state (`POST`, `PUT`, `PATCH`, `DELETE`) | **403** | yes | yes |
+| Certificate downloads that contain a private key (`key`, `all-in-one`, `p12`, `bundle`…) | **403** | yes | yes |
+| API keys `/tokens` | own keys (read keys only) | own keys | every key |
+| Rows of the `api_tokens` table | **403** | yes | yes |
+| Database backup `GET /system/backup` (contains private keys and password hashes) | **403** | **403** | yes |
+| Users `/users`, and the rows of the `users` and `sessions` tables | **403** | **403** | yes |
+| Your own password `POST /auth/password` | yes | yes | yes |
 
-Each operation's scope is listed in [API-REFERENCE.md](API-REFERENCE.md) and as `x-sasbench-scope` in the OpenAPI document. A read token is the right credential for dashboards, monitoring and log collection.
+Each operation's scope (`public`, `read`, `write` or `admin`) is listed in [API-REFERENCE.md](API-REFERENCE.md) and as `x-sasbench-scope` in the OpenAPI document. A `read` key is the right credential for dashboards, monitoring and log collection.
+
+The console's own pages follow the same rules: viewers can look at everything but change nothing, and cannot download private keys.
+
+### Managing users
+
+Admins manage accounts in the console (**Users**) or through the API:
+
+```bash
+# Create an operator; the response is the user (never the password)
+curl -s -X POST $API/users -H 'Content-Type: application/json' \
+  -d '{"username": "olivia", "password": "correct horse battery", "role": "operator", "displayName": "Olivia Ortiz"}'
+
+curl -s $API/users | jq '.items[] | {id, username, role, enabled, lastLoginAt}'
+
+# Change the role, disable, or set a new password (each signs the user out of the console)
+curl -s -X PATCH $API/users/2 -H 'Content-Type: application/json' -d '{"role": "viewer"}'
+curl -s -X PATCH $API/users/2 -H 'Content-Type: application/json' -d '{"enabled": false}'
+curl -s -X PATCH $API/users/2 -H 'Content-Type: application/json' -d '{"password": "a new password"}'
+
+# Console sessions, and signing a user out everywhere (API keys are not affected)
+curl -s $API/users/2/sessions | jq
+curl -s -X DELETE $API/users/2/sessions
+
+# Delete the account with its sessions and API keys
+curl -s -X DELETE $API/users/2
+```
+
+Anyone signed in with a password can change their own:
+
+```bash
+curl -s -u olivia:'old password' -X POST $API/auth/password -H 'Content-Type: application/json' \
+  -d '{"currentPassword": "old password", "newPassword": "a better password"}'
+```
+
+Their other console sessions end; the one making the change stays signed in.
 
 ### The live stream and browsers
 
-Browsers' `EventSource` cannot set an `Authorization` header, so `GET /stream` also accepts the token as a query parameter: `/api/v1/stream?access_token=sasb_…`. No other endpoint accepts `access_token`, because URLs end up in logs and browser history.
+In the console, the session cookie authenticates the live stream. Other browser code using `EventSource` cannot set an `Authorization` header, so `GET /stream` also accepts an API key as a query parameter: `/api/v1/stream?access_token=sasb_…`. No other endpoint accepts `access_token`, because URLs end up in logs and browser history. A stream ends when its key is revoked or expires, or when its user signs out, is disabled or gets a new password.
 
-### When the password is set
+### Forgotten passwords
 
-Setting `uiPassword` (Settings page, or `PATCH /settings`) protects the console and the API together. Existing tokens keep working. To lock the API down:
+An admin can set a new password for anyone under **Users**. If no admin can sign in, run the reset tool on the SAS host. It works while the SAS is running:
 
 ```bash
-curl -s -X PATCH $API/settings -H 'Content-Type: application/json' -d '{"uiPassword": "a long passphrase"}'
-# From now on: -u any:'a long passphrase', or a token.
+docker exec sasbench node server/src/tools/reset-password.ts admin            # prints a random password
+docker exec sasbench node server/src/tools/reset-password.ts admin 'new pass'  # or sets this one
 ```
 
-The password is never returned: `GET /settings` shows `"********"` when one is set.
+The account is enabled and signed out everywhere; its API keys keep working. A user name that does not exist is created as an admin.
+
+### Switching sign-in off
+
+`SAS_AUTH=off` in the environment opens the console and the API to anyone who can reach them, with full admin access, as in versions before user accounts. Use it only on an isolated bench. Presented API keys are still checked (a wrong one gets 401), user accounts still exist, and signing in still works. The console shows "Sign-in off" in the top bar.
 
 ## Conventions
 
@@ -171,12 +242,13 @@ The password is never returned: `GET /settings` shows `"********"` when one is s
 | `202` | Accepted: a background job started (tile and terrain downloads, daily activities with `wait=false`). Poll the job resource or watch the stream. |
 | `204` | Done, no body (deletes) |
 | `400` | Invalid request, or the SAS refused the operation |
-| `401` | No valid credentials. The response carries `WWW-Authenticate`. |
-| `403` | Authenticated but not allowed: read token, or a browser origin that is not allowed |
+| `401` | No valid credentials, or the user is disabled. The response carries `WWW-Authenticate`. |
+| `403` | Authenticated but not allowed: a viewer or read key changing something, a non-admin managing users, or a browser origin that is not allowed |
 | `404` | The resource does not exist, or no such route |
 | `405` | The path exists but not with this method. `Allow` lists the methods. |
-| `409` | The resource's state does not allow this (e.g. deleting a CA that still has certificates, starting a second download) |
+| `409` | The resource's state does not allow this (e.g. deleting a CA that still has certificates, starting a second download, a user name that is taken, removing the last admin) |
 | `413` | Body over 16 MB |
+| `429` | Too many wrong passwords from this address. Wait `Retry-After` seconds. |
 | `500` | A bug. The event log has the stack trace. |
 
 ### Errors
@@ -204,7 +276,8 @@ Every error has the same shape:
 | `bad_request` | 400 | The request is well-formed but cannot be carried out as given (e.g. `raw=true` with `transport=internal`) |
 | `operation_failed` | 400 | The SAS refused the operation (e.g. a PEM that does not parse) |
 | `unauthorized` | 401 | Missing, invalid or expired credentials |
-| `forbidden` | 403 | The token is read-only |
+| `account_disabled` | 401 | The user, or the owner of the API key, is disabled |
+| `forbidden` | 403 | Not allowed for this role or key (see [Scopes](#scopes)) |
 | `origin_not_allowed` | 403 | A browser request from a foreign origin tried to change something (see [Browsers and CORS](#browsers-and-cors)) |
 | `host_not_allowed` | 403 | A web page reached the SAS by a host name it does not know (see [Browsers and CORS](#browsers-and-cors)) |
 | `not_found` | 404 | The resource does not exist |
@@ -212,6 +285,7 @@ Every error has the same shape:
 | `method_not_allowed` | 405 | Wrong method for this path |
 | `conflict` | 409 | State conflict |
 | `payload_too_large` | 413 | Body over 16 MB |
+| `too_many_attempts` | 429 | Too many wrong passwords from this address |
 | `internal_error` | 500 | A bug. Please report it with the `requestId`. |
 
 Programs should branch on `status` and `code`. `message` is for people and may change.
@@ -273,7 +347,7 @@ Every `GET` endpoint also answers `HEAD` with headers only. `OPTIONS` on any exi
 
 Scripts and tools send no `Origin` header and are unaffected by this section.
 
-Browsers attach `Origin` to cross-site requests. An API with no password would otherwise be scriptable by any web page an engineer happened to open (cross-site request forgery). The API therefore refuses a request that changes something (any method other than `GET`, `HEAD`, `OPTIONS`) when its `Origin` is neither the SAS's own host nor an allowed origin. The refusal is `403 origin_not_allowed`.
+Browsers attach `Origin` to cross-site requests, and send the console's cookie or cached credentials with them. Without a check, any web page an engineer happened to open while signed in could script the SAS (cross-site request forgery). The API therefore refuses a request that changes something (any method other than `GET`, `HEAD`, `OPTIONS`) when its `Origin` is neither the SAS's own host nor an allowed origin. The refusal is `403 origin_not_allowed`.
 
 To call the API from a web application on another origin, list that origin in `SAS_API_CORS_ORIGINS`, comma-separated:
 
@@ -283,7 +357,7 @@ environment:
   SAS_API_CORS_ORIGINS: "http://dashboard.lab:3000,https://tools.lab"
 ```
 
-Allowed origins get the CORS headers (`Access-Control-Allow-Origin`, preflight answers for `Authorization`, `Content-Type` and `X-Request-Id`, and the exposed `X-Request-Id`, `X-Operation-Id`, `Location` and `Content-Disposition` headers). `*` allows every origin. Use `*` only on an isolated lab network, and set a password.
+Allowed origins get the CORS headers (`Access-Control-Allow-Origin`, preflight answers for `Authorization`, `Content-Type` and `X-Request-Id`, and the exposed `X-Request-Id`, `X-Operation-Id`, `Location` and `Content-Disposition` headers). `*` allows every origin. Use `*` only on an isolated lab network. Allowed origins authenticate with an API key (`Authorization` header); the session cookie is never sent cross-site.
 
 **Host names.** A second browser attack, DNS rebinding, makes a page on an attacker's domain re-resolve to the SAS's address. The browser then treats the page as same-origin. To stop it, a request made by a web page must reach the SAS by one of these:
 
@@ -295,7 +369,7 @@ A page that uses any other name gets `403 host_not_allowed`, unless its origin i
 
 ## Recipes
 
-These examples assume `API` is set as in the quick start. Add `-u user:password` or `-H "Authorization: Bearer $TOKEN"` once the API is protected.
+These examples assume `API` is set and credentials are sent as in the [quick start](#quick-start) (an API key in `~/.sasbench/.curlrc`, or add `-u user:password` to each command).
 
 ### Drive a CBSD through the protocol
 
@@ -788,11 +862,11 @@ curl -s "$API/config/export?download=true" -o sasbench-config.json
 curl -s -X POST $API/config/import -H 'Content-Type: application/json' -d @sasbench-config.json \
   | jq '{settingsChanged, settingsSkipped, rows}'
 
-# A consistent copy of the whole SQLite database (write access: it holds private keys)
+# A consistent copy of the whole SQLite database (admins only: it holds private keys and password hashes)
 curl -s $API/system/backup -o sasbench-$(date +%F).db
 ```
 
-An import keeps this installation's UI password, server certificates and trusted CAs. It inserts or replaces rows and never deletes. To restore a backup, stop the container, replace `sas.db` in the data volume with the backup file, delete any `sas.db-wal` and `sas.db-shm` next to it, and start the container again ([INSTALL.md](INSTALL.md#backup-and-restore) shows how to reach the volume).
+An import keeps this installation's server certificates and trusted CAs, and never touches user accounts or API keys. It inserts or replaces rows and never deletes. To restore a backup, stop the container, replace `sas.db` in the data volume with the backup file, delete any `sas.db-wal` and `sas.db-shm` next to it, and start the container again ([INSTALL.md](INSTALL.md#backup-and-restore) shows how to reach the volume).
 
 **Raw tables.** Every table in the database can be read, which is useful for anything the resource endpoints do not show:
 
@@ -803,7 +877,7 @@ curl -s "$API/data/tables/grants/rows?column=state&value=AUTHORIZED&order=create
 curl -s "$API/data/tables/msg_log/rows?column=request&like=SN-0001" | jq .total
 ```
 
-Private keys, the UI password and token hashes read as `"[redacted]"` and cannot be filtered or sorted on. The rows of `api_tokens` need write access, like `GET /tokens`. The data endpoints are read-only. Changes always go through the resource endpoints, so the SAS's own rules apply.
+Private keys, password hashes, session ids and API key hashes read as `"[redacted]"` and cannot be filtered or sorted on. The rows of `api_tokens` need write access; the `users` and `sessions` tables are for admins. The data endpoints are read-only. Changes always go through the resource endpoints, so the SAS's own rules apply.
 
 ## Client examples
 
@@ -870,7 +944,10 @@ These affect the API. The full list is in [INSTALL.md](INSTALL.md#configuration)
 | Variable | Default | Effect |
 |---|---|---|
 | `UI_PORT` | `8080` | Port of the console and the API |
-| `SAS_UI_PASSWORD` | none | Sets the UI password (protects console and API) on every start, overriding the stored setting |
+| `SAS_API_PORT` | none | Also serve the API (only the API) on this port |
+| `SAS_BIND_IP` | all addresses | The address every listener binds |
+| `SAS_ADMIN_PASSWORD` | `admin` | Password of the `admin` account created on the first start. Ignored once accounts exist. |
+| `SAS_AUTH` | on | `off` opens the console and the API to anyone, with admin access. See [Switching sign-in off](#switching-sign-in-off). |
 | `SAS_API_CORS_ORIGINS` | none | Comma-separated browser origins allowed to call the API cross-site; `*` for any. See [Browsers and CORS](#browsers-and-cors). |
 | `SAS_TERRAIN_SOURCE_URL` | USGS staged products | Mirror for `POST /terrain/download` (and the `npm run terrain` tool), with the USGS directory layout |
 | `SAS_TERRAIN_DIR`, `SAS_TILES_DIR` | in the data directory | Where terrain tiles and offline map tiles live |
@@ -881,8 +958,11 @@ These affect the API. The full list is in [INSTALL.md](INSTALL.md#configuration)
 |---|---|
 | `404 route_not_found` for a CBSD or PPA | The id contains `/`. Percent-encode it (`%2F`). |
 | `400 validation_failed: x is not a known query parameter` | A misspelled or unsupported query parameter. The reference lists the parameters of each endpoint. |
-| `401 unauthorized` although no password is set | A token is being sent and it is wrong, revoked or expired. Remove the header or fix the token. |
-| `403 forbidden` | The token is read-only, or the endpoint returns private keys. Use a write token. |
+| `401 unauthorized` | No credentials, a wrong password, or an API key that is wrong, revoked or expired. `GET /auth/whoami` with the same credentials tells you who you are once they work. |
+| `401 account_disabled` | The user (or the owner of the key) is disabled. An admin can enable the account under **Users**. |
+| `403 forbidden` | The role or key does not allow it: a viewer or `read` key changing something or downloading a private key, or a non-admin calling `/users` or `/system/backup`. |
+| `429 too_many_attempts` | 10 wrong passwords from this address in 5 minutes. Wait `Retry-After` seconds, or use an API key. |
+| Locked out of every admin account | Run the [reset tool](#forgotten-passwords) on the SAS host. |
 | `403 origin_not_allowed` | A browser page on another origin tried to change something. Add its origin to `SAS_API_CORS_ORIGINS`. |
 | `403 host_not_allowed` | A browser page reached the SAS by a DNS name it does not know. Add the name to `SAS_HOSTNAMES`, use the IP address, or list the page's origin in `SAS_API_CORS_ORIGINS`. |
 | `409 conflict` creating a protection or PPA | That id exists already. Use `PUT` to replace it. |

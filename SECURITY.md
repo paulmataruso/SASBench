@@ -14,7 +14,8 @@ Please allow reasonable time for a fix before you disclose the problem publicly.
 
 SASBench is a lab tool meant for a trusted test network. Keep these in mind when you deploy it:
 
-- The web console has no user accounts. Protect it with `SAS_UI_PASSWORD` and do not expose port 8080 beyond the lab network.
+- The web console and the REST API ask for a user account or an API key. The first start creates `admin` with the password `admin`: change it at once, or set `SAS_ADMIN_PASSWORD` before the first start. `SAS_AUTH=off` removes sign-in entirely. Even with accounts, do not expose port 8080 (or `SAS_API_PORT`) beyond the lab network: the console speaks plain HTTP, so passwords and API keys cross the network unencrypted.
+- The SAS protocol listeners (ports 8000 and 8443) do not use accounts, as the specifications expect: radios are identified by their certificates on the HTTPS port. The WInnForum harness admin API (`/admin/…` on both SAS ports) can reset the SAS and inject data without signing in; turn it off in **Settings → Test harness → Harness admin API** outside harness runs.
 - The plain-HTTP SAS listener (port 8000) has no transport security by design, for radios and simulators in bring-up. Turn it off in **Settings → Listeners & TLS** when you do not need it.
 - The `Open` settings profile turns off certificate and identity checks.
 - The lab PKI's private keys are stored in the database in the data volume. Treat backups of that volume as secret.

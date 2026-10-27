@@ -6,19 +6,20 @@ API version **v1**, SASBench 1.0.0. Base URL: `http://<host>:<UI port>/api/v1` (
 
 This file lists every endpoint, parameter and schema. Read [API.md](API.md) first for authentication, conventions and worked examples, and [API-ARCHITECTURE.md](API-ARCHITECTURE.md) for the design. The same information is served as an OpenAPI 3.1 document at `GET /api/v1/openapi.json`.
 
-**Scopes.** `public`: no credentials needed. `read`: any valid credentials (read or write token, the UI password, or no password set). `write`: a write token or the UI password (or no password set).
+**Scopes.** `public`: no credentials needed. `read`: any user (viewer, operator or admin) or API key. `write`: an operator or admin, or their read-write API key. `admin`: an admin, or an admin's read-write API key. Credentials are a console session, a user name and password (HTTP Basic) or an API key (`Authorization: Bearer sasb_…`); see [Authentication](API.md#authentication). With `SAS_AUTH=off` every operation is open.
 
 ## Contents
 
-165 operations in 24 groups.
+176 operations in 25 groups.
 
 - [System](#system) (7)
 - [Tokens](#tokens) (5)
+- [Users](#users) (8)
 - [Settings](#settings) (8)
-- [CBSDs](#cbsds) (10)
+- [CBSDs](#cbsds) (11)
 - [Grants](#grants) (7)
 - [SAS protocol](#sas-protocol) (1)
-- [Registry](#registry) (21)
+- [Registry](#registry) (23)
 - [Spectrum](#spectrum) (1)
 - [Protections](#protections) (7)
 - [DPAs](#dpas) (7)
@@ -110,8 +111,9 @@ Responses:
 | Status | Description | Body |
 |---|---|---|
 | 200 | Status summary. | [Status](#schema-status) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### getSystem
@@ -120,15 +122,16 @@ Responses:
 
 **Process and host details.**
 
-Versions, uptime, memory, data locations and database size.
+Versions, uptime, memory, ports and addresses, data locations and database size.
 
 Responses:
 
 | Status | Description | Body |
 |---|---|---|
 | 200 | Process details. | [SystemInfo](#schema-systeminfo) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### getActivity
@@ -151,8 +154,9 @@ Responses:
 |---|---|---|
 | 200 | Bucketed counts. | [Activity](#schema-activity) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### getReference
@@ -168,21 +172,22 @@ Responses:
 | Status | Description | Body |
 |---|---|---|
 | 200 | Reference data. | [Reference](#schema-reference) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ## Tokens
 
-API tokens (read or write scope) and the identity of the caller.
+API keys (read or write scope, owned by a user) and the identity of the caller.
 
 | Method | Path | Operation | Scope | Summary |
 |---|---|---|---|---|
 | GET | `/auth/whoami` | [whoAmI](#whoami) | read | Who is calling |
-| GET | `/tokens` | [listTokens](#listtokens) | write | List API tokens |
-| POST | `/tokens` | [createToken](#createtoken) | write | Create an API token |
-| GET | `/tokens/{tokenId}` | [getToken](#gettoken) | write | Get an API token |
-| DELETE | `/tokens/{tokenId}` | [deleteToken](#deletetoken) | write | Revoke an API token |
+| GET | `/tokens` | [listTokens](#listtokens) | read | List API keys |
+| POST | `/tokens` | [createToken](#createtoken) | read | Create an API key |
+| GET | `/tokens/{tokenId}` | [getToken](#gettoken) | read | Get an API key |
+| DELETE | `/tokens/{tokenId}` | [deleteToken](#deletetoken) | read | Revoke an API key |
 
 ### whoAmI
 
@@ -190,32 +195,34 @@ API tokens (read or write scope) and the identity of the caller.
 
 **Who is calling.**
 
-How this request was authenticated (`open` when no UI password is set, `password` for HTTP Basic, `token` for an API token) and what it may do.
+How this request was authenticated (`session` for the console login, `password` for HTTP Basic, `token` for an API key, `open` when authentication is switched off), as which user, and with which role and scope.
 
 Responses:
 
 | Status | Description | Body |
 |---|---|---|
 | 200 | The caller. | [Principal](#schema-principal) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### listTokens
 
-`GET /api/v1/tokens` · scope **write**
+`GET /api/v1/tokens` · scope **read**
 
-**List API tokens.**
+**List API keys.**
 
-Every token with its name, scope, prefix, expiry and last use. Secrets are never returned after creation.
+Your keys; admins see every key. Each with its owner, name, scope, prefix, expiry and last use. Secrets are never returned after creation.
 
 Responses:
 
 | Status | Description | Body |
 |---|---|---|
-| 200 | All tokens. | object |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 200 | Keys. | object |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -226,20 +233,21 @@ Response 200 body:
 
 ### createToken
 
-`POST /api/v1/tokens` · scope **write**
+`POST /api/v1/tokens` · scope **read**
 
-**Create an API token.**
+**Create an API key.**
 
-Returns the secret in `token`. Store it now: only its SHA-256 hash is kept. `read` tokens may call the read-only endpoints of /api/v1 (GET, except those that reveal private keys); `write` tokens may call everything, including the console's private API.
+Returns the secret in `token`. Store it now: only its SHA-256 hash is kept. The key acts as its owner (you, or `userId` for admins) with at most the owner's access: `read` keys may call the read-only operations (GET, except those that reveal private keys); `write` keys everything the owner may do. Viewers can create read keys only. Needs a signed-in user, not another API key.
 
 Request body (JSON, required):
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `name` | string | yes | What the token is for, e.g. "CI pipeline". · min length 1, max length 100 |
+| `name` | string | yes | What the key is for, e.g. "CI pipeline". · min length 1, max length 100 |
 | `scope` | `"read"` \| `"write"` |  | Access level. Defaults to read. · default `"read"` |
-| `expiresInDays` | integer |  | Lifetime in days. Omit for a token that does not expire. · ≥ 1, ≤ 3650 |
+| `expiresInDays` | integer |  | Lifetime in days. Omit for a key that does not expire. · ≥ 1, ≤ 3650 |
 | `expiresAt` | time (epoch ms or RFC 3339) |  | Absolute expiry instead of expiresInDays. |
+| `userId` | integer |  | Admins: create the key for this user (e.g. a service account). Default: yourself. · ≥ 1 |
 
 Example:
 
@@ -255,48 +263,52 @@ Responses:
 
 | Status | Description | Body |
 |---|---|---|
-| 201 | The new token, including its secret. | [TokenCreated](#schema-tokencreated) |
+| 201 | The new key, including its secret. | [TokenCreated](#schema-tokencreated) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### getToken
 
-`GET /api/v1/tokens/{tokenId}` · scope **write**
+`GET /api/v1/tokens/{tokenId}` · scope **read**
 
-**Get an API token.**
+**Get an API key.**
+
+Yours, or any key for admins.
 
 Path parameters:
 
 | Name | Type | Description |
 |---|---|---|
-| `tokenId` | string | Token id (from the token list; not the secret). |
+| `tokenId` | string | Key id (from the key list; not the secret). |
 
 Responses:
 
 | Status | Description | Body |
 |---|---|---|
-| 200 | The token (without its secret). | [Token](#schema-token) |
+| 200 | The key (without its secret). | [Token](#schema-token) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### deleteToken
 
-`DELETE /api/v1/tokens/{tokenId}` · scope **write**
+`DELETE /api/v1/tokens/{tokenId}` · scope **read**
 
-**Revoke an API token.**
+**Revoke an API key.**
 
-The token stops working immediately.
+Yours, or any key for admins. The key stops working immediately, and its open event streams end.
 
 Path parameters:
 
 | Name | Type | Description |
 |---|---|---|
-| `tokenId` | string | Token id (from the token list; not the secret). |
+| `tokenId` | string | Key id (from the key list; not the secret). |
 
 Responses:
 
@@ -304,10 +316,286 @@ Responses:
 |---|---|---|
 | 204 | Revoked. |  |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
+| default | Unexpected error. | [Error](#schema-error) |
+
+## Users
+
+User accounts (admins only), sessions and password changes.
+
+| Method | Path | Operation | Scope | Summary |
+|---|---|---|---|---|
+| GET | `/users` | [listUsers](#listusers) | admin | List users |
+| POST | `/users` | [createUser](#createuser) | admin | Create a user |
+| GET | `/users/{userId}` | [getUser](#getuser) | admin | Get a user |
+| PATCH | `/users/{userId}` | [updateUser](#updateuser) | admin | Change a user |
+| DELETE | `/users/{userId}` | [deleteUser](#deleteuser) | admin | Delete a user |
+| GET | `/users/{userId}/sessions` | [listUserSessions](#listusersessions) | admin | List a user's sessions |
+| DELETE | `/users/{userId}/sessions` | [revokeUserSessions](#revokeusersessions) | admin | Sign a user out everywhere |
+| POST | `/auth/password` | [changePassword](#changepassword) | read | Change your password |
+
+### listUsers
+
+`GET /api/v1/users` · scope **admin**
+
+**List users.**
+
+Every account, by user name. Password hashes are never returned.
+
+Responses:
+
+| Status | Description | Body |
+|---|---|---|
+| 200 | All users. | object |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
+| default | Unexpected error. | [Error](#schema-error) |
+
+Response 200 body:
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `items` | array of [User](#schema-user) | yes |  |
+
+### createUser
+
+`POST /api/v1/users` · scope **admin**
+
+**Create a user.**
+
+409 when the user name is taken (user names are case-insensitive).
+
+Request body (JSON, required):
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `username` | string | yes | Letters, digits and . _ @ - · min length 1, max length 64, pattern `^[A-Za-z0-9._@-]+$` |
+| `password` | string | yes | At least 8 characters. · min length 8, max length 256, write-only |
+| `role` | `"admin"` \| `"operator"` \| `"viewer"` | yes | admin: everything; operator: everything except users; viewer: read-only. |
+| `displayName` | string \| null |  | max length 100 |
+| `enabled` | boolean |  | default `true` |
+
+Example:
+
+```json
+{
+  "username": "jsmith",
+  "password": "correct horse battery",
+  "role": "operator",
+  "displayName": "J. Smith"
+}
+```
+
+Responses:
+
+| Status | Description | Body |
+|---|---|---|
+| 201 | The new user. | [User](#schema-user) |
+| 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
+| default | Unexpected error. | [Error](#schema-error) |
+
+### getUser
+
+`GET /api/v1/users/{userId}` · scope **admin**
+
+**Get a user.**
+
+Path parameters:
+
+| Name | Type | Description |
+|---|---|---|
+| `userId` | integer | User id (from the user list). · ≥ 1 |
+
+Responses:
+
+| Status | Description | Body |
+|---|---|---|
+| 200 | The user. | [User](#schema-user) |
+| 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 404 | The resource does not exist (not_found). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
+| default | Unexpected error. | [Error](#schema-error) |
+
+### updateUser
+
+`PATCH /api/v1/users/{userId}` · scope **admin**
+
+**Change a user.**
+
+Display name, role, enabled flag and/or a new password. Disabling a user or setting their password signs them out everywhere (except the caller's own session). 409 when the change would leave no enabled admin.
+
+Path parameters:
+
+| Name | Type | Description |
+|---|---|---|
+| `userId` | integer | User id (from the user list). · ≥ 1 |
+
+Request body (JSON, required):
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `displayName` | string \| null |  | max length 100 |
+| `role` | `"admin"` \| `"operator"` \| `"viewer"` |  | admin: everything; operator: everything except users; viewer: read-only. |
+| `enabled` | boolean |  |  |
+| `password` | string |  | At least 8 characters. · min length 8, max length 256, write-only |
+
+Example:
+
+```json
+{
+  "role": "viewer"
+}
+```
+
+Responses:
+
+| Status | Description | Body |
+|---|---|---|
+| 200 | The user. | [User](#schema-user) |
+| 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 404 | The resource does not exist (not_found). | [Error](#schema-error) |
+| 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
+| default | Unexpected error. | [Error](#schema-error) |
+
+### deleteUser
+
+`DELETE /api/v1/users/{userId}` · scope **admin**
+
+**Delete a user.**
+
+Deletes the account with its sessions and API keys. 409 for your own account and for the last enabled admin.
+
+Path parameters:
+
+| Name | Type | Description |
+|---|---|---|
+| `userId` | integer | User id (from the user list). · ≥ 1 |
+
+Responses:
+
+| Status | Description | Body |
+|---|---|---|
+| 204 | Deleted. |  |
+| 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 404 | The resource does not exist (not_found). | [Error](#schema-error) |
+| 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
+| default | Unexpected error. | [Error](#schema-error) |
+
+### listUserSessions
+
+`GET /api/v1/users/{userId}/sessions` · scope **admin**
+
+**List a user's sessions.**
+
+Console sign-ins that have not expired, most recently used first.
+
+Path parameters:
+
+| Name | Type | Description |
+|---|---|---|
+| `userId` | integer | User id (from the user list). · ≥ 1 |
+
+Responses:
+
+| Status | Description | Body |
+|---|---|---|
+| 200 | Sessions. | object |
+| 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 404 | The resource does not exist (not_found). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
+| default | Unexpected error. | [Error](#schema-error) |
+
+Response 200 body:
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `items` | array of [Session](#schema-session) | yes |  |
+
+### revokeUserSessions
+
+`DELETE /api/v1/users/{userId}/sessions` · scope **admin**
+
+**Sign a user out everywhere.**
+
+Ends every console session of the user (except the caller's own). API keys are not affected.
+
+Path parameters:
+
+| Name | Type | Description |
+|---|---|---|
+| `userId` | integer | User id (from the user list). · ≥ 1 |
+
+Responses:
+
+| Status | Description | Body |
+|---|---|---|
+| 200 | How many sessions ended. | object |
+| 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 404 | The resource does not exist (not_found). | [Error](#schema-error) |
+| 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
+| default | Unexpected error. | [Error](#schema-error) |
+
+Response 200 body:
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `revoked` | integer | yes |  |
+
+### changePassword
+
+`POST /api/v1/auth/password` · scope **read**
+
+**Change your password.**
+
+For a signed-in user (session or HTTP Basic), not an API key. Your other sessions end; this one stays.
+
+Request body (JSON, required):
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `currentPassword` | string | yes | min length 1, max length 256, write-only |
+| `newPassword` | string | yes | At least 8 characters. · min length 8, max length 256, write-only |
+
+Example:
+
+```json
+{
+  "currentPassword": "admin",
+  "newPassword": "a much better password"
+}
+```
+
+Responses:
+
+| Status | Description | Body |
+|---|---|---|
+| 204 | Changed. |  |
+| 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ## Settings
@@ -331,15 +619,16 @@ Every runtime setting: read, change (validated), describe, profiles and defaults
 
 **Get all settings.**
 
-Current values of every runtime setting and the matching settings profile, if any. The UI password reads back as "********" when set.
+Current values of every runtime setting and the matching settings profile, if any.
 
 Responses:
 
 | Status | Description | Body |
 |---|---|---|
 | 200 | Settings. | object |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -409,7 +698,6 @@ Request body (JSON, required):
 | `harnessAdminEnabled` | boolean |  | Serve the WInnForum test-harness admin API under /admin/ on the SAS listeners. The /api/v1/harness endpoints work either way. |
 | `msgLogLimit` | integer |  | Wire-log entries kept; older ones are pruned. · ≥ 100 |
 | `eventLogLimit` | integer |  | Events kept; older ones are pruned. · ≥ 100 |
-| `uiPassword` | string |  | Password for the web console and API (HTTP Basic, any user name). Empty: no password. Read back as "********" when set; sending "********" leaves it unchanged. SAS_UI_PASSWORD overrides it on every start. · max length 200, write-only |
 | `mapSource` | `"builtin"` \| `"local"` \| `"url"` |  | `builtin`: bundled offline basemap. `local`: the offline tile store. `url`: an online tile server. |
 | `mapLocalTiles` | string |  | Tile set in the offline tile store (file or folder name). Empty: the first usable one. · max length 200 |
 | `mapTileUrl` | string |  | {z}/{x}/{y} tile URL template for mapSource=url. · max length 2000 |
@@ -432,8 +720,9 @@ Responses:
 |---|---|---|
 | 200 | What changed and the resulting settings. | [SettingsChange](#schema-settingschange) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### getSettingsSchema
@@ -449,8 +738,9 @@ Responses:
 | Status | Description | Body |
 |---|---|---|
 | 200 | Setting descriptions. | object |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -472,8 +762,9 @@ Responses:
 | Status | Description | Body |
 |---|---|---|
 | 200 | Profiles. | object |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -503,10 +794,11 @@ Responses:
 |---|---|---|
 | 200 | What changed and the resulting settings. | [SettingsChange](#schema-settingschange) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### resetSettings
@@ -515,7 +807,7 @@ Responses:
 
 **Restore default settings.**
 
-Every setting returns to its default except the server certificates, trusted client CAs, UI password and listener ports.
+Every setting returns to its default except the server certificates, trusted client CAs and listener ports.
 
 Responses:
 
@@ -523,8 +815,9 @@ Responses:
 |---|---|---|
 | 200 | What changed and the resulting settings. | [SettingsChange](#schema-settingschange) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### getSetting
@@ -537,7 +830,7 @@ Path parameters:
 
 | Name | Type | Description |
 |---|---|---|
-| `key` | `"sasHttpEnabled"` \| `"sasHttpPort"` \| `"sasHttpsEnabled"` \| `"sasHttpsPort"` \| `"tlsClientAuth"` \| `"tlsMinVersion"` \| `"tlsMaxVersion"` \| `"tlsCipherPolicy"` \| `"serverCertIds"` \| `"trustedClientCaIds"` \| `"tlsCheckCrl"` \| `"certRoleCheck"` \| `"rejectUnverifiedClientCert"` \| `"supportedVersions"` \| `"acceptVersionlessPaths"` \| `"heartbeatIntervalSec"` \| `"transmitExpireSec"` \| `"grantExpireSec"` \| `"connectivityLostSec"` \| `"versionErrorAsResponseCode"` \| `"siqChannelization"` \| `"siqIncludeDpa"` \| `"strictOperationState"` \| `"responseDelayMs"` \| `"includeResponseMessage"` \| `"requireKnownFccId"` \| `"requireKnownUserId"` \| `"registrationPolicy"` \| `"missingInstallParams"` \| `"certIdentityCheck"` \| `"defaultFccMaxEirp"` \| `"manualApproval"` \| `"haatCheck"` \| `"rejectIndoorCatB"` \| `"bandLowHz"` \| `"bandHighHz"` \| `"gaaRanges"` \| `"maxEirpCatA"` \| `"maxEirpCatB"` \| `"maxGrantBandwidthHz"` \| `"maxGrantsPerCbsd"` \| `"grantFrequencyStepHz"` \| `"suggestOperationParam"` \| `"harnessAdminEnabled"` \| `"msgLogLimit"` \| `"eventLogLimit"` \| `"uiPassword"` \| `"mapSource"` \| `"mapLocalTiles"` \| `"mapTileUrl"` \| `"mapTileAttribution"` \| `"mapTileMaxZoom"` \| `"mapDarkenTiles"` | Setting name, e.g. heartbeatIntervalSec (see GET /settings/schema). |
+| `key` | `"sasHttpEnabled"` \| `"sasHttpPort"` \| `"sasHttpsEnabled"` \| `"sasHttpsPort"` \| `"tlsClientAuth"` \| `"tlsMinVersion"` \| `"tlsMaxVersion"` \| `"tlsCipherPolicy"` \| `"serverCertIds"` \| `"trustedClientCaIds"` \| `"tlsCheckCrl"` \| `"certRoleCheck"` \| `"rejectUnverifiedClientCert"` \| `"supportedVersions"` \| `"acceptVersionlessPaths"` \| `"heartbeatIntervalSec"` \| `"transmitExpireSec"` \| `"grantExpireSec"` \| `"connectivityLostSec"` \| `"versionErrorAsResponseCode"` \| `"siqChannelization"` \| `"siqIncludeDpa"` \| `"strictOperationState"` \| `"responseDelayMs"` \| `"includeResponseMessage"` \| `"requireKnownFccId"` \| `"requireKnownUserId"` \| `"registrationPolicy"` \| `"missingInstallParams"` \| `"certIdentityCheck"` \| `"defaultFccMaxEirp"` \| `"manualApproval"` \| `"haatCheck"` \| `"rejectIndoorCatB"` \| `"bandLowHz"` \| `"bandHighHz"` \| `"gaaRanges"` \| `"maxEirpCatA"` \| `"maxEirpCatB"` \| `"maxGrantBandwidthHz"` \| `"maxGrantsPerCbsd"` \| `"grantFrequencyStepHz"` \| `"suggestOperationParam"` \| `"harnessAdminEnabled"` \| `"msgLogLimit"` \| `"eventLogLimit"` \| `"mapSource"` \| `"mapLocalTiles"` \| `"mapTileUrl"` \| `"mapTileAttribution"` \| `"mapTileMaxZoom"` \| `"mapDarkenTiles"` | Setting name, e.g. heartbeatIntervalSec (see GET /settings/schema). |
 
 Responses:
 
@@ -545,9 +838,10 @@ Responses:
 |---|---|---|
 | 200 | The setting with its description. | [SettingDescription](#schema-settingdescription) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### putSetting
@@ -560,7 +854,7 @@ Path parameters:
 
 | Name | Type | Description |
 |---|---|---|
-| `key` | `"sasHttpEnabled"` \| `"sasHttpPort"` \| `"sasHttpsEnabled"` \| `"sasHttpsPort"` \| `"tlsClientAuth"` \| `"tlsMinVersion"` \| `"tlsMaxVersion"` \| `"tlsCipherPolicy"` \| `"serverCertIds"` \| `"trustedClientCaIds"` \| `"tlsCheckCrl"` \| `"certRoleCheck"` \| `"rejectUnverifiedClientCert"` \| `"supportedVersions"` \| `"acceptVersionlessPaths"` \| `"heartbeatIntervalSec"` \| `"transmitExpireSec"` \| `"grantExpireSec"` \| `"connectivityLostSec"` \| `"versionErrorAsResponseCode"` \| `"siqChannelization"` \| `"siqIncludeDpa"` \| `"strictOperationState"` \| `"responseDelayMs"` \| `"includeResponseMessage"` \| `"requireKnownFccId"` \| `"requireKnownUserId"` \| `"registrationPolicy"` \| `"missingInstallParams"` \| `"certIdentityCheck"` \| `"defaultFccMaxEirp"` \| `"manualApproval"` \| `"haatCheck"` \| `"rejectIndoorCatB"` \| `"bandLowHz"` \| `"bandHighHz"` \| `"gaaRanges"` \| `"maxEirpCatA"` \| `"maxEirpCatB"` \| `"maxGrantBandwidthHz"` \| `"maxGrantsPerCbsd"` \| `"grantFrequencyStepHz"` \| `"suggestOperationParam"` \| `"harnessAdminEnabled"` \| `"msgLogLimit"` \| `"eventLogLimit"` \| `"uiPassword"` \| `"mapSource"` \| `"mapLocalTiles"` \| `"mapTileUrl"` \| `"mapTileAttribution"` \| `"mapTileMaxZoom"` \| `"mapDarkenTiles"` | Setting name, e.g. heartbeatIntervalSec (see GET /settings/schema). |
+| `key` | `"sasHttpEnabled"` \| `"sasHttpPort"` \| `"sasHttpsEnabled"` \| `"sasHttpsPort"` \| `"tlsClientAuth"` \| `"tlsMinVersion"` \| `"tlsMaxVersion"` \| `"tlsCipherPolicy"` \| `"serverCertIds"` \| `"trustedClientCaIds"` \| `"tlsCheckCrl"` \| `"certRoleCheck"` \| `"rejectUnverifiedClientCert"` \| `"supportedVersions"` \| `"acceptVersionlessPaths"` \| `"heartbeatIntervalSec"` \| `"transmitExpireSec"` \| `"grantExpireSec"` \| `"connectivityLostSec"` \| `"versionErrorAsResponseCode"` \| `"siqChannelization"` \| `"siqIncludeDpa"` \| `"strictOperationState"` \| `"responseDelayMs"` \| `"includeResponseMessage"` \| `"requireKnownFccId"` \| `"requireKnownUserId"` \| `"registrationPolicy"` \| `"missingInstallParams"` \| `"certIdentityCheck"` \| `"defaultFccMaxEirp"` \| `"manualApproval"` \| `"haatCheck"` \| `"rejectIndoorCatB"` \| `"bandLowHz"` \| `"bandHighHz"` \| `"gaaRanges"` \| `"maxEirpCatA"` \| `"maxEirpCatB"` \| `"maxGrantBandwidthHz"` \| `"maxGrantsPerCbsd"` \| `"grantFrequencyStepHz"` \| `"suggestOperationParam"` \| `"harnessAdminEnabled"` \| `"msgLogLimit"` \| `"eventLogLimit"` \| `"mapSource"` \| `"mapLocalTiles"` \| `"mapTileUrl"` \| `"mapTileAttribution"` \| `"mapTileMaxZoom"` \| `"mapDarkenTiles"` | Setting name, e.g. heartbeatIntervalSec (see GET /settings/schema). |
 
 Request body (JSON, required):
 
@@ -582,10 +876,11 @@ Responses:
 |---|---|---|
 | 200 | What changed and the resulting settings. | [SettingsChange](#schema-settingschange) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ## CBSDs
@@ -599,6 +894,7 @@ Registered and pending CBSDs: details, availability, grants, logs, and operator 
 | PATCH | `/cbsds/{cbsdId}` | [updateCbsd](#updatecbsd) | write | Change operator overrides |
 | DELETE | `/cbsds/{cbsdId}` | [deleteCbsd](#deletecbsd) | write | Delete a CBSD and its grants |
 | POST | `/cbsds/{cbsdId}/approve` | [approveCbsd](#approvecbsd) | write | Approve a pending registration |
+| POST | `/cbsds/{cbsdId}/registry` | [addCbsdToRegistry](#addcbsdtoregistry) | write | Add a CBSD to the registry |
 | POST | `/cbsds/{cbsdId}/deregister` | [deregisterCbsd](#deregistercbsd) | write | Deregister a CBSD |
 | GET | `/cbsds/{cbsdId}/grants` | [listCbsdGrants](#listcbsdgrants) | read | List a CBSD's grants |
 | GET | `/cbsds/{cbsdId}/events` | [listCbsdEvents](#listcbsdevents) | read | List a CBSD's events |
@@ -632,8 +928,9 @@ Responses:
 |---|---|---|
 | 200 | A page of CBSDs. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -665,9 +962,10 @@ Responses:
 |---|---|---|
 | 200 | The CBSD. | [CbsdDetail](#schema-cbsddetail) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### updateCbsd
@@ -709,10 +1007,11 @@ Responses:
 |---|---|---|
 | 200 | The updated CBSD. | [CbsdDetail](#schema-cbsddetail) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### deleteCbsd
@@ -735,10 +1034,11 @@ Responses:
 |---|---|---|
 | 204 | Deleted. |  |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### approveCbsd
@@ -761,10 +1061,56 @@ Responses:
 |---|---|---|
 | 200 | The CBSD. | [CbsdDetail](#schema-cbsddetail) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
+| default | Unexpected error. | [Error](#schema-error) |
+
+### addCbsdToRegistry
+
+`POST /api/v1/cbsds/{cbsdId}/registry` · scope **write**
+
+**Add a CBSD to the registry.**
+
+Adds the CBSD's FCC ID and user ID and preloads the parameters it registered with, so it stays known when the registry is enforced. Entries already present are kept; `notes` says why something was not added. The same for many CBSDs: POST /registry/from-cbsds.
+
+Path parameters:
+
+| Name | Type | Description |
+|---|---|---|
+| `cbsdId` | string | cbsdId as returned in the registration response, e.g. "FCCID/0123abcd…". Percent-encode it in the path: the "/" becomes %2F. |
+
+Request body (JSON, optional):
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `fccId` | boolean |  | Add the FCC ID. One already listed keeps its max EIRP; a new one gets defaultFccMaxEirp. · default `true` |
+| `userId` | boolean |  | Add the user ID. · default `true` |
+| `registration` | boolean |  | Preload the registration parameters (category, air interface, installation parameters, measurement capability, call sign) as REG-Conditional data. · default `true` |
+| `replace` | boolean |  | Overwrite registration data already preloaded for the device. · default `false` |
+
+Example:
+
+```json
+{
+  "registration": true,
+  "replace": false
+}
+```
+
+Responses:
+
+| Status | Description | Body |
+|---|---|---|
+| 200 | What was added. | [RegistryAddResult](#schema-registryaddresult) |
+| 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 404 | The resource does not exist (not_found). | [Error](#schema-error) |
+| 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### deregisterCbsd
@@ -801,10 +1147,11 @@ Responses:
 |---|---|---|
 | 200 | The CBSD. | [CbsdDetail](#schema-cbsddetail) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### listCbsdGrants
@@ -835,9 +1182,10 @@ Responses:
 |---|---|---|
 | 200 | A page of grants. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -877,9 +1225,10 @@ Responses:
 |---|---|---|
 | 200 | A page of events. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -921,9 +1270,10 @@ Responses:
 |---|---|---|
 | 200 | A page of messages. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -955,9 +1305,10 @@ Responses:
 |---|---|---|
 | 200 | Availability. | [CbsdAvailability](#schema-cbsdavailability) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ## Grants
@@ -999,8 +1350,9 @@ Responses:
 |---|---|---|
 | 200 | A page of grants. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -1026,8 +1378,9 @@ Responses:
 |---|---|---|
 | 200 | How many were deleted. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -1056,9 +1409,10 @@ Responses:
 |---|---|---|
 | 200 | The grant. | [GrantDetail](#schema-grantdetail) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### updateGrant
@@ -1101,10 +1455,11 @@ Responses:
 |---|---|---|
 | 200 | The updated grant. | [GrantDetail](#schema-grantdetail) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### suspendGrant
@@ -1127,10 +1482,11 @@ Responses:
 |---|---|---|
 | 200 | The grant. | [GrantDetail](#schema-grantdetail) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### resumeGrant
@@ -1153,10 +1509,11 @@ Responses:
 |---|---|---|
 | 200 | The grant. | [GrantDetail](#schema-grantdetail) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### terminateGrant
@@ -1193,10 +1550,11 @@ Responses:
 |---|---|---|
 | 200 | The grant. | [GrantDetail](#schema-grantdetail) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ## SAS protocol
@@ -1275,10 +1633,11 @@ Responses:
 |---|---|---|
 | 200 | What the SAS answered. | [SasExchange](#schema-sasexchange) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ## Registry
@@ -1288,6 +1647,8 @@ FCC IDs, user IDs, blacklist, preloaded (conditional) registrations and CPI user
 | Method | Path | Operation | Scope | Summary |
 |---|---|---|---|---|
 | GET | `/registry` | [getRegistry](#getregistry) | read | Get the whole registry |
+| GET | `/registry/from-cbsds` | [listRegistryCandidates](#listregistrycandidates) | read | List registered radios and their registry status |
+| POST | `/registry/from-cbsds` | [addCbsdsToRegistry](#addcbsdstoregistry) | write | Add registered radios to the registry |
 | GET | `/registry/fcc-ids` | [listFccIds](#listfccids) | read | List FCC IDs |
 | POST | `/registry/fcc-ids` | [addFccId](#addfccid) | write | Add or update an FCC ID |
 | GET | `/registry/fcc-ids/{fccId}` | [getFccId](#getfccid) | read | Get an FCC ID |
@@ -1322,8 +1683,85 @@ Responses:
 | Status | Description | Body |
 |---|---|---|
 | 200 | The registry. | [Registry](#schema-registry) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
+| default | Unexpected error. | [Error](#schema-error) |
+
+### listRegistryCandidates
+
+`GET /api/v1/registry/from-cbsds` · scope **read**
+
+**List registered radios and their registry status.**
+
+Every CBSD the SAS has a record of, oldest first, with what the registry already holds for it: its FCC ID, its user ID and preloaded registration data.
+
+Query parameters:
+
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `missing` | boolean |  | Only CBSDs with something not yet in the registry. |
+| `limit` | integer |  | Maximum number of items to return (1–5000). · ≥ 1, ≤ 5000, default `500` |
+| `offset` | integer |  | Number of items to skip. · ≥ 0, default `0` |
+
+Responses:
+
+| Status | Description | Body |
+|---|---|---|
+| 200 | A page of CBSDs. | object |
+| 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
+| default | Unexpected error. | [Error](#schema-error) |
+
+Response 200 body:
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `items` | array of [RegistryEntry](#schema-registryentry) | yes |  |
+| `total` | integer | yes | Number of items matching the filters, before limit and offset. |
+| `limit` | integer | yes |  |
+| `offset` | integer | yes |  |
+
+### addCbsdsToRegistry
+
+`POST /api/v1/registry/from-cbsds` · scope **write**
+
+**Add registered radios to the registry.**
+
+For each CBSD (all of them when cbsdIds is omitted), adds its FCC ID and user ID and preloads the parameters it registered with, so the radio stays known when the registry is enforced (requireKnownFccId, requireKnownUserId, conditional registration). Entries already present are kept. Unknown cbsdIds are listed in `unknown`.
+
+Request body (JSON, optional):
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `cbsdIds` | array of string |  | CBSDs to add; omit for all. · max 10000 items |
+| `fccId` | boolean |  | Add the FCC ID. One already listed keeps its max EIRP; a new one gets defaultFccMaxEirp. · default `true` |
+| `userId` | boolean |  | Add the user ID. · default `true` |
+| `registration` | boolean |  | Preload the registration parameters (category, air interface, installation parameters, measurement capability, call sign) as REG-Conditional data. · default `true` |
+| `replace` | boolean |  | Overwrite registration data already preloaded for the device. · default `false` |
+
+Example:
+
+```json
+{
+  "cbsdIds": [
+    "2AG32MBS3500/0a1b2c3d4e5f60718293a4b5c6d7e8f9a0b1c2d3"
+  ],
+  "registration": true
+}
+```
+
+Responses:
+
+| Status | Description | Body |
+|---|---|---|
+| 200 | What was added for each CBSD. | [RegistryAddResults](#schema-registryaddresults) |
+| 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### listFccIds
@@ -1348,8 +1786,9 @@ Responses:
 |---|---|---|
 | 200 | A page of FCC IDs. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -1392,8 +1831,9 @@ Responses:
 | 200 | Updated. | [FccId](#schema-fccid) |
 | 201 | Added. | [FccId](#schema-fccid) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### getFccId
@@ -1414,9 +1854,10 @@ Responses:
 |---|---|---|
 | 200 | The FCC ID. | [FccId](#schema-fccid) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### deleteFccId
@@ -1437,10 +1878,11 @@ Responses:
 |---|---|---|
 | 204 | Removed. |  |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### listUserIds
@@ -1465,8 +1907,9 @@ Responses:
 |---|---|---|
 | 200 | A page of user IDs. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -1507,8 +1950,9 @@ Responses:
 | 200 | Already present. | [UserId](#schema-userid) |
 | 201 | Added. | [UserId](#schema-userid) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### getUserId
@@ -1529,9 +1973,10 @@ Responses:
 |---|---|---|
 | 200 | The user ID. | [UserId](#schema-userid) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### deleteUserId
@@ -1552,10 +1997,11 @@ Responses:
 |---|---|---|
 | 204 | Removed. |  |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### listBlacklist
@@ -1580,8 +2026,9 @@ Responses:
 |---|---|---|
 | 200 | A page of entries. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -1626,8 +2073,9 @@ Responses:
 | 200 | Already present. | [BlacklistEntry](#schema-blacklistentry) |
 | 201 | Added. | [BlacklistEntry](#schema-blacklistentry) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### getBlacklistEntry
@@ -1648,9 +2096,10 @@ Responses:
 |---|---|---|
 | 200 | The entry. | [BlacklistEntry](#schema-blacklistentry) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### deleteBlacklistEntry
@@ -1671,10 +2120,11 @@ Responses:
 |---|---|---|
 | 204 | Removed. |  |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### listConditionalRegistrations
@@ -1699,8 +2149,9 @@ Responses:
 |---|---|---|
 | 200 | A page of preloaded registrations. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -1753,8 +2204,9 @@ Responses:
 |---|---|---|
 | 200 | The stored records. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -1783,9 +2235,10 @@ Responses:
 |---|---|---|
 | 200 | The record. | [ConditionalRegistration](#schema-conditionalregistration) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### deleteConditionalRegistration
@@ -1807,10 +2260,11 @@ Responses:
 |---|---|---|
 | 204 | Removed. |  |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### listCpiUsers
@@ -1834,8 +2288,9 @@ Responses:
 |---|---|---|
 | 200 | A page of CPI users. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -1881,9 +2336,10 @@ Responses:
 | 200 | Updated. | [CpiUser](#schema-cpiuser) |
 | 201 | Added. | [CpiUser](#schema-cpiuser) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### getCpiUser
@@ -1904,9 +2360,10 @@ Responses:
 |---|---|---|
 | 200 | The CPI user. | [CpiUser](#schema-cpiuser) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### deleteCpiUser
@@ -1927,10 +2384,11 @@ Responses:
 |---|---|---|
 | 204 | Removed. |  |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ## Spectrum
@@ -1954,8 +2412,9 @@ Responses:
 | Status | Description | Body |
 |---|---|---|
 | 200 | Spectrum overview. | [Spectrum](#schema-spectrum) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ## Protections
@@ -1996,8 +2455,9 @@ Responses:
 |---|---|---|
 | 200 | A page of protections. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -2055,9 +2515,10 @@ Responses:
 |---|---|---|
 | 201 | Created. | [Protection](#schema-protection) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### getProtection
@@ -2078,9 +2539,10 @@ Responses:
 |---|---|---|
 | 200 | The protection. | [Protection](#schema-protection) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### putProtection
@@ -2135,10 +2597,11 @@ Responses:
 | 200 | Replaced. | [Protection](#schema-protection) |
 | 201 | Created. | [Protection](#schema-protection) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### deleteProtection
@@ -2159,10 +2622,11 @@ Responses:
 |---|---|---|
 | 204 | Deleted. |  |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### activateProtection
@@ -2204,10 +2668,11 @@ Responses:
 |---|---|---|
 | 200 | The protection. | [Protection](#schema-protection) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### deactivateProtection
@@ -2228,10 +2693,11 @@ Responses:
 |---|---|---|
 | 200 | The protection. | [Protection](#schema-protection) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ## DPAs
@@ -2270,8 +2736,9 @@ Responses:
 |---|---|---|
 | 200 | A page of DPAs. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -2296,8 +2763,9 @@ Responses:
 |---|---|---|
 | 200 | How many were removed. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -2336,8 +2804,9 @@ Responses:
 |---|---|---|
 | 200 | How many DPAs the file holds. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -2360,8 +2829,9 @@ Responses:
 |---|---|---|
 | 200 | How many DPAs are now active. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -2384,8 +2854,9 @@ Responses:
 |---|---|---|
 | 200 | How many DPAs are still active (0). | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -2430,10 +2901,11 @@ Responses:
 |---|---|---|
 | 200 | The DPA. | [Protection](#schema-protection) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### deactivateDpaChannel
@@ -2472,10 +2944,11 @@ Responses:
 |---|---|---|
 | 200 | The DPA. | [Protection](#schema-protection) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ## PPAs
@@ -2511,8 +2984,9 @@ Responses:
 |---|---|---|
 | 200 | A page of PPAs. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -2571,9 +3045,10 @@ Responses:
 |---|---|---|
 | 201 | Created. | [Ppa](#schema-ppa) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### createPpaFromPal
@@ -2611,8 +3086,9 @@ Responses:
 |---|---|---|
 | 201 | Created. | [Ppa](#schema-ppa) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### getPpa
@@ -2633,9 +3109,10 @@ Responses:
 |---|---|---|
 | 200 | The PPA. | [Ppa](#schema-ppa) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### putPpa
@@ -2688,10 +3165,11 @@ Responses:
 | 200 | Replaced. | [Ppa](#schema-ppa) |
 | 201 | Created. | [Ppa](#schema-ppa) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### deletePpa
@@ -2714,10 +3192,11 @@ Responses:
 |---|---|---|
 | 204 | Deleted. |  |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ## Incumbents
@@ -2753,8 +3232,9 @@ Responses:
 |---|---|---|
 | 200 | A page of records. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -2827,10 +3307,11 @@ Responses:
 |---|---|---|
 | 201 | Stored. | [Incumbent](#schema-incumbent) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### getIncumbent
@@ -2852,9 +3333,10 @@ Responses:
 |---|---|---|
 | 200 | The record. | [Incumbent](#schema-incumbent) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### deleteIncumbent
@@ -2878,10 +3360,11 @@ Responses:
 |---|---|---|
 | 204 | Deleted. |  |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ## Faults
@@ -2921,8 +3404,9 @@ Responses:
 |---|---|---|
 | 200 | A page of rules. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -2976,8 +3460,9 @@ Responses:
 |---|---|---|
 | 201 | Created. | [FaultRule](#schema-faultrule) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### deleteAllFaults
@@ -2992,8 +3477,9 @@ Responses:
 |---|---|---|
 | 200 | How many were deleted. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -3022,9 +3508,10 @@ Responses:
 |---|---|---|
 | 200 | The rule. | [FaultRule](#schema-faultrule) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### replaceFault
@@ -3075,10 +3562,11 @@ Responses:
 |---|---|---|
 | 200 | The rule. | [FaultRule](#schema-faultrule) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### updateFault
@@ -3125,10 +3613,11 @@ Responses:
 |---|---|---|
 | 200 | The rule. | [FaultRule](#schema-faultrule) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### deleteFault
@@ -3149,10 +3638,11 @@ Responses:
 |---|---|---|
 | 204 | Deleted. |  |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ## Logs
@@ -3204,8 +3694,9 @@ Responses:
 |---|---|---|
 | 200 | A page of exchanges. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -3229,8 +3720,9 @@ Responses:
 |---|---|---|
 | 200 | How many were deleted. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -3270,8 +3762,9 @@ Responses:
 |---|---|---|
 | 200 | NDJSON or JSON file. | `application/x-ndjson` |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### getMessage
@@ -3294,9 +3787,10 @@ Responses:
 |---|---|---|
 | 200 | The exchange. | [MessageDetail](#schema-messagedetail) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### deleteMessage
@@ -3317,10 +3811,11 @@ Responses:
 |---|---|---|
 | 204 | Deleted. |  |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### listEvents
@@ -3336,7 +3831,7 @@ Query parameters:
 | Name | Type | Required | Description |
 |---|---|---|---|
 | `level` | array of `"info"` \| `"warn"` \| `"error"` \| `"success"` |  | Comma-separated levels. Comma-separated. |
-| `category` | string |  | Only this category, e.g. registration, grant, heartbeat, admin, fault, tls, api. |
+| `category` | string |  | Only this category, e.g. registration, grant, heartbeat, admin, fault, tls, api, auth. |
 | `cbsdId` | string |  | Only events about this CBSD. |
 | `grantId` | string |  | Only events about this grant. |
 | `q` | string |  | Text search in the message. · min length 1 |
@@ -3352,8 +3847,9 @@ Responses:
 |---|---|---|
 | 200 | A page of events. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -3377,8 +3873,9 @@ Responses:
 |---|---|---|
 | 200 | How many were deleted. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -3400,7 +3897,7 @@ Query parameters:
 | Name | Type | Required | Description |
 |---|---|---|---|
 | `level` | array of `"info"` \| `"warn"` \| `"error"` \| `"success"` |  | Comma-separated levels. Comma-separated. |
-| `category` | string |  | Only this category, e.g. registration, grant, heartbeat, admin, fault, tls, api. |
+| `category` | string |  | Only this category, e.g. registration, grant, heartbeat, admin, fault, tls, api, auth. |
 | `cbsdId` | string |  | Only events about this CBSD. |
 | `grantId` | string |  | Only events about this grant. |
 | `q` | string |  | Text search in the message. · min length 1 |
@@ -3415,8 +3912,9 @@ Responses:
 |---|---|---|
 | 200 | NDJSON or JSON file. | `application/x-ndjson` |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### getEvent
@@ -3437,9 +3935,10 @@ Responses:
 |---|---|---|
 | 200 | The event. | [Event](#schema-event) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### streamEvents
@@ -3456,14 +3955,14 @@ A `text/event-stream` that stays open. Event types:
 - `changed`: `{"what": "cbsds" | "grants" | "settings" | "certs" | "spectrum" | "faults" | "map" | "terrain" | "status" | …}`. Re-read that resource.
 
 A comment line (`: ping`) is sent every 15 s to keep proxies from closing the connection.
-Browsers' EventSource cannot set headers, so this route also accepts the API token as `?access_token=`.
+Browsers' EventSource cannot set headers, so this route also accepts the API key as `?access_token=` (in the console the login cookie is enough).
 
 Query parameters:
 
 | Name | Type | Required | Description |
 |---|---|---|---|
 | `types` | array of `"event"` \| `"message"` \| `"changed"` |  | Comma-separated event types to receive (default: all). Comma-separated. |
-| `access_token` | string |  | API token, for clients that cannot send an Authorization header. |
+| `access_token` | string |  | API key, for clients that cannot send an Authorization header. |
 
 Responses:
 
@@ -3471,8 +3970,9 @@ Responses:
 |---|---|---|
 | 200 | Event stream. | `text/event-stream` |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ## Operations
@@ -3503,8 +4003,9 @@ Responses:
 | Status | Description | Body |
 |---|---|---|
 | 200 | State. | [OperationsState](#schema-operationsstate) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### getDailyActivities
@@ -3520,8 +4021,9 @@ Responses:
 | Status | Description | Body |
 |---|---|---|
 | 200 | Status. | [DailyActivities](#schema-dailyactivities) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### runDailyActivities
@@ -3545,8 +4047,9 @@ Responses:
 | 200 | Finished. | [DailyActivities](#schema-dailyactivities) |
 | 202 | Started. | [DailyActivities](#schema-dailyactivities) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### scheduleDailyActivities
@@ -3563,8 +4066,9 @@ Responses:
 |---|---|---|
 | 200 | Status. | [DailyActivities](#schema-dailyactivities) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### getMeasurementTriggers
@@ -3578,8 +4082,9 @@ Responses:
 | Status | Description | Body |
 |---|---|---|
 | 200 | Triggers. | [MeasurementTriggers](#schema-measurementtriggers) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### setMeasurementTriggers
@@ -3612,8 +4117,9 @@ Responses:
 |---|---|---|
 | 200 | Triggers. | [MeasurementTriggers](#schema-measurementtriggers) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### setOperationFlags
@@ -3645,8 +4151,9 @@ Responses:
 |---|---|---|
 | 200 | State. | [OperationsState](#schema-operationsstate) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### resetSasState
@@ -3679,8 +4186,9 @@ Responses:
 |---|---|---|
 | 200 | Done. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -3713,8 +4221,9 @@ Responses:
 | Status | Description | Body |
 |---|---|---|
 | 200 | Status. | [Listeners](#schema-listeners) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### restartListeners
@@ -3731,8 +4240,9 @@ Responses:
 |---|---|---|
 | 200 | Status after the restart. | [Listeners](#schema-listeners) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### reloadTls
@@ -3749,8 +4259,9 @@ Responses:
 |---|---|---|
 | 200 | Status. | [Listeners](#schema-listeners) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ## Harness
@@ -3776,8 +4287,9 @@ Responses:
 | Status | Description | Body |
 |---|---|---|
 | 200 | Methods. | object |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -3822,10 +4334,11 @@ Responses:
 |---|---|---|
 | 200 | Result. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -3855,8 +4368,9 @@ Responses:
 |---|---|---|
 | 200 | sas.cfg | `text/plain` |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ## Certificates
@@ -3910,8 +4424,9 @@ Responses:
 |---|---|---|
 | 200 | A page of certificates. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -3943,9 +4458,10 @@ Responses:
 |---|---|---|
 | 200 | The certificate. | [CertificateDetail](#schema-certificatedetail) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### updateCert
@@ -3980,10 +4496,11 @@ Responses:
 |---|---|---|
 | 200 | The certificate. | [CertificateDetail](#schema-certificatedetail) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### deleteCert
@@ -4006,10 +4523,11 @@ Responses:
 |---|---|---|
 | 204 | Deleted. |  |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### createRootCa
@@ -4048,8 +4566,9 @@ Responses:
 |---|---|---|
 | 201 | Created. | [CertificateDetail](#schema-certificatedetail) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### createSubCa
@@ -4092,9 +4611,10 @@ Responses:
 |---|---|---|
 | 201 | Created. | [CertificateDetail](#schema-certificatedetail) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### issueServerCert
@@ -4144,9 +4664,10 @@ Responses:
 |---|---|---|
 | 201 | Created. | [CertificateDetail](#schema-certificatedetail) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### issueCbsdCert
@@ -4189,9 +4710,10 @@ Responses:
 |---|---|---|
 | 201 | Created. | [CertificateDetail](#schema-certificatedetail) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### issueCbsdCertBatch
@@ -4239,9 +4761,10 @@ Responses:
 |---|---|---|
 | 200 | Zip of bundles. | `application/zip` |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### issueDomainProxyCert
@@ -4282,9 +4805,10 @@ Responses:
 |---|---|---|
 | 201 | Created. | [CertificateDetail](#schema-certificatedetail) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### issueInstallerCert
@@ -4322,9 +4846,10 @@ Responses:
 |---|---|---|
 | 201 | Created. | [CertificateDetail](#schema-certificatedetail) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### importCerts
@@ -4359,8 +4884,9 @@ Responses:
 |---|---|---|
 | 201 | Imported. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 201 body:
@@ -4398,8 +4924,9 @@ Responses:
 |---|---|---|
 | 201 | Imported. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 201 body:
@@ -4428,10 +4955,11 @@ Responses:
 |---|---|---|
 | 200 | The certificate. | [CertificateDetail](#schema-certificatedetail) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### unrevokeCert
@@ -4452,10 +4980,11 @@ Responses:
 |---|---|---|
 | 200 | The certificate. | [CertificateDetail](#schema-certificatedetail) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### downloadCert
@@ -4499,9 +5028,10 @@ Responses:
 |---|---|---|
 | 200 | The file. | `application/octet-stream` |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### signCpiData
@@ -4549,9 +5079,10 @@ Responses:
 |---|---|---|
 | 200 | Signature. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -4585,8 +5116,9 @@ Responses:
 | Status | Description | Body |
 |---|---|---|
 | 200 | TLS configuration. | [Tls](#schema-tls) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### setServerCerts
@@ -4619,8 +5151,9 @@ Responses:
 |---|---|---|
 | 200 | TLS configuration. | [Tls](#schema-tls) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### setTrustedClientCas
@@ -4653,8 +5186,9 @@ Responses:
 |---|---|---|
 | 200 | TLS configuration. | [Tls](#schema-tls) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### downloadTrustBundle
@@ -4677,8 +5211,9 @@ Responses:
 |---|---|---|
 | 200 | PEM bundle. | `application/x-pem-file` |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ## CRLs
@@ -4714,8 +5249,9 @@ Responses:
 |---|---|---|
 | 200 | A page of CRLs. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -4762,8 +5298,9 @@ Responses:
 |---|---|---|
 | 201 | Imported. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 201 body:
@@ -4792,9 +5329,10 @@ Responses:
 |---|---|---|
 | 200 | The CRL. | [Crl](#schema-crl) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### deleteCrl
@@ -4815,10 +5353,11 @@ Responses:
 |---|---|---|
 | 204 | Deleted. |  |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### downloadCrl
@@ -4839,9 +5378,10 @@ Responses:
 |---|---|---|
 | 200 | PEM CRL. | `application/x-pem-file` |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ## Map
@@ -4874,8 +5414,9 @@ Responses:
 | Status | Description | Body |
 |---|---|---|
 | 200 | Map configuration. | [MapConfig](#schema-mapconfig) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### listTileSets
@@ -4899,8 +5440,9 @@ Responses:
 |---|---|---|
 | 200 | A page of tile sets. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -4926,8 +5468,9 @@ Responses:
 |---|---|---|
 | 200 | Tile sets. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -4954,9 +5497,10 @@ Responses:
 |---|---|---|
 | 200 | The tile set. | [TileSet](#schema-tileset) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### deleteTileSet
@@ -4979,10 +5523,11 @@ Responses:
 |---|---|---|
 | 204 | Deleted. |  |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### getTile
@@ -5008,9 +5553,10 @@ Responses:
 |---|---|---|
 | 200 | Tile image. | `image/png` |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### getTileDownload
@@ -5026,8 +5572,9 @@ Responses:
 | Status | Description | Body |
 |---|---|---|
 | 200 | The job. | object |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -5079,9 +5626,10 @@ Responses:
 |---|---|---|
 | 202 | Started. | [TileDownloadJob](#schema-tiledownloadjob) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### cancelTileDownload
@@ -5098,8 +5646,9 @@ Responses:
 |---|---|---|
 | 200 | The job. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -5129,8 +5678,9 @@ Responses:
 |---|---|---|
 | 200 | Tile count. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -5169,8 +5719,9 @@ Responses:
 | Status | Description | Body |
 |---|---|---|
 | 200 | Terrain. | [Terrain](#schema-terrain) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### rescanTerrain
@@ -5187,9 +5738,10 @@ Responses:
 |---|---|---|
 | 200 | Tile count. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -5219,9 +5771,10 @@ Responses:
 |---|---|---|
 | 200 | Elevation. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -5256,9 +5809,10 @@ Responses:
 |---|---|---|
 | 200 | HAAT. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -5295,8 +5849,9 @@ Responses:
 |---|---|---|
 | 200 | Tiles. | [TerrainTilesNeeded](#schema-terraintilesneeded) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### getTerrainDownload
@@ -5312,8 +5867,9 @@ Responses:
 | Status | Description | Body |
 |---|---|---|
 | 200 | The job. | object |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -5360,9 +5916,10 @@ Responses:
 |---|---|---|
 | 202 | Started. | [TerrainDownloadJob](#schema-terraindownloadjob) |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### cancelTerrainDownload
@@ -5379,8 +5936,9 @@ Responses:
 |---|---|---|
 | 200 | The job. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -5398,7 +5956,7 @@ Configuration export and import, and a full database backup.
 |---|---|---|---|---|
 | GET | `/config/export` | [exportConfig](#exportconfig) | read | Export the configuration |
 | POST | `/config/import` | [importConfig](#importconfig) | write | Import a configuration |
-| GET | `/system/backup` | [downloadBackup](#downloadbackup) | write | Download a database backup |
+| GET | `/system/backup` | [downloadBackup](#downloadbackup) | admin | Download a database backup |
 
 ### exportConfig
 
@@ -5406,7 +5964,7 @@ Configuration export and import, and a full database backup.
 
 **Export the configuration.**
 
-Settings (password redacted), registry (FCC IDs, user IDs, blacklist, conditional registrations, CPI users), operator protections and PPAs, and fault rules, as one JSON document, the same file the console's Backup page saves. Certificates, CBSDs, grants and logs are not included: use GET /system/backup for everything.
+Settings, registry (FCC IDs, user IDs, blacklist, conditional registrations, CPI users), operator protections and PPAs, and fault rules, as one JSON document, the same file the console's Backup page saves. Certificates, CBSDs, grants and logs are not included: use GET /system/backup for everything.
 
 Query parameters:
 
@@ -5420,8 +5978,9 @@ Responses:
 |---|---|---|
 | 200 | The configuration. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ### importConfig
@@ -5430,7 +5989,7 @@ Responses:
 
 **Import a configuration.**
 
-Takes a document from GET /config/export (or the console). Settings are validated and applied, except the UI password, server certificates and trusted CAs, which stay as they are on this installation; unknown settings are skipped and listed. Rows are inserted or replaced by primary key; nothing is deleted.
+Takes a document from GET /config/export (or the console). Settings are validated and applied, except server certificates and trusted CAs, which stay as they are on this installation (user accounts and API keys are never imported); unknown settings are skipped and listed. Rows are inserted or replaced by primary key; nothing is deleted.
 
 Request body (JSON, required):
 
@@ -5471,8 +6030,9 @@ Responses:
 |---|---|---|
 | 200 | What was imported. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -5486,19 +6046,20 @@ Response 200 body:
 
 ### downloadBackup
 
-`GET /api/v1/system/backup` · scope **write**
+`GET /api/v1/system/backup` · scope **admin**
 
 **Download a database backup.**
 
-A consistent copy of the whole SQLite database (VACUUM INTO): settings, certificates and private keys, CBSDs, grants, registry, spectrum data, fault rules, logs and API token hashes. To restore, stop the SAS and replace sas.db in the data directory. Needs write access because it contains private keys.
+A consistent copy of the whole SQLite database (VACUUM INTO): settings, certificates and private keys, CBSDs, grants, registry, spectrum data, fault rules, logs, user accounts (password hashes) and API key hashes. To restore, stop the SAS and replace sas.db in the data directory. For admins, because it contains private keys and password hashes.
 
 Responses:
 
 | Status | Description | Body |
 |---|---|---|
 | 200 | SQLite database. | `application/vnd.sqlite3` |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 ## Data
@@ -5524,8 +6085,9 @@ Responses:
 | Status | Description | Body |
 |---|---|---|
 | 200 | Tables. | object |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -5557,9 +6119,10 @@ Responses:
 |---|---|---|
 | 200 | Table description. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -5581,7 +6144,7 @@ Response 200 body:
 
 **Read table rows.**
 
-Raw rows (snake_case columns, JSON stored as text, timestamps in epoch milliseconds). Filter on one column with `column` and `value` (exact match) or `like` (substring). Private keys, the UI password and token hashes read as "[redacted]". The rows of api_tokens need write access, like GET /tokens.
+Raw rows (snake_case columns, JSON stored as text, timestamps in epoch milliseconds). Filter on one column with `column` and `value` (exact match) or `like` (substring). Private keys, password hashes, session IDs and API key hashes read as "[redacted]". The rows of api_tokens need write access, like GET /tokens; the users and sessions tables are for admins.
 
 Path parameters:
 
@@ -5608,9 +6171,10 @@ Responses:
 |---|---|---|
 | 200 | A page of rows. | object |
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
-| 401 | No valid credentials (unauthorized). | [Error](#schema-error) |
-| 403 | The API token is read-only (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
+| 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
 | 404 | The resource does not exist (not_found). | [Error](#schema-error) |
+| 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
 Response 200 body:
@@ -5892,7 +6456,7 @@ Named schemas used in request and response bodies. Response objects contain exac
 |---|---|---|---|
 | `error` | object | yes |  |
 | `error.status` | integer | yes | HTTP status. |
-| `error.code` | string | yes | Stable machine-readable code: bad_request, validation_failed, invalid_json, unauthorized, forbidden, origin_not_allowed, not_found, route_not_found, method_not_allowed, conflict, payload_too_large, operation_failed, internal_error. |
+| `error.code` | string | yes | Stable machine-readable code: bad_request, validation_failed, invalid_json, unauthorized, account_disabled, forbidden, origin_not_allowed, host_not_allowed, not_found, route_not_found, method_not_allowed, conflict, payload_too_large, too_many_attempts, operation_failed, internal_error. |
 | `error.message` | string | yes | Human-readable explanation. |
 | `error.requestId` | string | yes | Same as the X-Request-Id response header; quote it when reporting a problem. |
 | `error.details` | array of object |  | With validation_failed: one entry per problem. |
@@ -6138,11 +6702,14 @@ Result of the last PPA creation (harness get_ppa_status).
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `method` | `"open"` \| `"password"` \| `"token"` | yes |  |
+| `method` | `"open"` \| `"session"` \| `"password"` \| `"token"` | yes | session: the console login; password: HTTP Basic; token: an API key; open: authentication is switched off (SAS_AUTH=off). |
 | `scope` | `"read"` \| `"write"` | yes |  |
+| `role` | `"admin"` \| `"operator"` \| `"viewer"` | yes | Effective role (a read API key acts as a viewer). |
+| `userId` | integer |  |  |
+| `username` | string |  |  |
 | `tokenId` | string |  |  |
 | `tokenName` | string |  |  |
-| `passwordSet` | boolean | yes | A UI password is set (otherwise the API is open). |
+| `authEnabled` | boolean | yes | Authentication is required (false only with SAS_AUTH=off). |
 
 ### Schema: Protection
 
@@ -6204,6 +6771,48 @@ Result of the last PPA creation (harness get_ppa_status).
 | `conditional` | array of [ConditionalRegistration](#schema-conditionalregistration) | yes |  |
 | `cpiUsers` | array of [CpiUser](#schema-cpiuser) | yes |  |
 
+### Schema: RegistryAddResult
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `cbsdId` | string | yes |  |
+| `fccId` | string | yes |  |
+| `serial` | string | yes |  |
+| `userId` | string \| null | yes |  |
+| `state` | string | yes |  |
+| `inRegistry` | object | yes | After the call. |
+| `inRegistry.fccId` | boolean | yes |  |
+| `inRegistry.userId` | boolean | yes |  |
+| `inRegistry.registration` | boolean | yes |  |
+| `added` | object | yes | What this call added. |
+| `added.fccId` | boolean | yes |  |
+| `added.userId` | boolean | yes |  |
+| `added.registration` | boolean | yes |  |
+| `notes` | array of string | yes | Why something was not added (already listed, no user ID, preload kept). |
+
+### Schema: RegistryAddResults
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `results` | array of [RegistryAddResult](#schema-registryaddresult) | yes |  |
+| `unknown` | array of string | yes | Requested cbsdIds with no CBSD record. |
+
+### Schema: RegistryEntry
+
+A CBSD the SAS has a record of, and what the registry holds for it.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `cbsdId` | string | yes |  |
+| `fccId` | string | yes |  |
+| `serial` | string | yes |  |
+| `userId` | string \| null | yes | Null when the CBSD registered without one. |
+| `state` | string | yes | REGISTERED, PENDING or UNREGISTERED. |
+| `inRegistry` | object | yes |  |
+| `inRegistry.fccId` | boolean | yes | The FCC ID is listed. |
+| `inRegistry.userId` | boolean | yes | The user ID is listed (false when the CBSD has none). |
+| `inRegistry.registration` | boolean | yes | Registration data is preloaded for this FCC ID and serial number. |
+
 ### Schema: SasExchange
 
 | Field | Type | Required | Description |
@@ -6215,6 +6824,19 @@ Result of the last PPA creation (harness get_ppa_status).
 | `durationMs` | integer | yes |  |
 | `body` | any | yes | Parsed response body (text when it is not JSON). |
 | `error` | string \| null | yes | Transport error (connection refused, reset, timeout, TLS failure). |
+
+### Schema: Session
+
+A console sign-in.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `createdAt` | integer | yes |  |
+| `lastSeenAt` | integer | yes |  |
+| `expiresAt` | integer | yes |  |
+| `addr` | string \| null | yes |  |
+| `userAgent` | string \| null | yes |  |
+| `current` | boolean | yes | The session making this request. |
 
 ### Schema: SettingDescription
 
@@ -6281,7 +6903,6 @@ Result of the last PPA creation (harness get_ppa_status).
 | `harnessAdminEnabled` | boolean | yes | Serve the WInnForum test-harness admin API under /admin/ on the SAS listeners. The /api/v1/harness endpoints work either way. |
 | `msgLogLimit` | integer | yes | Wire-log entries kept; older ones are pruned. · ≥ 100 |
 | `eventLogLimit` | integer | yes | Events kept; older ones are pruned. · ≥ 100 |
-| `uiPassword` | string | yes | Password for the web console and API (HTTP Basic, any user name). Empty: no password. Read back as "********" when set; sending "********" leaves it unchanged. SAS_UI_PASSWORD overrides it on every start. · max length 200, write-only |
 | `mapSource` | `"builtin"` \| `"local"` \| `"url"` | yes | `builtin`: bundled offline basemap. `local`: the offline tile store. `url`: an online tile server. |
 | `mapLocalTiles` | string | yes | Tile set in the offline tile store (file or folder name). Empty: the first usable one. · max length 200 |
 | `mapTileUrl` | string | yes | {z}/{x}/{y} tile URL template for mapSource=url. · max length 2000 |
@@ -6350,7 +6971,7 @@ Result of the last PPA creation (harness get_ppa_status).
 | `now` | integer | yes | Server time (epoch milliseconds). |
 | `hostname` | string | yes |  |
 | `listeners` | [Listeners](#schema-listeners) | yes |  |
-| `urls` | array of string | yes | SAS base URLs to configure in CBSDs. |
+| `urls` | array of string | yes | SAS base URLs to configure in CBSDs: one per advertised name or address (SAS_FQDN and the address in use) and enabled listener. |
 | `counts` | object | yes |  |
 | `counts.cbsdsRegistered` | integer | yes |  |
 | `counts.cbsdsPending` | integer | yes |  |
@@ -6386,7 +7007,10 @@ Result of the last PPA creation (harness get_ppa_status).
 | `uptimeMs` | integer | yes |  |
 | `memory` | map of integer | yes |  |
 | `uiPort` | integer | yes |  |
-| `hostnames` | array of string | yes |  |
+| `apiPort` | integer | yes | Port of the public API (SAS_API_PORT; the UI port when not set). |
+| `bindIp` | string | yes | Address the listeners bind (SAS_BIND_IP); 0.0.0.0 means all. |
+| `hostnames` | array of string | yes | Names and addresses in the auto-generated server certificates. |
+| `advertised` | array of string | yes | Names and addresses radios should use: SAS_FQDN and the address in use. |
 | `dataDir` | string | yes |  |
 | `database` | object | yes |  |
 | `database.file` | string | yes |  |
@@ -6510,7 +7134,9 @@ Result of the last PPA creation (harness get_ppa_status).
 | `expiresAt` | integer \| null | yes |  |
 | `lastUsedAt` | integer \| null | yes | Last use (updated at most once a minute) (epoch milliseconds). |
 | `lastUsedAddr` | string \| null | yes |  |
-| `token` | string |  | The secret. Returned once, when the token is created. |
+| `userId` | integer \| null | yes | Owner. The key acts as this user, with at most its own scope. |
+| `username` | string \| null | yes | Owner's user name. |
+| `token` | string |  | The secret. Returned once, when the key is created. |
 
 ### Schema: TokenCreated
 
@@ -6524,7 +7150,25 @@ Result of the last PPA creation (harness get_ppa_status).
 | `expiresAt` | integer \| null | yes |  |
 | `lastUsedAt` | integer \| null | yes | Last use (updated at most once a minute) (epoch milliseconds). |
 | `lastUsedAddr` | string \| null | yes |  |
-| `token` | string | yes | The secret. Returned once, when the token is created. |
+| `userId` | integer \| null | yes | Owner. The key acts as this user, with at most its own scope. |
+| `username` | string \| null | yes | Owner's user name. |
+| `token` | string | yes | The secret. Returned once, when the key is created. |
+
+### Schema: User
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `id` | integer | yes |  |
+| `username` | string | yes |  |
+| `displayName` | string \| null | yes |  |
+| `role` | `"admin"` \| `"operator"` \| `"viewer"` | yes | admin: everything; operator: everything except users; viewer: read-only. |
+| `enabled` | boolean | yes | Disabled users cannot sign in; their sessions and API keys stop working. |
+| `defaultPassword` | boolean | yes | Still using the default password it was created with (admin/admin). |
+| `createdAt` | integer | yes |  |
+| `updatedAt` | integer | yes |  |
+| `passwordChangedAt` | integer | yes |  |
+| `lastLoginAt` | integer \| null | yes | Last console sign-in (epoch milliseconds). |
+| `lastLoginAddr` | string \| null | yes |  |
 
 ### Schema: UserId
 

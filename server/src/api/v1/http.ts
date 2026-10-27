@@ -8,7 +8,7 @@ import type { SasServer } from '../../net/sasServer.ts';
 import type { SasAdmin } from '../../sas/admin.ts';
 import type { TileDownloader, TileStore } from '../../map/tiles.ts';
 import type { TerrainDownloader } from '../../tools/terrainFetch.ts';
-import type { ApiTokens, Principal, Scope } from './auth.ts';
+import type { ApiTokens, Auth, Principal, Scope } from './auth.ts';
 import type { Schema } from './schema.ts';
 
 // Types shared by the v1 dispatcher and the route modules.
@@ -25,10 +25,19 @@ export interface V1Deps {
   tileDownloader: TileDownloader;
   terrainDownloader: TerrainDownloader;
   tokens: ApiTokens;
+  /** Users, sessions and the authentication of every request. */
+  auth: Auth;
   startedAt: number;
   version: string;
   uiPort: number;
+  /** Port of the public API (SAS_API_PORT, else the UI port). */
+  apiPort: number;
+  /** Address the listeners bind (SAS_BIND_IP). */
+  bindIp: string;
+  /** Names and addresses in the server certificate. */
   hostnames: string[];
+  /** Names and addresses radios should use (SAS_FQDN and the address in use). */
+  advertised: string[];
   dataDir: string;
   /** Origins allowed to call the API from a browser (SAS_API_CORS_ORIGINS); '*' allows any. */
   corsOrigins: string[];
@@ -36,8 +45,11 @@ export interface V1Deps {
 
 export type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
-/** Who may call a route: anyone, any authenticated caller, or callers with write access. */
-export type RouteScope = 'public' | Scope;
+/**
+ * Who may call a route: anyone, any authenticated caller (read), callers with write access
+ * (operators and admins, write API keys), or admins only.
+ */
+export type RouteScope = 'public' | Scope | 'admin';
 
 export interface ParamSpec {
   description: string;
@@ -91,6 +103,8 @@ export interface Ctx {
   head: boolean;
   /** Throw 403 unless the caller has write access (for GET routes that reveal secrets). */
   requireWrite: (what: string) => void;
+  /** Throw 403 unless the caller is an admin with write access. */
+  requireAdmin: (what: string) => void;
 }
 
 export class ApiError extends Error {
@@ -107,6 +121,7 @@ export class ApiError extends Error {
 
 export const notFound = (what: string) => new ApiError(404, 'not_found', `${what} not found`);
 export const conflict = (message: string) => new ApiError(409, 'conflict', message);
+export const forbidden = (message: string) => new ApiError(403, 'forbidden', message);
 export const badRequest = (message: string, details?: unknown) => new ApiError(400, 'bad_request', message, details);
 export const invalid = (path: string, message: string) => new ApiError(400, 'validation_failed', `${path} ${message}`, [{ path, message }]);
 

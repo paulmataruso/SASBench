@@ -222,6 +222,32 @@ CREATE TABLE IF NOT EXISTS events (
 );
 CREATE INDEX IF NOT EXISTS events_ts ON events(ts);
 
+CREATE TABLE IF NOT EXISTS users (
+  id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+  username            TEXT NOT NULL UNIQUE COLLATE NOCASE,
+  display_name        TEXT,
+  role                TEXT NOT NULL,        -- admin | operator | viewer
+  password_hash       TEXT NOT NULL,        -- scrypt$N$r$p$salt$hash
+  enabled             INTEGER NOT NULL DEFAULT 1,
+  default_password    INTEGER NOT NULL DEFAULT 0,
+  created_at          INTEGER NOT NULL,
+  updated_at          INTEGER NOT NULL,
+  password_changed_at INTEGER NOT NULL,
+  last_login_at       INTEGER,
+  last_login_addr     TEXT
+);
+
+CREATE TABLE IF NOT EXISTS sessions (
+  id           TEXT PRIMARY KEY,            -- SHA-256 of the cookie secret
+  user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at   INTEGER NOT NULL,
+  last_seen_at INTEGER NOT NULL,
+  expires_at   INTEGER NOT NULL,
+  addr         TEXT,
+  user_agent   TEXT
+);
+CREATE INDEX IF NOT EXISTS sessions_user ON sessions(user_id);
+
 CREATE TABLE IF NOT EXISTS api_tokens (
   id          TEXT PRIMARY KEY,
   name        TEXT NOT NULL,
@@ -231,7 +257,8 @@ CREATE TABLE IF NOT EXISTS api_tokens (
   created_at  INTEGER NOT NULL,
   expires_at  INTEGER,
   last_used_at INTEGER,
-  last_used_addr TEXT
+  last_used_addr TEXT,
+  user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE  -- owner; the token acts with at most the owner's role
 );
 `;
 
@@ -243,6 +270,9 @@ export class Db {
     this.sql = new DatabaseSync(file);
     this.sql.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON;');
     this.sql.exec(SCHEMA);
+    // Columns added after a table first shipped.
+    const has = (table: string, col: string) => (this.all(`PRAGMA table_info(${table})`) as Row[]).some((c) => c.name === col);
+    if (!has('api_tokens', 'user_id')) this.sql.exec('ALTER TABLE api_tokens ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE CASCADE');
   }
 
   all(q: string, ...p: any[]): Row[] {

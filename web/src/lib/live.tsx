@@ -34,6 +34,9 @@ export function LiveProvider({ children }: { children: ReactNode }) {
         setConnected(false);
         if (es?.readyState === EventSource.CLOSED) {
           es.close();
+          // The stream is refused once the session ends: any request then gets a 401, which
+          // signs the console out (see lib/auth).
+          void api.get('/api/auth/me').catch(() => undefined);
           retry = setTimeout(open, 3000);
         }
       };

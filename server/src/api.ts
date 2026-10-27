@@ -20,6 +20,7 @@ import { cbsdViewFromRow } from './sas/policy.ts';
 import { toRfc3339 } from './util/time.ts';
 import type { TileDownloader, TileStore } from './map/tiles.ts';
 import { MAX_DOWNLOAD_TILES, validateTemplate } from './map/tiles.ts';
+import { addCbsdToRegistry, addCbsdsToRegistry, entryOf, registryEntries, type RegistryAddOptions } from './registry.ts';
 
 // REST API for the web UI (/api/...) and the WInnForum harness admin hook (/admin/... on the SAS listeners).
 
@@ -35,6 +36,8 @@ export interface ApiDeps {
   version: string;
   uiPort: number;
   hostnames: string[];
+  /** Names and addresses radios should use (SAS_FQDN and the address in use). */
+  advertised: string[];
   tiles: TileStore;
   tileDownloader: TileDownloader;
 }
@@ -59,7 +62,7 @@ export function buildApi(d: ApiDeps): Router {
     const since = Date.now() - 3600e3;
     return {
       version: d.version, startedAt: d.startedAt, now: Date.now(), hostname: os.hostname(),
-      listeners: sas.getStatus(), urls: sasUrls(s, d.hostnames),
+      listeners: sas.getStatus(), urls: sasUrls(s, d.advertised),
       counts: {
         cbsdsRegistered: count("SELECT COUNT(*) AS n FROM cbsds WHERE state = 'REGISTERED'"),
         cbsdsPending: count("SELECT COUNT(*) AS n FROM cbsds WHERE state = 'PENDING'"),
@@ -91,14 +94,14 @@ export function buildApi(d: ApiDeps): Router {
 
   // ------------------------------------------------------------------ settings
 
-  r.get('/api/settings', () => ({ settings: redact(settings.get()), defaults: redact(DEFAULT_SETTINGS), presets: PRESETS, profile: detectProfile(settings.get()) }));
+  r.get('/api/settings', () => ({ settings: settings.get(), defaults: DEFAULT_SETTINGS, presets: PRESETS, profile: detectProfile(settings.get()) }));
   r.put('/api/settings', async ({ body }) => {
     const patch = await body();
     validateSettings(patch);
     const changed = settings.update(patch);
     if (changed.length) bus.event('info', 'settings', `Settings changed: ${changed.join(', ')}`);
     bus.changed('settings');
-    return { changed, settings: redact(settings.get()) };
+    return { changed, settings: settings.get() };
   });
   r.post('/api/settings/preset/:name', ({ params }) => {
     const p = PRESETS[params.name];
@@ -106,13 +109,13 @@ export function buildApi(d: ApiDeps): Router {
     const changed = settings.update(p.patch);
     bus.event('info', 'settings', `Applied settings profile "${p.label}"`);
     bus.changed('settings');
-    return { changed, settings: redact(settings.get()) };
+    return { changed, settings: settings.get() };
   });
   r.post('/api/settings/defaults', () => {
-    settings.resetToDefaults(['serverCertIds', 'trustedClientCaIds', 'uiPassword', 'sasHttpPort', 'sasHttpsPort']);
+    settings.resetToDefaults(['serverCertIds', 'trustedClientCaIds', 'sasHttpPort', 'sasHttpsPort']);
     bus.event('warn', 'settings', 'Settings restored to defaults');
     bus.changed('settings');
-    return { settings: redact(settings.get()) };
+    return { settings: settings.get() };
   });
 
   // ------------------------------------------------------------------ CBSDs
@@ -138,7 +141,7 @@ export function buildApi(d: ApiDeps): Router {
     const view = cbsdViewFromRow(c);
     const pre = db.get('SELECT data FROM conditional_reg WHERE fcc_id = ? AND serial = ?', c.fcc_id, c.serial);
     return {
-      ...cbsdOut(c, {}), grants, events, messages, conditional: jparse(pre?.data, null),
+      ...cbsdOut(c, {}), grants, events, messages, conditional: jparse(pre?.data, null), registry: entryOf(db, c).inRegistry,
       limits: { maxEirpPer10MHz: engine.policy.maxEirpPer10MHz(view), maxEirpDbmMhz: engine.policy.maxEirpDbmMhz(view) },
       availability: engine.policy.availability(view),
       protections: engine.policy.protections().filter((p) => engine.policy.affects(p, view)).map((p) => ({ id: p.id, name: p.name, kind: p.kind })),
@@ -243,6 +246,19 @@ export function buildApi(d: ApiDeps): Router {
     conditional: db.all('SELECT * FROM conditional_reg ORDER BY created_at DESC').map((x) => ({ ...x, data: jparse(x.data, {}) })),
     cpiUsers: db.all('SELECT * FROM cpi_users ORDER BY cpi_id'),
   }));
+  // Registered radios and what the registry holds for each; add them in one go.
+  const regCtx = () => ({ db, admin, bus, defaultMaxEirp: settings.get().defaultFccMaxEirp });
+  const regOpts = (b: any): RegistryAddOptions => ({ fccId: b.fccId !== false, userId: b.userId !== false, registration: b.registration !== false, replace: b.replace === true });
+  r.get('/api/registry/from-cbsds', () => registryEntries(db));
+  r.post('/api/registry/from-cbsds', async ({ body }) => {
+    const b = await body();
+    return addCbsdsToRegistry(regCtx(), Array.isArray(b.cbsdIds) ? b.cbsdIds.map(String) : undefined, regOpts(b));
+  });
+  r.post('/api/cbsds/:id/registry', async ({ params, body }) => {
+    const out = addCbsdToRegistry(regCtx(), params.id, regOpts(await body()));
+    if (!out) throw new HttpError(404, 'CBSD not found');
+    return out;
+  });
   r.post('/api/registry/fcc-ids', async ({ body }) => {
     const b = await body();
     admin.injectFccId(need(b.fccId, 'fccId'), b.maxEirp === '' || b.maxEirp == null ? 47 : Number(b.maxEirp));
@@ -619,7 +635,7 @@ export function buildApi(d: ApiDeps): Router {
       const [fccId, serial] = line.split(/[,;\t ]+/);
       if (!fccId || !serial) throw new HttpError(400, `Bad line: ${line}`);
       const c = pki.issueCbsd({ parentId: need(b.parentId, 'parentId'), fccId, serial, keyType: kt(b.keyType, 'rsa2048'), days: num(b.days) });
-      const zip = pki.radioBundle(c.id, { password: b.password || 'cbrs', serverCertId: settings.get().serverCertIds[0] ?? null, sasUrls: sasUrls(settings.get(), d.hostnames) });
+      const zip = pki.radioBundle(c.id, { password: b.password || 'cbrs', serverCertId: settings.get().serverCertIds[0] ?? null, sasUrls: sasUrls(settings.get(), d.advertised) });
       files[`${safe(fccId)}_${safe(serial)}.zip`] = zip;
     }
     files['devices.txt'] = strToU8(lines.join('\n') + '\n');
@@ -708,7 +724,7 @@ export function buildApi(d: ApiDeps): Router {
       case 'key-traditional': return sendBuffer(res, 200, pki.keyPem(params.id, 'traditional'), 'application/x-pem-file', `${base}-key-traditional.pem`);
       case 'p12': return sendBuffer(res, 200, pki.pkcs12(params.id, password, false), 'application/x-pkcs12', `${base}.p12`);
       case 'p12-legacy': return sendBuffer(res, 200, pki.pkcs12(params.id, password, true), 'application/x-pkcs12', `${base}-legacy.p12`);
-      case 'bundle': return sendBuffer(res, 200, pki.radioBundle(params.id, { password, serverCertId: settings.get().serverCertIds[0] ?? null, sasUrls: sasUrls(settings.get(), d.hostnames) }), 'application/zip', `${base}-bundle.zip`);
+      case 'bundle': return sendBuffer(res, 200, pki.radioBundle(params.id, { password, serverCertId: settings.get().serverCertIds[0] ?? null, sasUrls: sasUrls(settings.get(), d.advertised) }), 'application/zip', `${base}-bundle.zip`);
       case 'crl': {
         const crl = pki.crlFor(params.id);
         if (!crl) throw new HttpError(400, 'CRLs can only be generated for CAs with a private key');
@@ -765,7 +781,7 @@ export function buildApi(d: ApiDeps): Router {
 
   r.get('/api/export', ({ res }) => {
     const dump = {
-      exportedAt: new Date().toISOString(), version: d.version, settings: redact(settings.get()),
+      exportedAt: new Date().toISOString(), version: d.version, settings: settings.get(),
       fccIds: db.all('SELECT * FROM fcc_ids'), userIds: db.all('SELECT * FROM user_ids'), blacklist: db.all('SELECT * FROM blacklist'),
       conditional: db.all('SELECT * FROM conditional_reg'), cpiUsers: db.all('SELECT * FROM cpi_users'),
       protections: db.all("SELECT * FROM protections WHERE source = 'ui'"), ppas: db.all("SELECT * FROM ppas WHERE source != 'harness'"),
@@ -777,6 +793,7 @@ export function buildApi(d: ApiDeps): Router {
     const b = await body();
     db.tx(() => {
       if (b.settings) {
+        // uiPassword: the console password of versions before user accounts; old exports may contain it.
         const { uiPassword: _pw, serverCertIds: _a, trustedClientCaIds: _b, ...rest } = b.settings;
         settings.update(rest);
       }
@@ -871,12 +888,7 @@ export function detectProfile(s: Settings): string | null {
   return null;
 }
 
-export function redact(s: Settings): Settings {
-  return { ...s, uiPassword: s.uiPassword ? '********' : '' };
-}
-
 function validateSettings(p: any) {
-  if (p.uiPassword === '********') delete p.uiPassword;
   const port = (k: string) => {
     if (k in p && (!Number.isInteger(p[k]) || p[k] < 1 || p[k] > 65535)) throw new HttpError(400, `${k} must be a TCP port`);
   };

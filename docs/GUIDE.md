@@ -3,10 +3,12 @@
 How to connect radios, issue their certificates, control what the SAS does, and run the WInnForum test harness. For installation, see [INSTALL.md](INSTALL.md).
 
 - [The console at a glance](#the-console-at-a-glance)
+- [Users, roles and API keys](#users-roles-and-api-keys)
 - [Connecting a radio](#connecting-a-radio)
 - [Certificates for the radio](#certificates-for-the-radio)
 - [TLS behaviour (WINNF-TS-0065)](#tls-behaviour-winnf-ts-0065)
 - [Settings profiles](#settings-profiles)
+- [Registry](#registry)
 - [What the SAS can do](#what-the-sas-can-do)
 - [Map](#map)
 - [Terrain (Category A HAAT)](#terrain-category-a-haat)
@@ -19,8 +21,8 @@ How to connect radios, issue their certificates, control what the SAS does, and 
 
 | Page | What it is for |
 |------|----------------|
-| **Overview** | The SAS URLs to put in a radio, the CBSD rack (REG, GNT and HB LEDs and the transmit window of every radio), band occupancy, SAS state and a live feed of exchanges. |
-| **CBSDs** | Every radio that has sent a registration request. Each one has a page with its grants, exchanges, events and raw registration, operator overrides (EIRP cap, measurement reports, notes) and actions: approve, send 105, deregister, delete. |
+| **Overview** | The SAS URLs to put in a radio (built from `SAS_FQDN` and the address SASBench listens on), the CBSD rack (REG, GNT and HB LEDs and the transmit window of every radio), band occupancy, SAS state and a live feed of exchanges. |
+| **CBSDs** | Every radio that has sent a registration request, with a button that adds the ones not yet in the registry. Each one has a page with its grants, exchanges, events and raw registration, operator overrides (EIRP cap, measurement reports, notes) and actions: approve, send 105, deregister, delete, add to registry. |
 | **Grants** | Every grant with its channel, EIRP, heartbeats and expiry. Suspend, edit or terminate any of them. |
 | **Spectrum** | The band plan (GAA, PAL, protections and grants on one frequency axis), the map of CBSDs and protection areas, and PPAs. |
 | **Wire log** | Every request that reached the SAS, with the exact JSON exchanged. Filter by method, search, show errors only, export NDJSON, or replay a request in the console. |
@@ -28,16 +30,51 @@ How to connect radios, issue their certificates, control what the SAS does, and 
 | **Request console** | Send hand-written SAS–CBSD requests into the engine, as a radio would, from per-method templates. Shows the same request as a `curl` command. |
 | **Fault injection** | Rules that rewrite what the SAS listeners put on the wire, plus one-click quick faults. |
 | **Certificates** | The lab PKI: radio certificate kits, CA, server, domain proxy and installer certificates, imports, CRLs, and step-by-step instructions for Nokia AirScale BBUs. |
-| **Registry** | FCC ID and user ID databases, the blacklist, conditional registration (preloaded installation data), CPI users, and signing CPI data. |
-| **Settings** | Profiles, listeners and TLS, protocol, registration and spectrum policy, test harness, map, UI and logs, and maintenance (export, import, reset). |
+| **Registry** | Registered radios (add them to the registry in one click), FCC ID and user ID databases, the blacklist, conditional registration (preloaded installation data), CPI users, and signing CPI data. |
+| **Settings** | Profiles, listeners and TLS, protocol, registration and spectrum policy, test harness, map, logs, and maintenance (export, import, reset). |
+| **API keys** | Keys for scripts and other applications that use the REST API. |
+| **Users** | User accounts, their roles and sessions (admins only). |
 
 **Following a CBSD.** Pick a radio in the **Follow a CBSD** box at the top of every page. It is highlighted everywhere it appears, and the Grants, Wire log and Events pages get a **Followed CBSD only** switch.
 
+**Your account.** The account menu at the top right shows who is signed in. It leads to **Your account** (details and password), the API keys and, for admins, the Users page, and it signs you out.
+
 **Reading the rack LEDs.** REG is the registration state, GNT the grant state and HB the heartbeat. Green means registered, authorized or on time; amber means pending, suspended or late; red means terminated or an error; blue means granted but not yet authorized to transmit; grey means none. The heartbeat LED follows each radio's own heartbeat interval: it turns amber when a heartbeat is late and grey when the radio has gone quiet.
+
+## Users, roles and API keys
+
+The console and the REST API need a user account. The first start creates one, **`admin`**, with the password `admin` (or `SAS_ADMIN_PASSWORD`, if it was set; see [INSTALL.md](INSTALL.md#users-and-api-keys)). Until that password is changed, a banner across the console says so.
+
+**Signing in.** Sign-in lasts 7 days from the last visit, and at most 30 days. Signing out, a password change, disabling the account or an admin's **Sign out everywhere** ends it, and the console returns to the sign-in page. Ten failed attempts from one address pause sign-in from it for a few minutes.
+
+**Changing your password.** Account menu → **Your account** → **Change password**, at least 8 characters. Your other sessions are signed out; this one stays.
+
+**Roles.**
+
+| Role | Can |
+|------|-----|
+| **Admin** | Everything, including user accounts and every API key. |
+| **Operator** | Run the SAS: settings, CBSDs, grants, certificates, registry, faults, request console. No user accounts. |
+| **Viewer** | Look at everything except private keys, backups and user accounts. Changes are refused. |
+
+**Managing users** (admins). The **Users** page adds accounts (user name, display name, role and a first password) and lists them with their last sign-in. Open an account to change its display name or role, disable it, set a new password, see its sessions and end them, or delete it. Disabling or deleting an account signs it out at once and stops its API keys. The last enabled admin cannot be demoted, disabled or deleted.
+
+**API keys.** Scripts and other applications should use an API key rather than a password. On the **API keys** page, name the key after what will use it, choose **Read-only** or **Read & write**, and pick an expiry. The key (`sasb_…`) is shown once: copy it then, because only a hash is kept. Send it as `Authorization: Bearer sasb_…`.
+
+- A key acts as the user who created it and never has more access than that user: a viewer's keys are read-only, and keys stop working when the account is disabled or deleted.
+- Read-only keys cannot read private keys, backups or user accounts.
+- Everyone sees and revokes their own keys; admins see every key and can create keys for other users, such as a service account.
+- Keys cannot create or revoke API keys or change passwords: sign in for that.
+
+**Forgotten passwords.** An admin can set a new one on the **Users** page. If nobody can sign in, run `docker exec sasbench node server/src/tools/reset-password.ts admin` on the host; it prints a new password ([details](INSTALL.md#forgotten-passwords)).
+
+**Open benches.** `SAS_AUTH=off` switches sign-in off: everyone who can reach the console has full admin access, and the account menu shows **Sign-in off**. Use it only on an isolated bench.
+
+The SAS protocol ports (`8000`, `8443`) are not behind sign-in: radios are identified by their certificates. Neither is the harness admin API on those ports (`/admin/…`); turn it off in **Settings → Test harness** outside harness runs.
 
 ## Connecting a radio
 
-1. Open the UI. The **Overview** page lists the SAS URLs.
+1. Sign in. The **Overview** page lists the SAS URLs, built from `SAS_FQDN` and the address SASBench listens on (`SAS_BIND_IP`, or the host's main address).
 2. Configure the radio with:
    - `https://<host>:8443/v1.2/`, the production-like setup (mutual TLS); or
    - `http://<host>:8000/v1.2/`, no TLS, for first bring-up or radios without certificates.
@@ -113,7 +150,7 @@ Settings are live-edited on the **Settings** page and stored in the database. Th
 | `winnforum` | Matches the test harness: mutual TLS required, FCC and user IDs must be injected, strict CPI rules, cbsdId bound to the registering certificate, 15-minute grants, 200 s transmit window |
 | `open` | No client certificates, no role or identity checks, and radios that send no location still register; for simulators, `curl` and quick bring-up |
 
-`SAS_PROFILE=<name>` applies a profile once, on the first start with an empty data volume.
+`SAS_PROFILE=<name>` in `.env` picks the profile to start with. It is applied on the first start and again whenever its value changes; changes made in Settings afterwards are kept across restarts. With `SAS_PROFILE_APPLY=always` it is re-applied on every start.
 
 ### Radios that send no location
 
@@ -123,6 +160,17 @@ Many Category B radios (Nokia AirScale, for one) register without installation d
 - **Register anyway:** used by `open`. The location stays unknown: the radio counts as inside every active protection area and is not drawn on the map.
 
 Either way the SAS uses everything the radio does send. Preloaded data only fills fields the radio leaves out, and CPI-signed data overrides both.
+
+## Registry
+
+The **Registry** page holds what the SAS knows about radios before they ask: FCC IDs (with their maximum EIRP), user IDs, the blacklist, preloaded registration data (conditional registration) and CPI users. The `winnforum` profile and the **Require known FCC ID** and **Require known user ID** settings refuse radios that are not in it.
+
+**Adding radios that have registered.** Once a radio has registered, you can copy what it sent into the registry, so it keeps registering after you enforce the registry or switch to a stricter profile:
+
+- **Registry → Registered radios** lists every radio that has registered and ticks off what the registry already holds for it: FCC ID, user ID and registration data. **Add** adds one radio; **Add N radios** adds every one not yet fully listed.
+- The **CBSDs** page has the same button for all unlisted radios, and each CBSD's page has **Add to registry**.
+
+Choose what to copy with the switches: the FCC ID (new FCC IDs get the default maximum EIRP), the user ID, and the registration data (category, air interface, installation parameters and measurement capability, preloaded as conditional registration data). Entries already in the registry are kept. The API has the same operations: `GET` and `POST /api/v1/registry/from-cbsds`.
 
 ## What the SAS can do
 
@@ -206,22 +254,24 @@ Everything on these pages can also be done through the REST API at `/api/v1`, on
 Test rigs use the API to set up the SAS before a radio test and to check what happened afterwards.
 
 ```bash
-curl -s http://<host>:8080/api/v1/status | jq
-curl -sN "http://<host>:8080/api/v1/stream?types=message"     # live exchanges
+KEY=sasb_...                                                     # from the API keys page
+curl -s -H "Authorization: Bearer $KEY" http://<host>:8080/api/v1/status | jq
+curl -sN -H "Authorization: Bearer $KEY" "http://<host>:8080/api/v1/stream?types=message"   # live exchanges
+curl -s -u admin:'your password' http://<host>:8080/api/v1/status    # or a user name and password
 ```
 
-While no UI password is set, the API is open like the console. With a password, use HTTP Basic or create API tokens with `read` or `write` scope (`POST /api/v1/tokens`). See the [API guide](API.md) for authentication, conventions and recipes, and the [API reference](API-REFERENCE.md) for every endpoint.
+Every API call needs an [API key](#users-roles-and-api-keys) or a user name and password; only the API index (`/api/v1/`), `/api/v1/health` and the OpenAPI document are open. See the [API guide](API.md) for authentication, conventions and recipes, and the [API reference](API-REFERENCE.md) for every endpoint. `SAS_API_PORT` serves the API on a port of its own as well.
 
 ## Data and persistence
 
 All state lives in `$SAS_DATA_DIR` (the `/data` volume in Docker):
 
-- `sas.db`, a SQLite database: settings, CBSDs, grants, PKI (certificates and private keys), registries, protections, logs;
+- `sas.db`, a SQLite database: settings, CBSDs, grants, PKI (certificates and private keys), registries, protections, logs, user accounts and API keys (passwords and keys stored as hashes);
 - `tmp/`, scratch space for OpenSSL;
 - `terrain/`, optional elevation tiles;
 - `tiles/`, the offline map tile store.
 
-Back up the volume to keep your PKI. Deleting it regenerates a fresh one, and radios then need new certificates. Resetting the SAS (from the UI, or the harness's `POST /admin/reset`) clears CBSDs, grants, registries, protections/DPAs/PPAs and injected incumbent data, but keeps certificates, settings and logs.
+Back up the volume to keep your PKI. Deleting it regenerates a fresh one, and radios then need new certificates. Resetting the SAS (from the UI, or the harness's `POST /admin/reset`) clears CBSDs, grants, registries, protections/DPAs/PPAs and injected incumbent data, but keeps certificates, settings, logs, user accounts and API keys.
 
 Backing up and restoring the volume is described in [INSTALL.md](INSTALL.md#backup-and-restore).
 

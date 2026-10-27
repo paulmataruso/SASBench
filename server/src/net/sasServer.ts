@@ -57,6 +57,8 @@ export class SasServer {
   private sockInfo = new WeakMap<Socket, SocketInfo>();
   private restarting: Promise<void> = Promise.resolve();
   adminHook: AdminHook | null = null;
+  /** Address both listeners bind (SAS_BIND_IP). */
+  bindHost = '0.0.0.0';
 
   private settings: SettingsStore;
   private pki: Pki;
@@ -124,7 +126,7 @@ export class SasServer {
       const srv = http.createServer((req, res) => void this.onRequest(req, res, 'http'));
       srv.keepAliveTimeout = 65_000;
       try {
-        await listen(srv, s.sasHttpPort);
+        await listen(srv, s.sasHttpPort, this.bindHost);
         this.httpServer = srv;
         this.status.http.listening = true;
         this.bus.event('info', 'listener', `SAS HTTP listening on port ${s.sasHttpPort}`);
@@ -146,7 +148,7 @@ export class SasServer {
           });
         });
         srv.on('secureConnection', (sock: tls.TLSSocket) => this.onSecureConnection(sock));
-        await listen(srv, s.sasHttpsPort);
+        await listen(srv, s.sasHttpsPort, this.bindHost);
         this.httpsServer = srv;
         this.status.https.listening = true;
         this.bus.event('info', 'listener', `SAS HTTPS listening on port ${s.sasHttpsPort} (client auth: ${s.tlsClientAuth}, ${this.status.https.protocols})`);
@@ -393,11 +395,11 @@ function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-function listen(srv: http.Server | https.Server, port: number): Promise<void> {
+function listen(srv: http.Server | https.Server, port: number, host: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const onErr = (e: Error) => reject(e);
     srv.once('error', onErr);
-    srv.listen(port, '0.0.0.0', () => {
+    srv.listen(port, host, () => {
       srv.off('error', onErr);
       resolve();
     });

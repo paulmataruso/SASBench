@@ -7,6 +7,8 @@ import { conflict, noContent, notFound } from '../http.ts';
 import { S } from '../schema.ts';
 import { cbsdOut, eventOut, grantOut, messageOut } from '../mappers.ts';
 import { Where, cursorOf, cursorPage, cursorQuery, inList, like, noContentResp, ok, okRef, pageOf, pageQuery, sqlPage } from './common.ts';
+import { registryAddOptions } from './registry.ts';
+import { addCbsdToRegistry } from '../../../registry.ts';
 
 // CBSDs: everything the SAS knows about each registered (or pending) radio, and the operator
 // actions the console offers on them.
@@ -159,6 +161,19 @@ export const cbsdRoutes: Route[] = [
       d.bus.event('success', 'admin', `Registration of ${params.cbsdId} approved (completes on the CBSD's next registration request)`, params.cbsdId);
       d.bus.changed('cbsds');
       return cbsdDetail(d, params.cbsdId);
+    },
+  },
+  {
+    method: 'POST', path: '/cbsds/{cbsdId}/registry', operationId: 'addCbsdToRegistry', tag: 'CBSDs', scope: 'write',
+    summary: 'Add a CBSD to the registry',
+    description: 'Adds the CBSD\'s FCC ID and user ID and preloads the parameters it registered with, so it stays known when the registry is enforced. Entries already present are kept; `notes` says why something was not added. The same for many CBSDs: POST /registry/from-cbsds.',
+    params: cbsdIdParam,
+    body: { schema: S.obj(registryAddOptions), example: { registration: true, replace: false } },
+    responses: okRef('What was added.', 'RegistryAddResult'),
+    handler: ({ d, params, body }) => {
+      const out = addCbsdToRegistry({ db: d.db, admin: d.admin, bus: d.bus, defaultMaxEirp: d.settings.get().defaultFccMaxEirp }, params.cbsdId, body ?? {});
+      if (!out) throw notFound('CBSD');
+      return out;
     },
   },
   {

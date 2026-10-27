@@ -5,6 +5,8 @@ import { S, ref } from '../schema.ts';
 import { blacklistOut, conditionalOut, cpiOut, fccOut, userOut } from '../mappers.ts';
 import { Reply } from '../http.ts';
 import { Where, like, noContentResp, ok, okRef, pageOf, pageQuery, sqlPage } from './common.ts';
+import { page } from '../http.ts';
+import { addCbsdsToRegistry, registryEntries } from '../../../registry.ts';
 
 // Registry data the registration procedure consults: known FCC IDs (with certified maximum
 // EIRP), user IDs, the blacklist, preloaded (conditional) registration data and CPI users.
@@ -18,6 +20,13 @@ function get(d: V1Deps, sql: string, what: string, ...p: any[]) {
   if (!r) throw notFound(what);
   return r;
 }
+
+export const registryAddOptions = {
+  fccId: S.bool({ default: true, description: 'Add the FCC ID. One already listed keeps its max EIRP; a new one gets defaultFccMaxEirp.' }),
+  userId: S.bool({ default: true, description: 'Add the user ID.' }),
+  registration: S.bool({ default: true, description: 'Preload the registration parameters (category, air interface, installation parameters, measurement capability, call sign) as REG-Conditional data.' }),
+  replace: S.bool({ default: false, description: 'Overwrite registration data already preloaded for the device.' }),
+};
 
 /** 201 when the record is new, 200 when an existing one was replaced. */
 const upserted = (existed: boolean, body: unknown, location: string) => (existed ? new Reply(200, body) : created(body, location));
@@ -35,6 +44,33 @@ export const registryRoutes: Route[] = [
       conditional: d.db.all('SELECT * FROM conditional_reg ORDER BY created_at DESC').map(conditionalOut),
       cpiUsers: d.db.all('SELECT * FROM cpi_users ORDER BY cpi_id').map(cpiOut),
     }),
+  },
+
+  // ---------------------------------------------------------------- from registered radios
+  {
+    method: 'GET', path: '/registry/from-cbsds', operationId: 'listRegistryCandidates', tag: 'Registry', scope: 'read',
+    summary: 'List registered radios and their registry status',
+    description: 'Every CBSD the SAS has a record of, oldest first, with what the registry already holds for it: its FCC ID, its user ID and preloaded registration data.',
+    query: { missing: { description: 'Only CBSDs with something not yet in the registry.', schema: S.bool() }, ...pageQuery() },
+    responses: ok('A page of CBSDs.', pageOf('RegistryEntry')),
+    handler: ({ d, query }) => {
+      const all = registryEntries(d.db);
+      return page(query.missing ? all.filter((e) => !e.inRegistry.fccId || (e.userId && !e.inRegistry.userId) || !e.inRegistry.registration) : all, query);
+    },
+  },
+  {
+    method: 'POST', path: '/registry/from-cbsds', operationId: 'addCbsdsToRegistry', tag: 'Registry', scope: 'write',
+    summary: 'Add registered radios to the registry',
+    description: 'For each CBSD (all of them when cbsdIds is omitted), adds its FCC ID and user ID and preloads the parameters it registered with, so the radio stays known when the registry is enforced (requireKnownFccId, requireKnownUserId, conditional registration). Entries already present are kept. Unknown cbsdIds are listed in `unknown`.',
+    body: {
+      schema: S.obj({
+        cbsdIds: S.arr(S.str({ minLength: 1 }), { maxItems: 10000, description: 'CBSDs to add; omit for all.' }),
+        ...registryAddOptions,
+      }),
+      example: { cbsdIds: ['2AG32MBS3500/0a1b2c3d4e5f60718293a4b5c6d7e8f9a0b1c2d3'], registration: true },
+    },
+    responses: okRef('What was added for each CBSD.', 'RegistryAddResults'),
+    handler: ({ d, body }) => addCbsdsToRegistry({ db: d.db, admin: d.admin, bus: d.bus, defaultMaxEirp: d.settings.get().defaultFccMaxEirp }, body?.cbsdIds, body ?? {}),
   },
 
   // ---------------------------------------------------------------- FCC IDs

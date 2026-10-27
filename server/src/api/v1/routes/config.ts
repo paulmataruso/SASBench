@@ -2,7 +2,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import type { Row } from '../../../db.ts';
-import { redact } from '../../../api.ts';
 import type { Settings } from '../../../settings.ts';
 import type { Route, V1Deps } from '../http.ts';
 import { invalid, sendFile } from '../http.ts';
@@ -21,12 +20,13 @@ const SECTIONS: Array<[string, string]> = [
 ];
 
 /** Settings an import never changes: they depend on this installation's certificates and password. */
+// uiPassword: the console password of versions before user accounts; old exports may contain it.
 const LOCAL_SETTINGS = ['uiPassword', 'serverCertIds', 'trustedClientCaIds'];
 
 function exportDump(d: V1Deps) {
   const db = d.db;
   return {
-    exportedAt: new Date().toISOString(), version: d.version, settings: redact(d.settings.get()),
+    exportedAt: new Date().toISOString(), version: d.version, settings: d.settings.get(),
     fccIds: db.all('SELECT * FROM fcc_ids'), userIds: db.all('SELECT * FROM user_ids'), blacklist: db.all('SELECT * FROM blacklist'),
     conditional: db.all('SELECT * FROM conditional_reg'), cpiUsers: db.all('SELECT * FROM cpi_users'),
     protections: db.all("SELECT * FROM protections WHERE source = 'ui'"), ppas: db.all("SELECT * FROM ppas WHERE source != 'harness'"),
@@ -38,7 +38,7 @@ export const configRoutes: Route[] = [
   {
     method: 'GET', path: '/config/export', operationId: 'exportConfig', tag: 'Configuration', scope: 'read',
     summary: 'Export the configuration',
-    description: 'Settings (password redacted), registry (FCC IDs, user IDs, blacklist, conditional registrations, CPI users), operator protections and PPAs, and fault rules, as one JSON document, the same file the console\'s Backup page saves. Certificates, CBSDs, grants and logs are not included: use GET /system/backup for everything.',
+    description: 'Settings, registry (FCC IDs, user IDs, blacklist, conditional registrations, CPI users), operator protections and PPAs, and fault rules, as one JSON document, the same file the console\'s Backup page saves. Certificates, CBSDs, grants and logs are not included: use GET /system/backup for everything.',
     query: { download: { description: 'Send as a file attachment.', schema: S.bool({ default: false }) } },
     responses: ok('The configuration.', S.anyObj()),
     handler: (c) => {
@@ -50,7 +50,7 @@ export const configRoutes: Route[] = [
   {
     method: 'POST', path: '/config/import', operationId: 'importConfig', tag: 'Configuration', scope: 'write',
     summary: 'Import a configuration',
-    description: 'Takes a document from GET /config/export (or the console). Settings are validated and applied, except the UI password, server certificates and trusted CAs, which stay as they are on this installation; unknown settings are skipped and listed. Rows are inserted or replaced by primary key; nothing is deleted.',
+    description: 'Takes a document from GET /config/export (or the console). Settings are validated and applied, except server certificates and trusted CAs, which stay as they are on this installation (user accounts and API keys are never imported); unknown settings are skipped and listed. Rows are inserted or replaced by primary key; nothing is deleted.',
     body: {
       required: true,
       schema: S.obj({
@@ -109,9 +109,9 @@ export const configRoutes: Route[] = [
     },
   },
   {
-    method: 'GET', path: '/system/backup', operationId: 'downloadBackup', tag: 'Configuration', scope: 'write',
+    method: 'GET', path: '/system/backup', operationId: 'downloadBackup', tag: 'Configuration', scope: 'admin',
     summary: 'Download a database backup',
-    description: 'A consistent copy of the whole SQLite database (VACUUM INTO): settings, certificates and private keys, CBSDs, grants, registry, spectrum data, fault rules, logs and API token hashes. To restore, stop the SAS and replace sas.db in the data directory. Needs write access because it contains private keys.',
+    description: 'A consistent copy of the whole SQLite database (VACUUM INTO): settings, certificates and private keys, CBSDs, grants, registry, spectrum data, fault rules, logs, user accounts (password hashes) and API key hashes. To restore, stop the SAS and replace sas.db in the data directory. For admins, because it contains private keys and password hashes.',
     responses: fileResp('SQLite database.', 'application/vnd.sqlite3'),
     handler: (c) => {
       const tmp = path.join(c.d.dataDir, `.backup-${crypto.randomUUID()}.db`);

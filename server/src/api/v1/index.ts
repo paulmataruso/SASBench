@@ -3,7 +3,7 @@ import net from 'node:net';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { HttpError, readBody } from '../../net/http.ts';
 import { NotFound } from '../../sas/admin.ts';
-import { authenticate, type Principal } from './auth.ts';
+import type { Principal } from './auth.ts';
 import { ApiError, Reply, SENT, type Ctx, type Route, type V1Deps } from './http.ts';
 import { coerceQuery, validate, type Issue } from './schema.ts';
 import { COMPONENTS } from './components.ts';
@@ -73,7 +73,7 @@ function knownHost(host: string, names: string[]): boolean {
 
 const STATUS_CODE: Record<number, string> = {
   400: 'bad_request', 401: 'unauthorized', 403: 'forbidden', 404: 'not_found', 405: 'method_not_allowed',
-  409: 'conflict', 413: 'payload_too_large', 500: 'internal_error', 503: 'service_unavailable',
+  409: 'conflict', 413: 'payload_too_large', 429: 'too_many_attempts', 500: 'internal_error', 503: 'service_unavailable',
 };
 
 function toApiError(e: any): ApiError {
@@ -189,22 +189,35 @@ export function buildApiV1(d: V1Deps) {
 
     try {
       // ---------------------------------------------------------------- authentication
-      let principal: Principal = { method: 'open', scope: 'write' };
+      let principal: Principal = { method: 'open', scope: 'read', role: 'viewer' };
       if (route.scope !== 'public') {
         const queryToken = route.query?.access_token ? url.searchParams.get('access_token') : null;
-        const a = authenticate(req, d.settings, d.tokens, queryToken);
+        const a = await d.auth.authenticate(req, { queryToken });
         if (!a.ok) {
           await readBody(req).catch(() => undefined);
-          const msg = a.reason === 'expired' ? 'The API token has expired'
-            : a.reason === 'invalid' ? 'Invalid credentials or API token'
-              : 'Authentication required: send "Authorization: Bearer <API token>" or HTTP Basic with the UI password';
-          return fail(res, new ApiError(401, 'unauthorized', msg), requestId, head,
-            { 'WWW-Authenticate': 'Bearer realm="SASBench", Basic realm="SASBench", charset="UTF-8"' });
+          if (a.reason === 'throttled') {
+            return fail(res, new ApiError(429, 'too_many_attempts', `Too many wrong passwords from this address; try again in ${a.retryAfterSec} s`), requestId, head,
+              { 'Retry-After': String(a.retryAfterSec) });
+          }
+          const [code, msg] = a.reason === 'expired' ? ['unauthorized', 'The API key has expired']
+            : a.reason === 'disabled' ? ['account_disabled', 'This user account is disabled']
+              : a.reason === 'invalid' ? ['unauthorized', 'Invalid user name, password or API key']
+                : ['unauthorized', 'Authentication required: send "Authorization: Bearer <API key>" or HTTP Basic with a user name and password'];
+          // A script or an address typed into the browser gets the Basic challenge; the console's
+          // own requests (fetch: Sec-Fetch-Mode cors/same-origin) do not, so no browser password
+          // dialog covers its sign-in form when a session ends.
+          const mode = String(req.headers['sec-fetch-mode'] ?? '');
+          const basic = !mode || mode === 'navigate' ? ', Basic realm="SASBench", charset="UTF-8"' : '';
+          return fail(res, new ApiError(401, code, msg), requestId, head, { 'WWW-Authenticate': `Bearer realm="SASBench"${basic}` });
         }
         principal = a.principal;
         if (route.scope === 'write' && principal.scope !== 'write') {
           await readBody(req).catch(() => undefined);
-          throw new ApiError(403, 'forbidden', `${route.operationId} needs write access; this API token is read-only`);
+          throw new ApiError(403, 'forbidden', `${route.operationId} needs write access; ${principal.method === 'token' ? 'this API key is read-only' : 'viewers have read-only access'}`);
+        }
+        if (route.scope === 'admin' && (principal.role !== 'admin' || principal.scope !== 'write')) {
+          await readBody(req).catch(() => undefined);
+          throw new ApiError(403, 'forbidden', `${route.operationId} is for admins${principal.method === 'token' && principal.role === 'admin' ? ' (with a write API key)' : ''}`);
         }
       }
 
@@ -269,7 +282,12 @@ export function buildApiV1(d: V1Deps) {
       const c: Ctx = {
         d, req, res, url, route, params, query, body, principal, requestId, head,
         requireWrite: (what) => {
-          if (principal.scope !== 'write') throw new ApiError(403, 'forbidden', `${what} needs write access; this API token is read-only`);
+          if (principal.scope !== 'write') {
+            throw new ApiError(403, 'forbidden', `${what} needs write access; ${principal.method === 'token' ? 'this API key is read-only' : 'viewers have read-only access'}`);
+          }
+        },
+        requireAdmin: (what) => {
+          if (principal.role !== 'admin' || principal.scope !== 'write') throw new ApiError(403, 'forbidden', `${what} is for admins`);
         },
       };
       const out = await route.handler(c);

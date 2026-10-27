@@ -37,7 +37,7 @@ Unlike a commercial SAS (no visibility, no control) or a stub (always "success")
 - WInnForum test-harness admin API (`/admin/...`) on the SAS listeners.
 - Settings are live-editable and grouped into profiles (Lab, WInnForum strict, Open).
 - No propagation model (no aggregate interference / IAP calculations); HAAT needs optional terrain tiles.
-- Single user or small team; optional UI password (HTTP Basic). No multi-tenant concerns.
+- Single user or small team; user accounts with admin, operator and viewer roles, and API keys for scripts. No multi-tenant concerns.
 
 ## Evidence on Hand
 

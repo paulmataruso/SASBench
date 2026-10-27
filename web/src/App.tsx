@@ -1,14 +1,16 @@
-import { useEffect, useMemo, useState, type ReactNode, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import {
-  AudioLines, BookUser, Crosshair, History, LayoutDashboard, Menu, Monitor, Moon, RadioTower, ScrollText,
-  Settings2, ShieldCheck, SquareTerminal, Sun, Ticket, X, Zap, type LucideIcon,
+  AudioLines, BookUser, ChevronDown, Crosshair, History, KeyRound, LayoutDashboard, LogOut, Menu, Monitor, Moon, RadioTower, ScrollText,
+  Settings2, ShieldCheck, SquareTerminal, Sun, Ticket, UserRound, Users, X, Zap, type LucideIcon,
 } from 'lucide-react';
-import { RouterProvider, Link, useLocation } from './lib/router';
+import { RouterProvider, Link, navigate, useLocation } from './lib/router';
+import { AuthGate, ROLE_LABEL, useAuth } from './lib/auth';
 import { LiveProvider, useLive, useResource } from './lib/live';
 import { FollowProvider, useFollow } from './lib/follow';
 import { StatusProvider, useStatus, PROFILE_LABEL } from './lib/status';
 import { ConfirmProvider, ToastProvider, Led, Segmented, Select, Tag, cx, useModalFocus } from './components/ui';
 import { CbsdName } from './components/rack';
+import { RackMark } from './components/brand';
 import { setCbsdNames, setPatchOrder } from './lib/format';
 import type { Cbsd } from './lib/types';
 import { OverviewPage } from './pages/Overview';
@@ -23,26 +25,31 @@ import { MessagesPage } from './pages/Messages';
 import { EventsPage } from './pages/Events';
 import { ConsolePage } from './pages/Console';
 import { SettingsPage } from './pages/Settings';
+import { UsersPage } from './pages/Users';
+import { ApiKeysPage } from './pages/ApiKeys';
+import { AccountPage } from './pages/Account';
 
 export function App() {
   return (
     <RouterProvider>
-      <LiveProvider>
-        <StatusProvider>
-          <FollowProvider>
-            <ToastProvider>
-              <ConfirmProvider>
-                <Shell />
-              </ConfirmProvider>
-            </ToastProvider>
-          </FollowProvider>
-        </StatusProvider>
-      </LiveProvider>
+      <AuthGate>
+        <LiveProvider>
+          <StatusProvider>
+            <FollowProvider>
+              <ToastProvider>
+                <ConfirmProvider>
+                  <Shell />
+                </ConfirmProvider>
+              </ToastProvider>
+            </FollowProvider>
+          </StatusProvider>
+        </LiveProvider>
+      </AuthGate>
     </RouterProvider>
   );
 }
 
-interface NavItem { to: string; label: string; icon: LucideIcon; badge?: (s: ReturnType<typeof useStatus>['data']) => ReactNode }
+interface NavItem { to: string; label: string; icon: LucideIcon; badge?: (s: ReturnType<typeof useStatus>['data']) => ReactNode; adminOnly?: boolean }
 
 const NAV: Array<{ group: string; items: NavItem[] }> = [
   {
@@ -69,9 +76,14 @@ const NAV: Array<{ group: string; items: NavItem[] }> = [
       { to: '/certificates', label: 'Certificates', icon: ShieldCheck },
       { to: '/registry', label: 'Registry', icon: BookUser },
       { to: '/settings', label: 'Settings', icon: Settings2 },
+      { to: '/api-keys', label: 'API keys', icon: KeyRound },
+      { to: '/users', label: 'Users', icon: Users, adminOnly: true },
     ],
   },
 ];
+
+/** Pages reached from the account menu rather than the rail. */
+const OTHER_TITLES: Record<string, string> = { '/account': 'Your account' };
 
 function route(path: string): ReactNode {
   if (path === '/') return <OverviewPage />;
@@ -86,6 +98,9 @@ function route(path: string): ReactNode {
   if (path === '/events') return <EventsPage />;
   if (path === '/console') return <ConsolePage />;
   if (path === '/settings') return <SettingsPage />;
+  if (path === '/api-keys') return <ApiKeysPage />;
+  if (path === '/users') return <UsersPage />;
+  if (path === '/account') return <AccountPage />;
   return (
     <div className="py-16 text-center">
       <p className="text-lg font-semibold">No page at {path}</p>
@@ -106,7 +121,7 @@ function Shell() {
   }, [cbsds.data]);
   useEffect(() => setMenu(false), [path]);
   const menuRef = useModalFocus(menu, () => setMenu(false));
-  const title = NAV.flatMap((g) => g.items).find((i) => (i.to === '/' ? path === '/' : path.startsWith(i.to)))?.label ?? 'SASBench';
+  const title = NAV.flatMap((g) => g.items).find((i) => (i.to === '/' ? path === '/' : path.startsWith(i.to)))?.label ?? OTHER_TITLES[path] ?? 'SASBench';
   useEffect(() => {
     document.title = `${title} · SASBench`;
   }, [title]);
@@ -135,6 +150,7 @@ function Shell() {
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar onMenu={() => setMenu(true)} title={title} cbsds={cbsds.data ?? []} />
         <main id="main" tabIndex={-1} className="min-h-0 flex-1 overflow-y-auto outline-none">
+          <DefaultPasswordBar />
           <div className="mx-auto max-w-[1680px] p-4 lg:px-6 lg:py-5">{route(path)}</div>
         </main>
       </div>
@@ -145,6 +161,7 @@ function Shell() {
 function Rail({ className, expanded, onClose }: { className?: string; expanded?: boolean; onClose?: () => void }) {
   const { path } = useLocation();
   const { data: s } = useStatus();
+  const { isAdmin } = useAuth();
   const l = s?.listeners;
   const full = expanded ? '' : 'hidden lg:inline';
   return (
@@ -164,7 +181,7 @@ function Rail({ className, expanded, onClose }: { className?: string; expanded?:
             <div className={cx('px-[18px] pb-1 pt-2 font-label text-2xs font-semibold uppercase tracking-[0.12em] text-rail-mute', full)}>{g.group}</div>
             <div className={cx('mx-3 my-1 border-t border-rail-3', expanded ? 'hidden' : 'lg:hidden')} />
             <ul>
-              {g.items.map((it) => {
+              {g.items.filter((it) => !it.adminOnly || isAdmin).map((it) => {
                 const active = it.to === '/' ? path === '/' : path.startsWith(it.to);
                 const badge = it.badge?.(s);
                 return (
@@ -214,19 +231,6 @@ function ListenerLine({ label, on, up, err, port }: { label: string; on?: boolea
   );
 }
 
-function RackMark() {
-  return (
-    <svg viewBox="0 0 24 24" className="size-6 flex-none" aria-hidden>
-      <rect x="2" y="3" width="20" height="18" rx="2.5" fill="rgb(var(--rail-3))" />
-      <rect x="4.5" y="6" width="15" height="4" rx="1" fill="rgb(var(--rail))" />
-      <rect x="4.5" y="12" width="15" height="4" rx="1" fill="rgb(var(--rail))" />
-      <circle cx="7" cy="8" r="1.1" fill="rgb(var(--ok))" />
-      <circle cx="10" cy="8" r="1.1" fill="rgb(var(--ok))" />
-      <circle cx="7" cy="14" r="1.1" fill="rgb(var(--warn))" />
-    </svg>
-  );
-}
-
 function TopBar({ onMenu, title, cbsds }: { onMenu: () => void; title: string; cbsds: Cbsd[] }) {
   const { connected } = useLive();
   const { data: s } = useStatus();
@@ -271,8 +275,98 @@ function TopBar({ onMenu, title, cbsds }: { onMenu: () => void; title: string; c
           <span className="hidden sm:inline">{connected ? 'Live' : 'Offline'}</span>
         </span>
         <ThemeToggle />
+        <AccountMenu />
       </div>
     </header>
+  );
+}
+
+/** Who is signed in, with the account pages and sign-out. */
+function AccountMenu() {
+  const { me, isAdmin, signOut } = useAuth();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const { path } = useLocation();
+  useEffect(() => setOpen(false), [path]);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && setOpen(false);
+    const esc = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      setOpen(false);
+      ref.current?.querySelector<HTMLButtonElement>('button')?.focus();
+    };
+    document.addEventListener('mousedown', away);
+    document.addEventListener('keydown', esc);
+    return () => {
+      document.removeEventListener('mousedown', away);
+      document.removeEventListener('keydown', esc);
+    };
+  }, [open]);
+
+  if (me.method === 'open') {
+    return (
+      <Link to="/account" title="SAS_AUTH=off: anyone who can reach this console has full access">
+        <Tag tone="warn">Sign-in off</Tag>
+      </Link>
+    );
+  }
+  const name = me.user?.username ?? me.tokenName ?? 'API key';
+  const item = 'flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-base text-ink-2 hover:bg-panel-3 hover:text-ink focus-visible:bg-panel-3';
+  const go = (to: string) => {
+    setOpen(false);
+    navigate(to);
+  };
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="flex h-7 items-center gap-1.5 rounded border border-transparent px-1.5 text-sm text-ink-2 hover:border-line hover:bg-panel-2 hover:text-ink"
+      >
+        <UserRound className="size-4 flex-none" aria-hidden />
+        <span className="hidden max-w-[140px] truncate md:inline">{name}</span>
+        {me.scope === 'read' && <span className="hidden md:inline"><Tag tone="off">Read-only</Tag></span>}
+        <ChevronDown className="size-3.5 flex-none text-ink-3" aria-hidden />
+        <span className="sr-only">Account menu</span>
+      </button>
+      {open && (
+        <div role="menu" aria-label="Account" className="absolute right-0 top-full z-40 mt-1 w-60 overflow-hidden rounded border border-line bg-panel py-1 shadow-pop">
+          <div className="border-b border-line px-3 pb-2 pt-1.5">
+            <div className="truncate text-base font-medium text-ink">{me.user?.displayName ?? name}</div>
+            <div className="text-xs text-ink-3">{ROLE_LABEL[me.role]}{me.method === 'token' ? ' · API key' : ''}</div>
+          </div>
+          <button type="button" role="menuitem" className={item} onClick={() => go('/account')}><UserRound className="size-4 text-ink-3" aria-hidden />Your account</button>
+          <button type="button" role="menuitem" className={item} onClick={() => go('/api-keys')}><KeyRound className="size-4 text-ink-3" aria-hidden />API keys</button>
+          {isAdmin && <button type="button" role="menuitem" className={item} onClick={() => go('/users')}><Users className="size-4 text-ink-3" aria-hidden />Users</button>}
+          {me.method === 'session' && (
+            <button type="button" role="menuitem" className={cx(item, 'mt-1 border-t border-line pt-2')} onClick={() => void signOut()}>
+              <LogOut className="size-4 text-ink-3" aria-hidden />Sign out
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Shown on every page while the signed-in user still has the default password (admin / admin). */
+function DefaultPasswordBar() {
+  const { me } = useAuth();
+  const { path } = useLocation();
+  if (!me.user?.defaultPassword || path === '/account') return null;
+  return (
+    <div role="status" className="border-b border-warn/40 bg-warn-soft">
+      <div className="mx-auto flex max-w-[1680px] items-start gap-2.5 px-4 py-2 text-sm text-warn-ink lg:px-6">
+        <KeyRound className="mt-0.5 size-4 flex-none" aria-hidden />
+        <p>
+          You are signed in as <span className="font-mono">{me.user.username}</span> with the default password. Anyone who knows it can change this SAS.{' '}
+          <Link to="/account" className="whitespace-nowrap font-medium underline underline-offset-2">Change password</Link>
+        </p>
+      </div>
+    </div>
   );
 }
 

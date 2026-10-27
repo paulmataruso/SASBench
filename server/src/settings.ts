@@ -96,7 +96,6 @@ export interface Settings {
   harnessAdminEnabled: boolean;
   msgLogLimit: number;
   eventLogLimit: number;
-  uiPassword: string;
 
   // --- Map -----------------------------------------------------------------
   /** builtin = bundled offline basemap; local = offline tile store (SAS_TILES_DIR); url = online tile server. */
@@ -162,7 +161,6 @@ export const DEFAULT_SETTINGS: Settings = {
   harnessAdminEnabled: true,
   msgLogLimit: 20000,
   eventLogLimit: 20000,
-  uiPassword: '',
 
   mapSource: 'builtin',
   mapLocalTiles: '',

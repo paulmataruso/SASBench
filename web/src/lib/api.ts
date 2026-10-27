@@ -1,4 +1,4 @@
-// Thin client for the SAS UI REST API (/api/...).
+// Thin client for the SAS UI REST API (/api/...) and the public API (/api/v1/...).
 
 export class ApiError extends Error {
   status: number;
@@ -6,6 +6,23 @@ export class ApiError extends Error {
     super(message);
     this.status = status;
   }
+}
+
+/** Dispatched on window when a request comes back 401: the session ended, so the app signs out. */
+export const SIGNED_OUT_EVENT = 'sasb:signed-out';
+
+/** The console API answers {error: "text"}; the public API {error: {message, code, ...}}. */
+function errorText(data: any, res: Response): string {
+  const e = data && typeof data === 'object' ? data.error : null;
+  if (typeof e === 'string') return e;
+  if (e && typeof e.message === 'string') return e.message;
+  return `${res.status} ${res.statusText}`;
+}
+
+function failed(res: Response, data: any): ApiError {
+  // A wrong password on the sign-in form is not a session ending.
+  if (res.status === 401 && new URL(res.url).pathname !== '/api/auth/login') window.dispatchEvent(new Event(SIGNED_OUT_EVENT));
+  return new ApiError(res.status, errorText(data, res));
 }
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
@@ -23,7 +40,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
       data = text;
     }
   }
-  if (!res.ok) throw new ApiError(res.status, (data && typeof data === 'object' && data.error) || `${res.status} ${res.statusText}`);
+  if (!res.ok) throw failed(res, data);
   return data as T;
 }
 
@@ -49,11 +66,11 @@ export function download(path: string) {
 export async function postDownload(path: string, body: unknown, fallbackName: string) {
   const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (!res.ok) {
-    let msg = `${res.status} ${res.statusText}`;
+    let data: any = null;
     try {
-      msg = (await res.json()).error ?? msg;
+      data = await res.json();
     } catch { /* not JSON */ }
-    throw new ApiError(res.status, msg);
+    throw failed(res, data);
   }
   const cd = res.headers.get('Content-Disposition') ?? '';
   const name = /filename="?([^";]+)"?/.exec(cd)?.[1] ?? fallbackName;

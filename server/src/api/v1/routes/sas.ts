@@ -6,6 +6,7 @@ import type { Route } from '../http.ts';
 import { badRequest, conflict, invalid, notFound } from '../http.ts';
 import { S } from '../schema.ts';
 import { okRef } from './common.ts';
+import { loopbackHost } from '../../../net/addresses.ts';
 
 // Send SAS–CBSD protocol requests as if from a radio: straight into the protocol engine
 // (transport=internal, as the console's request console does), or through the real SAS listener
@@ -17,10 +18,10 @@ interface Loopback {
   error: string | null;
 }
 
-function loopback(o: { tls: boolean; port: number; path: string; body: string; cert?: string; key?: string; timeoutMs: number }): Promise<Loopback> {
+function loopback(o: { tls: boolean; host: string; port: number; path: string; body: string; cert?: string; key?: string; timeoutMs: number }): Promise<Loopback> {
   return new Promise((resolve) => {
     const opts: https.RequestOptions = {
-      host: '127.0.0.1', port: o.port, path: o.path, method: 'POST', timeout: o.timeoutMs,
+      host: o.host, port: o.port, path: o.path, method: 'POST', timeout: o.timeoutMs,
       headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(o.body) },
     };
     if (o.tls) Object.assign(opts, { servername: 'localhost', rejectUnauthorized: false, cert: o.cert, key: o.key, minVersion: 'TLSv1.2' });
@@ -118,7 +119,7 @@ export const sasRoutes: Route[] = [
         cert = row.cert_pem + d.pki.pemChain(row.id, false);
         key = row.key_pem;
       }
-      const r = await loopback({ tls: transport === 'https', port: l.port, path: `/${version}/${method}`, body: payload, cert, key, timeoutMs: query.timeoutMs });
+      const r = await loopback({ tls: transport === 'https', host: loopbackHost(d.bindIp), port: l.port, path: `/${version}/${method}`, body: payload, cert, key, timeoutMs: query.timeoutMs });
       return { transport, method, version, httpStatus: r.status, durationMs: Date.now() - started, body: parse(r.text), error: r.error };
     },
   },

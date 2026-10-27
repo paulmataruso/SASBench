@@ -5,19 +5,21 @@ import { S } from '../schema.ts';
 import { Where, ok, pageQuery } from './common.ts';
 
 // Read-only access to every database table, for data the typed endpoints do not cover and for
-// debugging. Secrets are always redacted here: private keys, the UI password and token hashes.
+// debugging. Secrets are always redacted here: private keys, password hashes, session and API key
+// hashes. The users and sessions tables are for admins only.
 
 const REDACTED = '[redacted]';
 
 /** Columns whose values are never returned by the table browser. */
 const SECRET: Record<string, (r: Row) => Row> = {
   certs: (r) => ('key_pem' in r && r.key_pem != null ? { ...r, key_pem: REDACTED } : r),
-  settings: (r) => (r.key === 'uiPassword' && r.value && r.value !== '""' ? { ...r, value: REDACTED } : r),
   api_tokens: (r) => ('token_hash' in r ? { ...r, token_hash: REDACTED } : r),
+  users: (r) => ('password_hash' in r ? { ...r, password_hash: REDACTED } : r),
+  sessions: (r) => ('id' in r ? { ...r, id: REDACTED } : r),
 };
 
 /** Columns that cannot be filtered or sorted on (a LIKE filter would reveal their content). */
-const SECRET_COLUMNS: Record<string, string[]> = { certs: ['key_pem'], settings: ['value'], api_tokens: ['token_hash'] };
+const SECRET_COLUMNS: Record<string, string[]> = { certs: ['key_pem'], api_tokens: ['token_hash'], users: ['password_hash'], sessions: ['id'] };
 
 const tables = (d: V1Deps): string[] =>
   d.db.all("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name").map((r) => String(r.name));
@@ -66,7 +68,7 @@ export const dataRoutes: Route[] = [
   {
     method: 'GET', path: '/data/tables/{table}/rows', operationId: 'listTableRows', tag: 'Data', scope: 'read',
     summary: 'Read table rows',
-    description: 'Raw rows (snake_case columns, JSON stored as text, timestamps in epoch milliseconds). Filter on one column with `column` and `value` (exact match) or `like` (substring). Private keys, the UI password and token hashes read as "[redacted]". The rows of api_tokens need write access, like GET /tokens.',
+    description: 'Raw rows (snake_case columns, JSON stored as text, timestamps in epoch milliseconds). Filter on one column with `column` and `value` (exact match) or `like` (substring). Private keys, password hashes, session IDs and API key hashes read as "[redacted]". The rows of api_tokens need write access, like GET /tokens; the users and sessions tables are for admins.',
     params: tableParam,
     query: {
       column: { description: 'Column to filter on.', schema: S.str() },
@@ -80,9 +82,10 @@ export const dataRoutes: Route[] = [
     responses: ok('A page of rows.', S.obj({
       items: S.arr(S.anyObj()), total: S.int(), limit: S.int(), offset: S.int(), columns: S.arr(S.str()),
     }, ['items', 'total', 'limit', 'offset', 'columns'])),
-    handler: ({ d, params, query, requireWrite }) => {
-      // Token names, prefixes and client addresses are for token managers only (as GET /tokens).
+    handler: ({ d, params, query, requireWrite, requireAdmin }) => {
+      // Who has which account, key and session is for admins (as GET /users) and key managers.
       if (params.table === 'api_tokens') requireWrite('Reading the api_tokens table');
+      if (params.table === 'users' || params.table === 'sessions') requireAdmin(`Reading the ${params.table} table`);
       const cols = columnsOf(d, params.table).map((c) => c.name);
       const known = (k: string, name: string) => {
         if (!cols.includes(name)) throw badRequest(`${k}: ${params.table} has no column ${name}`);

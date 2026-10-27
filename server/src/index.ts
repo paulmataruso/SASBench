@@ -1,5 +1,6 @@
 import http from 'node:http';
 import fs from 'node:fs';
+import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import zlib from 'node:zlib';
@@ -15,25 +16,41 @@ import { SasServer } from './net/sasServer.ts';
 import { TileDownloader, TileStore } from './map/tiles.ts';
 import { buildApi, harnessHook } from './api.ts';
 import { BASE as API_V1, buildApiV1 } from './api/v1/index.ts';
-import { ApiTokens, authenticate } from './api/v1/auth.ts';
+import { ApiTokens, Auth, type Principal } from './api/v1/auth.ts';
+import { DEFAULT_ADMIN, Sessions, Users } from './auth/users.ts';
+import { gate, handleAuthRoute } from './auth/console.ts';
 import { TerrainDownloader } from './tools/terrainFetch.ts';
 import { sendJson } from './net/http.ts';
 import { PRESETS } from './presets.ts';
+import { dropBlankEnv, hostOrIp, isWildcard, primaryIPv4 } from './net/addresses.ts';
 
 // SASBench — entry point. One process serves:
 //   - the SAS-CBSD protocol on HTTP (default 8000) and HTTPS/mTLS (default 8443), plus the
 //     WInnForum test-harness admin API under /admin/ on the same listeners;
 //   - the web UI, its private REST API (/api/*) and the public REST API (/api/v1, see docs/API.md)
-//     on UI_PORT (default 8080).
+//     on UI_PORT (default 8080), and the public REST API alone on SAS_API_PORT when it is set.
+// Every listener binds SAS_BIND_IP (default: all addresses). The UI and the REST API require a
+// user account (first start: admin / admin) or an API key, unless SAS_AUTH=off.
 
+dropBlankEnv();
 const ROOT = path.resolve(import.meta.dirname, '..', '..');
 const VERSION = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version as string;
 const DATA_DIR = path.resolve(process.env.SAS_DATA_DIR ?? path.join(ROOT, 'data'));
 const UI_PORT = Number(process.env.UI_PORT ?? 8080);
+const BIND_IP = process.env.SAS_BIND_IP ?? '0.0.0.0';
+const API_PORT = process.env.SAS_API_PORT ? Number(process.env.SAS_API_PORT) : null;
+const FQDN = process.env.SAS_FQDN ? hostOrIp(process.env.SAS_FQDN) : null;
 const WEB_DIR = path.resolve(process.env.SAS_WEB_DIR ?? path.join(ROOT, 'web', 'dist'));
 const RESOURCE_DIR = path.join(ROOT, 'server', 'data');
 
 const log = (m: string) => console.log(`${new Date().toISOString()} ${m}`);
+const fatal = (m: string): never => {
+  log(m);
+  process.exit(1);
+};
+if (!net.isIP(BIND_IP)) fatal(`SAS_BIND_IP must be an IP address of this machine (or 0.0.0.0 for all), not "${BIND_IP}"`);
+if (process.env.SAS_FQDN && !FQDN) fatal(`SAS_FQDN must be a host name or an IP address, not "${process.env.SAS_FQDN}"`);
+if (API_PORT !== null && (!Number.isInteger(API_PORT) || API_PORT < 1 || API_PORT > 65535)) fatal(`SAS_API_PORT must be a port number, not "${process.env.SAS_API_PORT}"`);
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
 const db = new Db(path.join(DATA_DIR, 'sas.db'));
@@ -51,16 +68,23 @@ if (engine.terrain.tileCount) {
 const faults = new FaultInjector(db, bus);
 const admin = new SasAdmin(db, engine, bus, settings, pki, RESOURCE_DIR);
 const sas = new SasServer(settings, pki, bus, engine, faults);
+sas.bindHost = BIND_IP;
 const tiles = new TileStore(path.resolve(process.env.SAS_TILES_DIR ?? path.join(DATA_DIR, 'tiles')));
 const tileDownloader = new TileDownloader(tiles, bus);
 sas.adminHook = harnessHook(admin, bus);
 
-// Hostnames / IPs that should appear in the SAS server certificate.
+// Hostnames / IPs that should appear in the SAS server certificate; the first is its common name.
 const hostnames = [...new Set([
+  ...(FQDN ? [FQDN] : []),
   ...(process.env.SAS_HOSTNAMES ?? '').split(',').map((s) => s.trim()).filter(Boolean),
+  ...(isWildcard(BIND_IP) ? [] : [BIND_IP]),
   'localhost', '127.0.0.1', os.hostname(),
   ...Object.values(os.networkInterfaces()).flat().filter((i) => i && i.family === 'IPv4' && !i.internal).map((i) => i!.address),
 ])];
+// The SAS endpoints shown to people and put in radio bundles: the FQDN and the address in use.
+const ownIp = isWildcard(BIND_IP) ? await primaryIPv4() : BIND_IP;
+const advertised = [...new Set([...(FQDN ? [FQDN] : []), ...(ownIp ? [ownIp] : [])])];
+if (!advertised.length) advertised.push('localhost');
 
 const { serverCertIds } = pki.ensureLabPki(hostnames, (m) => {
   log(m);
@@ -87,12 +111,16 @@ engine.startSweeper();
 // ---------------------------------------------------------------- UI / REST server
 
 const startedAt = Date.now();
-const api = buildApi({ db, settings, bus, pki, engine, sas, admin, startedAt, version: VERSION, uiPort: UI_PORT, hostnames, tiles, tileDownloader });
+const api = buildApi({ db, settings, bus, pki, engine, sas, admin, startedAt, version: VERSION, uiPort: UI_PORT, hostnames, advertised, tiles, tileDownloader });
 const apiTokens = new ApiTokens(db);
+const users = new Users(db);
+const auth = new Auth({ users, sessions: new Sessions(db), tokens: apiTokens, off: process.env.SAS_AUTH === 'off' });
+await ensureAdminAccount();
+if (auth.off) log('SAS_AUTH=off: the web UI and the REST API are open to anyone who can reach them');
 const terrainDownloader = new TerrainDownloader(() => engine.terrain?.directory ?? null, () => engine.terrain?.reindex(), bus);
 const apiV1 = buildApiV1({
-  db, settings, bus, pki, engine, sas, admin, tiles, tileDownloader, terrainDownloader, tokens: apiTokens, startedAt, version: VERSION,
-  uiPort: UI_PORT, hostnames, dataDir: DATA_DIR,
+  db, settings, bus, pki, engine, sas, admin, tiles, tileDownloader, terrainDownloader, tokens: apiTokens, auth, startedAt, version: VERSION,
+  uiPort: UI_PORT, apiPort: API_PORT ?? UI_PORT, bindIp: BIND_IP, hostnames, advertised, dataDir: DATA_DIR,
   corsOrigins: (process.env.SAS_API_CORS_ORIGINS ?? '').split(',').map((s) => s.trim()).filter(Boolean),
 });
 
@@ -109,47 +137,91 @@ const ui = http.createServer(async (req, res) => {
   try {
     // The public API authenticates and reports errors itself.
     if (url.pathname === API_V1 || url.pathname.startsWith(`${API_V1}/`)) return await apiV1.handle(req, res, url);
-    const auth = authenticate(req, settings, apiTokens, null, 'ignore');
-    if (!auth.ok) {
-      res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="SASBench", charset="UTF-8"', 'Content-Type': 'text/plain' });
-      res.end('Authentication required');
-      return;
-    }
-    // The console's private API can change anything and download private keys: read-only tokens stop at /api/v1.
-    if (auth.principal.scope !== 'write' && url.pathname.startsWith('/api/')) {
-      return sendJson(res, 403, { error: `A read-only API token cannot use ${url.pathname}; use ${API_V1}` });
-    }
-    if (url.pathname === '/api/stream') return stream(req, res);
-    if (url.pathname.startsWith('/api/')) {
+    if (url.pathname.startsWith('/api/auth/') && (await handleAuthRoute(auth, bus, req, res, url))) return;
+    const t = /^\/tiles\/([^/]+)\/(\d{1,2})\/(\d{1,7})\/(\d{1,7})(?:\.\w+)?$/.exec(url.pathname);
+    if (url.pathname.startsWith('/api/') || t) {
+      // Everything the console loads (its private API, live stream and map tiles) needs a signed-in user.
+      const principal = await gate(auth, req, res, url);
+      if (!principal) return;
+      if (t) return serveTile(res, decodeURIComponent(t[1]), Number(t[2]), Number(t[3]), Number(t[4]));
+      if (url.pathname === '/api/stream') return stream(req, res, principal);
       if (await api.handle(req, res, url.pathname, url.searchParams)) return;
       return sendJson(res, 404, { error: 'Not found' });
     }
     if (url.pathname.startsWith('/admin/') || /\/v\d+\.\d+\//.test(url.pathname)) {
       return sendJson(res, 404, { error: `This is the UI port. Send SAS protocol requests to port ${settings.get().sasHttpsPort} (HTTPS) or ${settings.get().sasHttpPort} (HTTP).` });
     }
-    const t = /^\/tiles\/([^/]+)\/(\d{1,2})\/(\d{1,7})\/(\d{1,7})(?:\.\w+)?$/.exec(url.pathname);
-    if (t) return serveTile(res, decodeURIComponent(t[1]), Number(t[2]), Number(t[3]), Number(t[4]));
     serveStatic(req, url.pathname, res);
   } catch (e: any) {
     if (!res.headersSent) sendJson(res, 500, { error: e.message });
   }
 });
 ui.on('error', (e: NodeJS.ErrnoException) => {
-  log(e.code === 'EADDRINUSE' ? `Web UI port ${UI_PORT} is already in use (set UI_PORT to another port)` : `Web UI server error: ${e.message}`);
-  process.exit(1);
+  fatal(e.code === 'EADDRINUSE' ? `Web UI port ${UI_PORT} is already in use (set UI_PORT to another port)`
+    : e.code === 'EADDRNOTAVAIL' ? `SAS_BIND_IP ${BIND_IP} is not an address of this machine` : `Web UI server error: ${e.message}`);
 });
-ui.listen(UI_PORT, '0.0.0.0', () => log(`Web UI on http://0.0.0.0:${UI_PORT}`));
+ui.listen(UI_PORT, BIND_IP, () => log(`Web UI on http://${BIND_IP}:${UI_PORT}`));
 
-function stream(req: http.IncomingMessage, res: http.ServerResponse) {
+// The public API alone on its own port (SAS_API_PORT), for firewalls and reverse proxies.
+let apiServer: http.Server | null = null;
+if (API_PORT !== null && API_PORT !== UI_PORT) {
+  apiServer = http.createServer(async (req, res) => {
+    const url = new URL(req.url ?? '/', 'http://x');
+    try {
+      if (url.pathname === API_V1 || url.pathname.startsWith(`${API_V1}/`)) return await apiV1.handle(req, res, url);
+      sendJson(res, 404, { error: { status: 404, code: 'not_found', message: `This port serves only the REST API, under ${API_V1}` } });
+    } catch (e: any) {
+      if (!res.headersSent) sendJson(res, 500, { error: { status: 500, code: 'internal_error', message: e.message } });
+    }
+  });
+  apiServer.on('error', (e: NodeJS.ErrnoException) => fatal(e.code === 'EADDRINUSE' ? `API port ${API_PORT} is already in use (set SAS_API_PORT to another port)` : `API server error: ${e.message}`));
+  apiServer.listen(API_PORT, BIND_IP, () => log(`REST API on http://${BIND_IP}:${API_PORT}${API_V1}`));
+}
+
+function stream(req: http.IncomingMessage, res: http.ServerResponse, principal: Principal) {
   res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
   res.write('retry: 3000\n\n');
   const onEvent = (type: string, data: unknown) => res.write(`event: ${type}\ndata: ${JSON.stringify(data)}\n\n`);
-  bus.on('sse', onEvent);
-  const ping = setInterval(() => res.write(': ping\n\n'), 15000);
-  req.on('close', () => {
+  const stop = () => {
     clearInterval(ping);
     bus.off('sse', onEvent);
-  });
+    bus.off('auth-changed', onAuthChanged);
+  };
+  const end = () => {
+    stop();
+    res.end();
+  };
+  // Ends when the user signs out, is disabled or deleted, or their session expires.
+  const onAuthChanged = (userId: number) => {
+    if (userId === principal.userId && !auth.stillValid(principal)) end();
+  };
+  bus.on('sse', onEvent);
+  bus.on('auth-changed', onAuthChanged);
+  const ping = setInterval(() => (auth.stillValid(principal) ? res.write(': ping\n\n') : end()), 15000);
+  req.on('close', stop);
+}
+
+/**
+ * First start: the admin account. Its password comes from SAS_ADMIN_PASSWORD, else from the UI
+ * password of earlier versions (setting or SAS_UI_PASSWORD), else the default admin / admin.
+ */
+async function ensureAdminAccount() {
+  const legacy = db.get("SELECT value FROM settings WHERE key = 'uiPassword'")?.value;
+  if (!users.count()) {
+    let old: string | null = null;
+    try {
+      old = legacy ? JSON.parse(legacy) || null : null;
+    } catch { /* not JSON */ }
+    const password = process.env.SAS_ADMIN_PASSWORD || process.env.SAS_UI_PASSWORD || old || DEFAULT_ADMIN.password;
+    const isDefault = password === DEFAULT_ADMIN.password;
+    await users.create({ username: DEFAULT_ADMIN.username, password, role: 'admin', displayName: 'Administrator', defaultPassword: isDefault });
+    const from = process.env.SAS_ADMIN_PASSWORD ? 'SAS_ADMIN_PASSWORD' : process.env.SAS_UI_PASSWORD ? 'SAS_UI_PASSWORD' : old ? 'the previous UI password' : null;
+    const msg = from ? `Created the admin account (user name admin, password from ${from})`
+      : 'Created the admin account: user name admin, password admin. Sign in and change the password (account menu, top right → Your account).';
+    log(msg);
+    bus.event(from ? 'info' : 'warn', 'auth', msg);
+  }
+  if (legacy !== undefined) db.run("DELETE FROM settings WHERE key = 'uiPassword'");
 }
 
 /** Offline map tiles from the tile store: /tiles/<tile set>/<z>/<x>/<y>. */
@@ -200,12 +272,18 @@ function applyEnvOverrides(store: SettingsStore) {
   const int = (k: string) => (process.env[k] ? Number(process.env[k]) : undefined);
   if (int('SAS_HTTP_PORT')) patch.sasHttpPort = int('SAS_HTTP_PORT');
   if (int('SAS_HTTPS_PORT')) patch.sasHttpsPort = int('SAS_HTTPS_PORT');
-  if (process.env.SAS_UI_PASSWORD) patch.uiPassword = process.env.SAS_UI_PASSWORD;
   if (Object.keys(patch).length) store.update(patch);
+  // SAS_PROFILE: applied on first start and whenever its value changes, so later changes made in
+  // Settings survive restarts; SAS_PROFILE_APPLY=always applies it on every start.
   const profile = process.env.SAS_PROFILE;
-  if (profile && PRESETS[profile] && !db.get("SELECT 1 FROM settings WHERE key = 'profileApplied'")) {
-    store.update(PRESETS[profile].patch);
-    db.run("INSERT OR REPLACE INTO settings(key, value) VALUES ('profileApplied', ?)", JSON.stringify(profile));
+  if (profile && !PRESETS[profile]) log(`SAS_PROFILE "${profile}" is not a profile (${Object.keys(PRESETS).join(', ')}); ignored`);
+  else if (profile) {
+    const last = db.get("SELECT value FROM settings WHERE key = 'profileApplied'")?.value;
+    if (process.env.SAS_PROFILE_APPLY === 'always' || last !== JSON.stringify(profile)) {
+      store.update(PRESETS[profile].patch);
+      db.run("INSERT OR REPLACE INTO settings(key, value) VALUES ('profileApplied', ?)", JSON.stringify(profile));
+      log(`Applied the ${profile} settings profile (SAS_PROFILE)`);
+    }
   }
 }
 
@@ -214,6 +292,7 @@ const shutdown = async () => {
   engine.stopSweeper();
   await sas.stop();
   ui.close();
+  apiServer?.close();
   process.exit(0);
 };
 process.on('SIGINT', shutdown);

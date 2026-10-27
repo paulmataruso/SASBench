@@ -32,9 +32,10 @@ USER node
 VOLUME /data
 EXPOSE 8080 8000 8443
 
-# Any HTTP answer from the UI port (including 401 when SAS_UI_PASSWORD is set) means the process is serving.
+# Any HTTP answer from the UI port means the process is serving. Uses SAS_BIND_IP when the
+# listeners are bound to one address.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
-  CMD node -e "fetch('http://127.0.0.1:'+(process.env.UI_PORT||8080)+'/api/status').then(r=>process.exit(r.status<500?0:1),()=>process.exit(1))"
+  CMD node -e "const b=(process.env.SAS_BIND_IP||'').trim(),h=!b||b==='0.0.0.0'||b==='::'?'127.0.0.1':b.includes(':')?'['+b+']':b;fetch('http://'+h+':'+(process.env.UI_PORT||8080)+'/api/v1/health').then(r=>process.exit(r.status<500?0:1),()=>process.exit(1))"
 
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["node", "server/src/index.ts"]

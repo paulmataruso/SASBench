@@ -60,7 +60,7 @@ function eventFilter(q: Record<string, any>): Where {
 
 const eventQuery = {
   level: { description: 'Comma-separated levels.', schema: S.arr(S.enum(LEVELS)) },
-  category: { description: 'Only this category, e.g. registration, grant, heartbeat, admin, fault, tls, api.', schema: S.str() },
+  category: { description: 'Only this category, e.g. registration, grant, heartbeat, admin, fault, tls, api, auth.', schema: S.str() },
   cbsdId: { description: 'Only events about this CBSD.', schema: S.str() },
   grantId: { description: 'Only events about this grant.', schema: S.str() },
   q: { description: 'Text search in the message.', schema: S.str({ minLength: 1 }) },
@@ -203,11 +203,11 @@ export const logRoutes: Route[] = [
       '- `changed`: `{"what": "cbsds" | "grants" | "settings" | "certs" | "spectrum" | "faults" | "map" | "terrain" | "status" | …}`. Re-read that resource.',
       '',
       'A comment line (`: ping`) is sent every 15 s to keep proxies from closing the connection.',
-      'Browsers\' EventSource cannot set headers, so this route also accepts the API token as `?access_token=`.',
+      'Browsers\' EventSource cannot set headers, so this route also accepts the API key as `?access_token=` (in the console the login cookie is enough).',
     ].join('\n'),
     query: {
       types: { description: 'Comma-separated event types to receive (default: all).', schema: S.arr(S.enum(STREAM_TYPES)) },
-      access_token: { description: 'API token, for clients that cannot send an Authorization header.', schema: S.str() },
+      access_token: { description: 'API key, for clients that cannot send an Authorization header.', schema: S.str() },
     },
     responses: fileResp('Event stream.', 'text/event-stream'),
     handler: ({ d, req, res, query, head, requestId, principal }) => {
@@ -219,27 +219,36 @@ export const logRoutes: Route[] = [
       }
       // A client that stops reading must not make the SAS buffer events for it without limit.
       const send = (chunk: string) => {
+        if (res.writableEnded) return;
         if (res.writableLength > STREAM_MAX_BUFFERED) res.destroy();
         else res.write(chunk);
       };
       // Credentials were checked at connect; end the stream once they stop being valid.
-      const stillAllowed = () => principal.method === 'token' ? d.tokens.active(principal.tokenId!)
-        : principal.method === 'open' ? !d.settings.get().uiPassword : true;
+      const stillAllowed = () => d.auth.stillValid(principal);
       send(`retry: 3000\nevent: hello\ndata: ${JSON.stringify({ requestId, types, serverTime: Date.now() })}\n\n`);
       const onEvent = (type: string, data: unknown) => {
         if (types.includes(type)) send(`event: ${type}\ndata: ${JSON.stringify(STREAM_SHAPE[type]?.(data) ?? data)}\n\n`);
       };
+      const end = () => {
+        stop();
+        res.end();
+      };
       const onRevoked = (id: string) => {
-        if (id === principal.tokenId) res.end();
+        if (id === principal.tokenId) end();
+      };
+      const onAuthChanged = (userId: number) => {
+        if (userId === principal.userId && !stillAllowed()) end();
       };
       d.bus.on('sse', onEvent);
       d.bus.on('api-token-revoked', onRevoked);
-      const ping = setInterval(() => (stillAllowed() ? send(': ping\n\n') : res.end()), STREAM_PING_MS);
-      const stop = () => {
+      d.bus.on('auth-changed', onAuthChanged);
+      const ping = setInterval(() => (stillAllowed() ? send(': ping\n\n') : end()), STREAM_PING_MS);
+      function stop() {
         clearInterval(ping);
         d.bus.off('sse', onEvent);
         d.bus.off('api-token-revoked', onRevoked);
-      };
+        d.bus.off('auth-changed', onAuthChanged);
+      }
       req.on('close', stop);
       res.on('close', stop);
       return SENT;

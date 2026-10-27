@@ -176,6 +176,7 @@ before(async () => {
     SAS_API_STREAM_PING_MS: '300',
   });
   base = `http://127.0.0.1:${sas.uiPort}`;
+  auth = sas.authHeader; // the first-start admin (admin / admin)
   doc = (await call('GET', '/openapi.json', { expect: 200 })).body;
   for (const [p, methods] of Object.entries<any>(doc.paths)) {
     for (const [m, op] of Object.entries<any>(methods)) ops.set(op.operationId, { ...op, method: m.toUpperCase(), path: p });
@@ -245,7 +246,7 @@ describe('API v1', () => {
     assert.ok(ref.responseCodes.some((c: any) => c.code === 501 && c.name === 'SUSPENDED_GRANT'));
     assert.ok(ref.harnessMethods.some((m: any) => m.method === 'trigger/load_dpas'));
     const who = await get('/auth/whoami');
-    assert.deepEqual(who, { method: 'open', scope: 'write', passwordSet: false });
+    assert.deepEqual(who, { method: 'password', scope: 'write', role: 'admin', userId: 1, username: 'admin', authEnabled: true });
   });
 
   it('follows the HTTP conventions: request ids, HEAD, OPTIONS, 404, 405, validation errors', async () => {
@@ -277,7 +278,7 @@ describe('API v1', () => {
   // ------------------------------------------------------------------------------- settings
   it('reads, describes and changes settings', async () => {
     const s = await get('/settings');
-    assert.equal(s.settings.uiPassword, '');
+    assert.equal('uiPassword' in s.settings, false);
     const schema = await get('/settings/schema');
     assert.equal(schema.items.length, settingKeys.length);
     assert.ok(schema.items.find((x: any) => x.key === 'tlsMinVersion').restartsListeners);
@@ -462,6 +463,41 @@ describe('API v1', () => {
     assert.equal(msgs.items.length, 2);
     assert.ok(msgs.next);
     await fails('GET', `/cbsds/${enc('NOPE/123')}`, 404, 'not_found');
+
+    // Registered radios into the registry: FCC ID, user ID and the parameters they registered with.
+    const before = (await get('/registry/from-cbsds')).items.find((e: any) => e.cbsdId === cbsdA);
+    assert.deepEqual([before.fccId, before.serial, before.inRegistry.registration], [FCC, 'SN-A', false]);
+    assert.ok((await get('/registry/from-cbsds?missing=true')).items.some((e: any) => e.cbsdId === cbsdA));
+    const addA = await post(`/cbsds/${enc(cbsdA)}/registry`, {});
+    assert.deepEqual(addA.added, { fccId: !before.inRegistry.fccId, userId: !before.inRegistry.userId, registration: true });
+    assert.deepEqual(addA.inRegistry, { fccId: true, userId: true, registration: true });
+    const pre = await get(`/registry/conditional/${FCC}/SN-A`);
+    assert.equal(pre.source, 'cbsd');
+    assert.deepEqual(pre.data.installationParam, (await get(`/cbsds/${enc(cbsdA)}`)).effective.installationParam);
+    assert.equal(pre.data.userId, undefined);
+    const again = await post(`/cbsds/${enc(cbsdA)}/registry`, { userId: false });
+    assert.deepEqual(again.added, { fccId: false, userId: false, registration: false });
+    assert.equal(again.notes.length, 2);
+    assert.equal((await post(`/cbsds/${enc(cbsdA)}/registry`, { fccId: false, userId: false, replace: true })).added.registration, true);
+    const bulk = await post('/registry/from-cbsds', { cbsdIds: [cbsdA, 'NOPE/1'], registration: false });
+    assert.deepEqual(bulk.unknown, ['NOPE/1']);
+    assert.deepEqual(bulk.results.map((r: any) => r.cbsdId), [cbsdA]);
+    // All CBSDs (nothing selected to add here, so the registry is unchanged).
+    assert.ok((await post('/registry/from-cbsds', { fccId: false, userId: false, registration: false })).results.length >= 2);
+    assert.ok(!(await get('/registry/from-cbsds?missing=true')).items.some((e: any) => e.cbsdId === cbsdA));
+    await fails('POST', `/cbsds/${enc('NOPE/123')}/registry`, 404, 'not_found');
+    await del(`/registry/conditional/${FCC}/SN-A`);
+    // The console offers the same.
+    const A = { Authorization: auth! };
+    const consoleList = await (await fetch(`${base}/api/registry/from-cbsds`, { headers: A })).json() as any[];
+    assert.equal(consoleList.find((e) => e.cbsdId === cbsdA).inRegistry.registration, false);
+    const consoleAdd = await fetch(`${base}/api/cbsds/${enc(cbsdA)}/registry`, { method: 'POST', headers: { ...A, 'Content-Type': 'application/json' }, body: '{"fccId":false,"userId":false}' });
+    assert.equal(((await consoleAdd.json()) as any).added.registration, true);
+    assert.equal((await (await fetch(`${base}/api/cbsds/${enc(cbsdA)}`, { headers: A })).json() as any).registry.registration, true);
+    const consoleBulk = await fetch(`${base}/api/registry/from-cbsds`, { method: 'POST', headers: { ...A, 'Content-Type': 'application/json' }, body: JSON.stringify({ cbsdIds: [cbsdA] }) });
+    assert.match(((await consoleBulk.json()) as any).results[0].notes.join(' '), /already preloaded/);
+    assert.equal((await fetch(`${base}/api/cbsds/${enc('NOPE/1')}/registry`, { method: 'POST', headers: A, body: '{}' })).status, 404);
+    await del(`/registry/conditional/${FCC}/SN-A`);
   });
 
   // ------------------------------------------------------------------------------- grants
@@ -718,7 +754,7 @@ describe('API v1', () => {
 
   it('streams live events', async () => {
     const ctrl = new AbortController();
-    const r = await fetch(`${base}/api/v1/stream?types=changed,event,message`, { signal: ctrl.signal });
+    const r = await fetch(`${base}/api/v1/stream?types=changed,event,message`, { headers: { Authorization: auth! }, signal: ctrl.signal });
     assert.equal(r.status, 200);
     assert.match(r.headers.get('content-type') ?? '', /text\/event-stream/);
     record(r.headers.get('x-operation-id'), r.status);
@@ -748,7 +784,7 @@ describe('API v1', () => {
     ctrl.abort();
 
     const only = new AbortController();
-    const r2 = await fetch(`${base}/api/v1/stream?types=changed`, { signal: only.signal });
+    const r2 = await fetch(`${base}/api/v1/stream?types=changed`, { headers: { Authorization: auth! }, signal: only.signal });
     const r2text = await (async () => {
       const rd = r2.body!.getReader();
       let t = '';
@@ -1052,7 +1088,7 @@ describe('API v1', () => {
   it('exports and imports the configuration and backs up the database', async () => {
     const dump = await get('/config/export');
     assert.ok(dump.fccIds.some((f: any) => f.fcc_id === FCC));
-    assert.equal(dump.settings.uiPassword, '');
+    assert.equal('uiPassword' in dump.settings, false);
     const file = await call('GET', '/config/export?download=true', { expect: 200 });
     assert.match(file.headers.get('content-disposition') ?? '', /sas-config-.*\.json/);
 
@@ -1082,7 +1118,7 @@ describe('API v1', () => {
   it('reads any table with secrets redacted', async () => {
     const tables = await get('/data/tables');
     const names = tables.items.map((t: any) => t.name);
-    for (const t of ['cbsds', 'grants', 'certs', 'msg_log', 'events', 'api_tokens', 'settings']) assert.ok(names.includes(t), t);
+    for (const t of ['cbsds', 'grants', 'certs', 'msg_log', 'events', 'api_tokens', 'settings', 'users', 'sessions']) assert.ok(names.includes(t), t);
     const certs = await get('/data/tables/certs');
     assert.ok(certs.columns.some((c: any) => c.name === 'key_pem'));
     assert.match(certs.sql, /CREATE TABLE/);
@@ -1096,7 +1132,7 @@ describe('API v1', () => {
     assert.equal((await get('/data/tables/cbsds/rows?column=notes&like=ben_h')).total, 0);
     assert.ok((await get('/data/tables/cbsds/rows?column=notes&isNull=true')).total >= 1);
     await fails('GET', '/data/tables/certs/rows?column=key_pem&like=BEGIN', 400, 'bad_request');
-    await fails('GET', '/data/tables/settings/rows?order=value', 400, 'bad_request');
+    await fails('GET', '/data/tables/api_tokens/rows?order=token_hash', 400, 'bad_request');
     await fails('GET', '/data/tables/cbsds/rows?column=nope&value=1', 400, 'bad_request');
     await fails('GET', '/data/tables/cbsds/rows?value=1', 400, 'bad_request');
     await fails('GET', '/data/tables/nope', 404, 'not_found');
@@ -1167,11 +1203,39 @@ describe('API v1', () => {
     assert.ok((await del('/events', 200)).deleted >= 0);
   });
 
-  // ------------------------------------------------------------------------------- auth, tokens, CORS
+  // ------------------------------------------------------------------------------- auth, users, tokens, CORS
+  const basicAs = (user: string, pw: string) => `Basic ${Buffer.from(`${user}:${pw}`).toString('base64')}`;
+  const ADMIN_PW2 = 'admin pw 12';
+  /** Signs in through the console form; returns the session cookie. */
+  const login = async (username: string, password: string, expect = 200, headers: Record<string, string> = {}) => {
+    const r = await fetch(`${base}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify({ username, password }) });
+    const text = await r.text();
+    assert.equal(r.status, expect, text);
+    return { cookie: (r.headers.get('set-cookie') ?? '').split(';')[0], setCookie: r.headers.get('set-cookie') ?? '', body: JSON.parse(text) };
+  };
+  /** A console (/api/*) request with a session cookie. */
+  const consoleApi = (p: string, cookie: string, init: { method?: string; body?: string; headers?: Record<string, string> } = {}) =>
+    fetch(`${base}${p}`, { method: init.method, body: init.body, headers: { Cookie: cookie, ...(init.body ? { 'Content-Type': 'application/json' } : {}), ...init.headers } });
+  const asCookie = (cookie: string) => ({ auth: null, headers: { Cookie: cookie } });
+  const streamUntilHello = async (url: string, headers: Record<string, string>, hello = 'event: hello') => {
+    const r = await fetch(url, { headers });
+    assert.equal(r.status, 200);
+    record(r.headers.get('x-operation-id'), r.status);
+    const reader = r.body!.getReader();
+    let got = '';
+    while (!got.includes(hello)) got += Buffer.from((await reader.read()).value!).toString('utf8');
+    return reader;
+  };
+  const streamEnds = (reader: ReadableStreamDefaultReader<Uint8Array>, ms: number) => Promise.race([
+    (async () => { for (;;) if ((await reader.read()).done) return true; })(),
+    sleep(ms).then(() => false),
+  ]);
+
   it('creates, inspects and revokes API tokens', async () => {
     const t = await call('POST', '/tokens', { body: { name: 'reader', expiresInDays: 30 }, expect: 201 });
     assert.match(t.body.token, /^sasb_[A-Za-z0-9_-]{32}$/);
     assert.equal(t.body.scope, 'read');
+    assert.deepEqual([t.body.userId, t.body.username], [1, 'admin']);
     assert.equal(t.headers.get('location'), `/api/v1/tokens/${t.body.id}`);
     const list = await get('/tokens');
     assert.equal(list.items.length, 1);
@@ -1180,102 +1244,292 @@ describe('API v1', () => {
     await fails('POST', '/tokens', 400, 'bad_request', { name: 'x', expiresInDays: 1, expiresAt: Date.now() + 1e6 });
     await fails('POST', '/tokens', 400, 'validation_failed', { name: 'x', expiresAt: '2001-01-01T00:00:00Z' });
     await fails('POST', '/tokens', 400, 'validation_failed', { name: 'x', scope: 'admin' });
+    await fails('POST', '/tokens', 400, 'validation_failed', { name: 'x', userId: 999 });
     await del(`/tokens/${t.body.id}`);
     await fails('GET', `/tokens/${t.body.id}`, 404, 'not_found');
     await fails('DELETE', `/tokens/${t.body.id}`, 404, 'not_found');
   });
 
-  it('enforces authentication and token scopes once a password is set', async () => {
-    const streamUntilHello = async (authorization: string | null) => {
-      const r = await fetch(`${base}/api/v1/stream`, { headers: authorization ? { Authorization: authorization } : {} });
-      assert.equal(r.status, 200);
-      const reader = r.body!.getReader();
-      let got = '';
-      while (!got.includes('event: hello')) got += Buffer.from((await reader.read()).value!).toString('utf8');
-      return reader;
-    };
-    const streamEnds = (reader: ReadableStreamDefaultReader<Uint8Array>, ms: number) => Promise.race([
-      (async () => { for (;;) if ((await reader.read()).done) return true; })(),
-      sleep(ms).then(() => false),
-    ]);
+  it('manages users, roles, sessions and passwords', async () => {
+    // The first-start admin, still on the default password.
+    const [admin] = (await get('/users')).items;
+    assert.deepEqual([admin.id, admin.username, admin.role, admin.enabled, admin.defaultPassword], [1, 'admin', 'admin', true, true]);
+    assert.equal(JSON.stringify(admin).includes('scrypt'), false);
+
+    // Create, read, change.
+    const op = await call('POST', '/users', { body: { username: 'olivia', password: 'operator pw 1', role: 'operator', displayName: 'Olivia' }, expect: 201 });
+    assert.equal(op.headers.get('location'), `/api/v1/users/${op.body.id}`);
+    assert.deepEqual([op.body.role, op.body.defaultPassword, op.body.lastLoginAt], ['operator', false, null]);
+    const olivia = op.body.id as number;
+    const victor = (await post('/users', { username: 'victor', password: 'viewer pw 1', role: 'viewer' }, 201)).id as number;
+    await fails('POST', '/users', 409, 'conflict', { username: 'OLIVIA', password: 'whatever pw', role: 'viewer' });
+    const short = await fails('POST', '/users', 400, 'validation_failed', { username: 'shorty', password: 'short', role: 'viewer' });
+    assert.equal(short.details[0].path, 'password');
+    await fails('POST', '/users', 400, 'validation_failed', { username: 'has space', password: 'long enough', role: 'viewer' });
+    await fails('POST', '/users', 400, 'validation_failed', { username: 'x', password: 'long enough', role: 'root' });
+    assert.equal((await get(`/users/${olivia}`)).displayName, 'Olivia');
+    await fails('GET', '/users/999', 404, 'not_found');
+    assert.equal((await patch(`/users/${olivia}`, { displayName: 'Olivia O.' })).displayName, 'Olivia O.');
+    await fails('PATCH', '/users/999', 404, 'not_found', { enabled: false });
+    await fails('PATCH', `/users/${olivia}`, 400, 'validation_failed', { password: 'short' });
+
+    // There is always an enabled admin, and nobody deletes their own account.
+    const lastAdmin = await fails('PATCH', '/users/1', 409, 'conflict', { role: 'viewer' });
+    assert.match(lastAdmin.message, /only enabled admin/);
+    await fails('PATCH', '/users/1', 409, 'conflict', { enabled: false });
+    await fails('DELETE', '/users/1', 409, 'conflict');
+    await fails('DELETE', '/users/999', 404, 'not_found');
+
+    // Console sign-in: an HttpOnly, SameSite=Strict session cookie; user names ignore case.
+    const s1 = await login('Olivia', 'operator pw 1');
+    assert.match(s1.setCookie, /^sasb_session=[A-Za-z0-9_-]{43}; Path=\/; HttpOnly; SameSite=Strict; Max-Age=2592000$/);
+    assert.equal(s1.body.user.username, 'olivia');
+    const me = await (await consoleApi('/api/auth/me', s1.cookie)).json() as any;
+    assert.deepEqual([me.method, me.role, me.scope, me.user.id, me.authEnabled], ['session', 'operator', 'write', olivia, true]);
+    const whoS = (await call('GET', '/auth/whoami', { ...asCookie(s1.cookie), expect: 200 })).body;
+    assert.deepEqual([whoS.method, whoS.username, whoS.authEnabled], ['session', 'olivia', true]);
+    const sessions = (await get(`/users/${olivia}/sessions`)).items;
+    assert.equal(sessions.length, 1);
+    assert.deepEqual([sessions[0].current, sessions[0].addr, sessions[0].id], [false, '127.0.0.1', undefined]);
+    assert.equal((await call('GET', `/users/${olivia}/sessions`, { auth: null, headers: { Cookie: s1.cookie }, expect: 403 })).status, 403);
+    assert.ok((await get(`/users/${olivia}`)).lastLoginAt > 0);
+    await login('olivia', 'wrong password', 401);
+    await login('nobody', 'wrong password', 401);
+    assert.equal((await login('olivia', '', 400)).body.code, 'validation_failed');
+    assert.equal((await fetch(`${base}/api/auth/login`, { method: 'POST', body: '{"username":' })).status, 400);
+    assert.equal((await fetch(`${base}/api/auth/login`)).status, 405);
+    assert.equal((await fetch(`${base}/api/auth/me`, { method: 'POST' })).status, 405);
+    assert.equal((await login('olivia', 'operator pw 1', 403, { Origin: 'http://evil.example' })).body.code, 'origin_not_allowed');
+    const anon = await fetch(`${base}/api/auth/me`);
+    assert.deepEqual([anon.status, ((await anon.json()) as any).authEnabled], [401, true]);
+    const sessionRows = (await get('/data/tables/sessions/rows')).items;
+    assert.ok(sessionRows.length >= 1 && sessionRows.every((r: any) => r.id === '[redacted]'));
+    assert.ok((await get('/data/tables/users/rows')).items.every((r: any) => r.password_hash === '[redacted]'));
+    await fails('GET', '/data/tables/users/rows?order=password_hash', 400, 'bad_request');
+
+    // Operators run the SAS but cannot manage users.
+    await call('POST', '/registry/user-ids', { ...asCookie(s1.cookie), body: { userId: 'by-olivia' }, expect: 201 });
+    await call('GET', '/users', { ...asCookie(s1.cookie), expect: 403 });
+    await call('GET', '/data/tables/users/rows', { ...asCookie(s1.cookie), expect: 403 });
+    assert.equal((await consoleApi('/api/status', s1.cookie)).status, 200);
+    assert.equal((await consoleApi('/api/registry/user-ids', s1.cookie, { method: 'POST', body: '{"userId":"console-olivia"}' })).status, 200);
+    // Console changes must come from the console itself (no cross-site request forgery).
+    const csrf = await consoleApi('/api/registry/user-ids', s1.cookie, { method: 'POST', body: '{"userId":"csrf"}', headers: { Origin: 'http://evil.example' } });
+    assert.deepEqual([csrf.status, ((await csrf.json()) as any).code], [403, 'origin_not_allowed']);
+    const sameSite = await consoleApi('/api/registry/user-ids', s1.cookie, { method: 'POST', body: '{"userId":"csrf"}', headers: { 'Sec-Fetch-Site': 'same-site' } });
+    assert.equal(sameSite.status, 403);
+    const opaque = await consoleApi('/api/registry/user-ids', s1.cookie, { method: 'POST', body: '{"userId":"csrf"}', headers: { Origin: 'null' } });
+    assert.equal(opaque.status, 403); // sandboxed frames and file:// pages send "Origin: null"
+    assert.equal((await consoleApi('/api/auth/nope', s1.cookie)).status, 404);
+    assert.equal((await get('/registry/user-ids')).items.some((u: any) => u.userId === 'csrf'), false);
+    await del('/registry/user-ids/by-olivia');
+    await del('/registry/user-ids/console-olivia');
+
+    // The console's data needs a signed-in user, without a browser password dialog.
+    const noAuth = await fetch(`${base}/api/status`);
+    assert.deepEqual([noAuth.status, noAuth.headers.get('www-authenticate'), ((await noAuth.json()) as any).code], [401, null, 'unauthorized']);
+    assert.equal((await fetch(`${base}/api/status`, { headers: { Cookie: 'sasb_session=forged' } })).status, 401);
+
+    // Viewers read everything except private keys, backups, users and other people's keys.
+    const V = basicAs('victor', 'viewer pw 1');
+    assert.equal((await call('GET', '/auth/whoami', { auth: V, expect: 200 })).body.role, 'viewer');
+    await call('GET', '/cbsds', { auth: V, expect: 200 });
+    const vDenied = await call('POST', '/faults', { auth: V, body: { action: 'drop' }, expect: 403 });
+    assert.match(vDenied.body.error.message, /viewers have read-only access/);
+    await call('GET', '/system/backup', { auth: V, expect: 403 });
+    await call('GET', '/users', { auth: V, expect: 403 });
+    const keyCert = (await get('/certs?hasKey=true&limit=1')).items[0].id;
+    await call('GET', `/certs/${keyCert}/download?format=key`, { auth: V, expect: 403 });
+    assert.equal((await fetch(`${base}/api/status`, { headers: { Authorization: V } })).status, 200);
+    const vWrite = await fetch(`${base}/api/registry/user-ids`, { method: 'POST', headers: { Authorization: V, 'Content-Type': 'application/json' }, body: '{"userId":"by-victor"}' });
+    assert.deepEqual([vWrite.status, ((await vWrite.json()) as any).error], [403, 'Viewers have read-only access']);
+    assert.equal((await fetch(`${base}/api/certs/${keyCert}/download?format=key`, { headers: { Authorization: V } })).status, 403);
+    assert.equal((await fetch(`${base}/api/certs/${keyCert}/download?format=pem`, { headers: { Authorization: V } })).status, 200);
+
+    // Keys belong to users: viewers get read keys; admins see every key and make keys for others.
+    const vKey = (await call('POST', '/tokens', { auth: V, body: { name: 'victor read' }, expect: 201 })).body;
+    assert.equal(vKey.username, 'victor');
+    await call('POST', '/tokens', { auth: V, body: { name: 'victor write', scope: 'write' }, expect: 403 });
+    await call('POST', '/tokens', { auth: V, body: { name: 'for admin', userId: 1 }, expect: 403 });
+    const adminKey = await post('/tokens', { name: 'admin write', scope: 'write' }, 201);
+    const forVictor = await post('/tokens', { name: 'service key', userId: victor }, 201);
+    assert.equal(forVictor.username, 'victor');
+    await fails('POST', '/tokens', 403, 'forbidden', { name: 'viewer write', scope: 'write', userId: victor });
+    assert.deepEqual((await call('GET', '/tokens', { auth: V, expect: 200 })).body.items.map((t: any) => t.name).sort(), ['service key', 'victor read']);
+    assert.ok((await get('/tokens')).items.length >= 3);
+    await call('GET', `/tokens/${adminKey.id}`, { auth: V, expect: 404 });
+    await call('DELETE', `/tokens/${adminKey.id}`, { auth: V, expect: 404 });
+    assert.equal((await call('GET', `/tokens/${vKey.id}`, { auth: V, expect: 200 })).body.name, 'victor read');
+    // Keys manage nothing: a key cannot create or revoke keys, or change a password.
+    const AK = `Bearer ${adminKey.token}`;
+    await call('POST', '/tokens', { auth: AK, body: { name: 'from a key' }, expect: 403 });
+    await call('DELETE', `/tokens/${vKey.id}`, { auth: AK, expect: 403 });
+    await call('POST', '/auth/password', { auth: AK, body: { currentPassword: 'admin', newPassword: 'whatever pw' }, expect: 403 });
+    // A write key acts as its owner (an admin here); a read key as a viewer.
+    await call('GET', '/users', { auth: AK, expect: 200 });
+    await call('GET', '/users', { auth: `Bearer ${forVictor.token}`, expect: 403 });
+
+    // Changing your own password keeps this session and ends the others.
+    const s2 = await login('olivia', 'operator pw 1');
+    const wrong = await call('POST', '/auth/password', { ...asCookie(s1.cookie), body: { currentPassword: 'nope nope', newPassword: 'operator pw 2' }, expect: 400 });
+    assert.equal(wrong.body.error.details[0].path, 'currentPassword');
+    const same = await call('POST', '/auth/password', { ...asCookie(s1.cookie), body: { currentPassword: 'operator pw 1', newPassword: 'operator pw 1' }, expect: 400 });
+    assert.equal(same.body.error.details[0].path, 'newPassword');
+    await call('POST', '/auth/password', { ...asCookie(s1.cookie), body: { currentPassword: 'operator pw 1', newPassword: 'operator pw 2' }, expect: 204 });
+    assert.equal((await consoleApi('/api/status', s1.cookie)).status, 200);
+    assert.equal((await consoleApi('/api/status', s2.cookie)).status, 401);
+    await call('GET', '/status', { auth: basicAs('olivia', 'operator pw 1'), expect: 401 });
+    const O = basicAs('olivia', 'operator pw 2');
+    await call('GET', '/status', { auth: O, expect: 200 });
+
+    // An open stream ends when its user's password is set by an admin; so do the user's sessions.
+    const oStream = await streamUntilHello(`${base}/api/v1/stream`, { Authorization: O });
+    await patch(`/users/${olivia}`, { password: 'operator pw 3' });
+    assert.equal(await streamEnds(oStream, 5000), true, 'stream still open after the password was reset');
+    assert.equal((await consoleApi('/api/status', s1.cookie)).status, 401);
+    await call('GET', '/status', { auth: O, expect: 401 });
+
+    // The admin changes their own (default) password.
+    await call('POST', '/auth/password', { body: { currentPassword: 'admin', newPassword: ADMIN_PW2 }, expect: 204 });
+    await call('GET', '/status', { expect: 401 }); // admin/admin no longer works
+    auth = basicAs('admin', ADMIN_PW2);
+    assert.equal((await get('/users/1')).defaultPassword, false);
+
+    // Disabling a user stops their password and keys; enabling restores the keys.
+    await patch(`/users/${victor}`, { enabled: false });
+    assert.equal((await call('GET', '/status', { auth: V, expect: 401 })).body.error.code, 'account_disabled');
+    assert.equal((await call('GET', '/status', { auth: `Bearer ${vKey.token}`, expect: 401 })).body.error.code, 'account_disabled');
+    assert.equal((await login('victor', 'viewer pw 1', 403)).body.code, 'account_disabled');
+    await patch(`/users/${victor}`, { enabled: true });
+    await call('GET', '/status', { auth: `Bearer ${vKey.token}`, expect: 200 });
+
+    // A key never has more access than its owner has now.
+    const oKey = (await call('POST', '/tokens', { auth: basicAs('olivia', 'operator pw 3'), body: { name: 'olivia write', scope: 'write' }, expect: 201 })).body;
+    const OK = `Bearer ${oKey.token}`;
+    await call('POST', '/registry/user-ids', { auth: OK, body: { userId: 'olivia-key' }, expect: 201 });
+    await patch(`/users/${olivia}`, { role: 'viewer' });
+    const demoted = (await call('GET', '/auth/whoami', { auth: OK, expect: 200 })).body;
+    assert.deepEqual([demoted.scope, demoted.role], ['read', 'viewer']);
+    await call('DELETE', '/registry/user-ids/olivia-key', { auth: OK, expect: 403 });
+    await patch(`/users/${olivia}`, { role: 'operator' });
+    await call('DELETE', '/registry/user-ids/olivia-key', { auth: OK, expect: 204 });
+
+    // Sign out: the cookie stops working, and so does the session's live stream (console and API).
+    const s3 = await login('olivia', 'operator pw 3');
+    const v1Stream = await streamUntilHello(`${base}/api/v1/stream`, { Cookie: s3.cookie });
+    const consoleStream = await streamUntilHello(`${base}/api/stream`, { Cookie: s3.cookie }, 'retry:');
+    const out = await consoleApi('/api/auth/logout', s3.cookie, { method: 'POST' });
+    assert.equal(out.status, 200);
+    assert.match(out.headers.get('set-cookie') ?? '', /^sasb_session=; .*Max-Age=0/);
+    assert.equal(await streamEnds(v1Stream, 5000), true, 'API stream still open after sign-out');
+    assert.equal(await streamEnds(consoleStream, 5000), true, 'console stream still open after sign-out');
+    assert.equal((await consoleApi('/api/status', s3.cookie)).status, 401);
+    assert.equal((await fetch(`${base}/api/auth/logout`, { method: 'POST' })).status, 200); // not signed in: nothing to do
+    assert.equal((await fetch(`${base}/api/auth/logout`)).status, 405);
+
+    // Sign a user out everywhere.
+    const s4 = await login('olivia', 'operator pw 3');
+    await login('olivia', 'operator pw 3');
+    assert.deepEqual(await del(`/users/${olivia}/sessions`, 200), { revoked: 2 });
+    assert.equal((await consoleApi('/api/status', s4.cookie)).status, 401);
+    await fails('DELETE', '/users/999/sessions', 404, 'not_found');
+
+    // Deleting a user deletes their keys and sessions.
+    await del(`/users/${victor}`);
+    await call('GET', '/status', { auth: `Bearer ${vKey.token}`, expect: 401 });
+    await call('GET', '/status', { auth: `Bearer ${forVictor.token}`, expect: 401 });
+    assert.equal((await get('/tokens')).items.some((t: any) => t.username === 'victor' || t.id === forVictor.id), false);
+    await del(`/users/${olivia}`);
+    await del(`/tokens/${adminKey.id}`);
+    assert.deepEqual((await get('/users')).items.map((u: any) => u.username), ['admin']);
+    assert.deepEqual((await get('/tokens')).items, []);
+  });
+
+  it('enforces authentication and API key scopes', async () => {
     const reader = (await post('/tokens', { name: 'reader', scope: 'read' }, 201)).token as string;
     const writerRec = await post('/tokens', { name: 'writer', scope: 'write' }, 201);
     const writer = writerRec.token as string;
-    // With no password, an invalid token is still refused.
-    const invalidOpen = await call('GET', '/status', { auth: 'Bearer sasb_nope', expect: 401 });
-    assert.match(invalidOpen.headers.get('www-authenticate') ?? '', /Bearer realm="SASBench"/);
-    // A Bearer credential that is not an API token (e.g. forwarded by a proxy): the console ignores
-    // it as it always did; the API refuses it.
-    assert.equal((await fetch(`${base}/api/status`, { headers: { Authorization: 'Bearer some-oauth-token' } })).status, 200);
-    await call('GET', '/status', { auth: 'Bearer some-oauth-token', expect: 401 });
+    const ADMIN = auth!;
 
-    // A stream opened while the SAS is open ends when a password is set.
-    const openStream = await streamUntilHello(null);
-    await patch('/settings', { uiPassword: 'secret pw' });
-    assert.equal(await streamEnds(openStream, 3000), true, 'open stream still running after a password was set');
-    auth = undefined;
-    const basic = (pw: string) => `Basic ${Buffer.from(`admin:${pw}`).toString('base64')}`;
-    const r401 = await call('GET', '/status', { expect: 401 });
+    // No credentials: 401 with challenges, Basic only for scripts (curl) and the address bar, not
+    // for fetch() from a page (fetch sends Sec-Fetch-Mode: cors), so no browser dialog pops up.
+    const r401 = await call('GET', '/status', { auth: null, expect: 401 });
     assert.equal(r401.body.error.code, 'unauthorized');
-    assert.match(r401.headers.get('www-authenticate') ?? '', /Basic realm="SASBench"/);
-    await call('GET', '/health', { expect: 200 });
-    await call('GET', '/openapi.json', { expect: 200 });
-    await call('GET', '/status', { auth: basic('wrong'), expect: 401 });
-    assert.deepEqual((await call('GET', '/auth/whoami', { auth: basic('secret pw'), expect: 200 })).body, { method: 'password', scope: 'write', passwordSet: true });
-    const legacy401 = await fetch(`${base}/api/status`);
-    assert.equal(legacy401.status, 401);
+    assert.equal(r401.headers.get('www-authenticate'), 'Bearer realm="SASBench"');
+    const challenge = (headers: Record<string, string>) => new Promise<string | undefined>((resolve, reject) => {
+      http.get(`${base}/api/v1/status`, { headers }, (res) => {
+        res.resume();
+        resolve(res.headers['www-authenticate']);
+      }).on('error', reject);
+    });
+    assert.equal(await challenge({}), 'Bearer realm="SASBench", Basic realm="SASBench", charset="UTF-8"');
+    assert.equal(await challenge({ 'Sec-Fetch-Mode': 'navigate' }), 'Bearer realm="SASBench", Basic realm="SASBench", charset="UTF-8"');
+    await call('GET', '/health', { auth: null, expect: 200 });
+    await call('GET', '/openapi.json', { auth: null, expect: 200 });
+    await call('GET', '/', { auth: null, expect: 200 });
+    await call('GET', '/status', { auth: basicAs('admin', 'wrong'), expect: 401 });
+    await call('GET', '/status', { auth: 'Bearer sasb_nope', expect: 401 });
+    await call('GET', '/status', { auth: 'Digest username="admin"', expect: 401 });
+    // A Bearer credential that is not an API key (e.g. forwarded by a proxy): the console ignores it
+    // and uses the session; the API refuses it.
+    const s = await login('admin', ADMIN_PW2);
+    assert.equal((await fetch(`${base}/api/status`, { headers: { Authorization: 'Bearer some-oauth-token', Cookie: s.cookie } })).status, 200);
+    await call('GET', '/status', { auth: 'Bearer some-oauth-token', expect: 401 });
+    await consoleApi('/api/auth/logout', s.cookie, { method: 'POST' });
 
-    // Read token: GETs only, and nothing that reveals private keys.
+    // Read key: GETs only, and nothing that reveals private keys or accounts.
     const R = `Bearer ${reader}`;
     const who = (await call('GET', '/auth/whoami', { auth: R, expect: 200 })).body;
-    assert.equal(who.method, 'token');
-    assert.equal(who.scope, 'read');
-    assert.equal(who.tokenName, 'reader');
+    assert.deepEqual([who.method, who.scope, who.role, who.tokenName, who.username], ['token', 'read', 'viewer', 'reader', 'admin']);
     await call('GET', '/status', { auth: R, expect: 200 });
     await call('GET', '/settings', { auth: R, expect: 200 });
-    assert.equal((await call('GET', '/settings', { auth: R, expect: 200 })).body.settings.uiPassword, '********');
     const denied = await call('POST', '/faults', { auth: R, body: { action: 'drop' }, expect: 403 });
     assert.equal(denied.body.error.code, 'forbidden');
+    assert.match(denied.body.error.message, /this API key is read-only/);
     assert.equal((await call('GET', '/faults', { auth: R, expect: 200 })).body.total, 0); // nothing was created
-    await call('GET', '/tokens', { auth: R, expect: 403 });
+    await call('GET', '/users', { auth: R, expect: 403 });
     await call('GET', '/system/backup', { auth: R, expect: 403 });
     const anyCert = (await call('GET', '/certs?hasKey=true&limit=1', { auth: R, expect: 200 })).body.items[0].id;
     await call('GET', `/certs/${anyCert}/download?format=pem`, { auth: R, expect: 200 });
     const keyDenied = await call('GET', `/certs/${anyCert}/download?format=key`, { auth: R, expect: 403 });
     assert.match(keyDenied.body.error.message, /private key/);
-    const settingsRow = (await call('GET', '/data/tables/settings/rows?column=key&value=uiPassword', { auth: R, expect: 200 })).body;
-    assert.equal(settingsRow.items[0].value, '[redacted]');
     await call('GET', '/data/tables/api_tokens/rows', { auth: R, expect: 403 });
-    assert.equal((await fetch(`${base}/api/status`, { headers: { Authorization: R } })).status, 403);
-    assert.equal((await fetch(`${base}/api/status`, { headers: { Authorization: `Bearer ${writer}` } })).status, 200);
+    await call('GET', '/data/tables/users/rows', { auth: R, expect: 403 });
+    assert.equal((await fetch(`${base}/api/status`, { headers: { Authorization: R } })).status, 200);
+    const consoleDenied = await fetch(`${base}/api/registry/user-ids`, { method: 'POST', headers: { Authorization: R, 'Content-Type': 'application/json' }, body: '{"userId":"by-key"}' });
+    assert.deepEqual([consoleDenied.status, ((await consoleDenied.json()) as any).error], [403, 'This API key is read-only']);
+    const consoleWrite = await fetch(`${base}/api/registry/user-ids`, { method: 'POST', headers: { Authorization: `Bearer ${writer}`, 'Content-Type': 'application/json' }, body: '{"userId":"by-key"}' });
+    assert.equal(consoleWrite.status, 200);
+    await del('/registry/user-ids/by-key');
 
     // ?access_token only on the stream.
     const ctrl = new AbortController();
-    const s = await fetch(`${base}/api/v1/stream?access_token=${reader}`, { signal: ctrl.signal });
-    assert.equal(s.status, 200);
+    const st = await fetch(`${base}/api/v1/stream?access_token=${reader}`, { signal: ctrl.signal });
+    assert.equal(st.status, 200);
     ctrl.abort();
     await call('GET', `/status?access_token=${reader}`, { auth: null, expect: 401 }); // not accepted outside the stream
     await call('GET', '/stream?access_token=sasb_wrong', { auth: null, expect: 401 });
 
-    // Write token can do everything; last use is recorded.
+    // Write key can do everything its owner can; last use is recorded.
     auth = `Bearer ${writer}`;
     await post('/registry/user-ids', { userId: 'token-user' }, 201);
     const rec = await get(`/tokens/${writerRec.id}`);
     assert.ok(rec.lastUsedAt > 0);
     assert.equal(rec.lastUsedAddr, '127.0.0.1');
     assert.ok((await get('/data/tables/api_tokens/rows')).items.every((x: any) => x.token_hash === '[redacted]'));
+    auth = ADMIN;
 
-    // Revoking a token ends its open streams.
+    // Revoking a key ends its open streams.
     const streamer = await post('/tokens', { name: 'streamer', scope: 'read' }, 201);
-    const rd = await streamUntilHello(`Bearer ${streamer.token}`);
+    const rd = await streamUntilHello(`${base}/api/v1/stream`, { Authorization: `Bearer ${streamer.token}` });
     await del(`/tokens/${streamer.id}`);
-    assert.equal(await streamEnds(rd, 5000), true, 'stream still open after its token was revoked');
+    assert.equal(await streamEnds(rd, 5000), true, 'stream still open after its key was revoked');
     // ... and so does expiry, at the next keep-alive.
     const expiring = await post('/tokens', { name: 'expiring', scope: 'read', expiresAt: new Date(Date.now() + 1500).toISOString() }, 201);
-    const rdExp = await streamUntilHello(`Bearer ${expiring.token}`);
-    assert.equal(await streamEnds(rdExp, 6000), true, 'stream still open after its token expired');
+    const rdExp = await streamUntilHello(`${base}/api/v1/stream`, { Authorization: `Bearer ${expiring.token}` });
+    assert.equal(await streamEnds(rdExp, 6000), true, 'stream still open after its key expired');
 
-    // Expired and revoked tokens stop working.
+    // Expired and revoked keys stop working.
     const db = new DatabaseSync(path.join(sas.dataDir, 'sas.db'));
     db.prepare('UPDATE api_tokens SET expires_at = ? WHERE name = ?').run(Date.now() - 1000, 'reader');
     db.close();
@@ -1298,12 +1552,7 @@ describe('API v1', () => {
     const allowed = await call('POST', '/registry/user-ids', { body: { userId: 'cors-user' }, headers: { Origin: ALLOWED_ORIGIN }, expect: 201 });
     assert.equal(allowed.headers.get('access-control-allow-origin'), ALLOWED_ORIGIN);
     assert.match(allowed.headers.get('access-control-expose-headers') ?? '', /X-Request-Id/);
-
-    // Remove the password again: open access.
-    await patch('/settings', { uiPassword: '' });
-    auth = undefined;
     await del(`/tokens/${writerRec.id}`);
-    assert.equal((await get('/auth/whoami')).method, 'open');
 
     // DNS rebinding: a page whose own (attacker's) name resolves to this SAS is refused; scripts,
     // direct navigation, known names and allowed origins are not.
@@ -1311,7 +1560,7 @@ describe('API v1', () => {
     const rebind = `rebind.example:${port}`;
     const raw = async (method: string, p: string, headers: Record<string, string>, body?: string) => {
       const r = await new Promise<{ status: number; op: string | null; json: any }>((resolve, reject) => {
-        const req = http.request({ host: '127.0.0.1', port, method, path: `/api/v1${p}`, headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), ...headers } }, (res) => {
+        const req = http.request({ host: '127.0.0.1', port, method, path: `/api/v1${p}`, headers: { Authorization: ADMIN, ...(body ? { 'Content-Type': 'application/json' } : {}), ...headers } }, (res) => {
           let t = '';
           res.on('data', (c) => (t += c));
           res.on('end', () => resolve({ status: res.statusCode!, op: (res.headers['x-operation-id'] as string) ?? null, json: t ? JSON.parse(t) : null }));

@@ -124,7 +124,7 @@ function download(c: Ctx) {
     case 'p12-legacy': return sendFile(c, d.pki.pkcs12(id, pw, true), 'application/x-pkcs12', `${base}-legacy.p12`);
     case 'bundle': {
       const s = d.settings.get();
-      return sendFile(c, d.pki.radioBundle(id, { password: pw, serverCertId: s.serverCertIds[0] ?? null, sasUrls: sasUrls(s, d.hostnames) }), 'application/zip', `${base}-bundle.zip`);
+      return sendFile(c, d.pki.radioBundle(id, { password: pw, serverCertId: s.serverCertIds[0] ?? null, sasUrls: sasUrls(s, d.advertised) }), 'application/zip', `${base}-bundle.zip`);
     }
     default: {
       if (!d.pki.get(id)?.isCa) throw badRequest('CRLs can only be generated for CA certificates');
@@ -299,7 +299,7 @@ export const certRoutes: Route[] = [
       const files: Record<string, Uint8Array> = {};
       for (const dev of body.devices) {
         const cert = d.pki.issueCbsd({ parentId: body.parentId, fccId: dev.fccId, serial: dev.serial, keyType: body.keyType, days: body.days });
-        files[`${safe(dev.fccId)}_${safe(dev.serial)}.zip`] = d.pki.radioBundle(cert.id, { password: body.password, serverCertId: s.serverCertIds[0] ?? null, sasUrls: sasUrls(s, d.hostnames) });
+        files[`${safe(dev.fccId)}_${safe(dev.serial)}.zip`] = d.pki.radioBundle(cert.id, { password: body.password, serverCertId: s.serverCertIds[0] ?? null, sasUrls: sasUrls(s, d.advertised) });
         if (body.registerFccIds) d.admin.injectFccId(dev.fccId, 47);
       }
       files['devices.txt'] = strToU8(body.devices.map((x: any) => `${x.fccId},${x.serial}`).join('\n') + '\n');

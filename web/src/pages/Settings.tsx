@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Download, Plus, RefreshCw, RotateCcw, Save, Trash2, Upload, X } from 'lucide-react';
+import { Download, Plus, RefreshCw, RotateCcw, Save, Trash2, Upload } from 'lucide-react';
 import { api, download } from '../lib/api';
 import { useResource } from '../lib/live';
 import { useStatus } from '../lib/status';
@@ -7,7 +7,7 @@ import { clock, mhz } from '../lib/format';
 import type { Cbsd, Preset } from '../lib/types';
 import { Choice, Grid, Mhz, Num, Text, Toggle, type FProps, type S } from './settings/fields';
 import { MapSettings } from './settings/MapSettings';
-import { Button, Field, Input, Module, Note, PageHeader, Select, Switch, Tag, cx, useAction, useConfirm, useToast } from '../components/ui';
+import { Button, Input, Module, Note, PageHeader, Select, Switch, Tag, cx, useAction, useConfirm, useToast } from '../components/ui';
 
 interface SettingsResp { settings: S; defaults: S; presets: Record<string, Preset>; profile: string | null }
 
@@ -19,7 +19,7 @@ const SECTIONS = [
   ['spectrum', 'Spectrum policy'],
   ['harness', 'Test harness'],
   ['map', 'Map'],
-  ['ui', 'UI & logs'],
+  ['ui', 'Logs'],
   ['maintenance', 'Maintenance'],
 ] as const;
 
@@ -137,9 +137,8 @@ export function SettingsPage() {
 
           <MapSettings field={field} />
 
-          <Module id="ui" title="UI & logs">
+          <Module id="ui" title="Logs">
             <Grid>
-              <Password {...field} />
               <Num {...field} k="msgLogLimit" label="Wire log size (exchanges)" min={100} />
               <Num {...field} k="eventLogLimit" label="Event log size" min={100} />
             </Grid>
@@ -163,29 +162,6 @@ export function SettingsPage() {
         </div>
       )}
     </div>
-  );
-}
-
-function Password(p: FProps) {
-  const isSet = !!p.cur.uiPassword;
-  const [val, setVal] = useState('');
-  return (
-    <Field label="UI password" hint={isSet ? 'Set. Browsers ask for it via HTTP Basic auth (any user name). Clear the field and save to remove it.' : 'Optional. Protects this UI and its API with HTTP Basic auth. The SAS ports are not affected.'}>
-      <div className="flex gap-2">
-        <Input
-          type="password"
-          autoComplete="new-password"
-          value={val}
-          placeholder={isSet ? '•••••••• (unchanged)' : 'No password'}
-          onChange={(e) => {
-            setVal(e.target.value);
-            p.set('uiPassword', e.target.value || (isSet ? '********' : ''));
-          }}
-          className="w-56"
-        />
-        {isSet && <Button variant="ghost" icon={X} onClick={() => { setVal(''); p.set('uiPassword', ''); }}>Remove</Button>}
-      </div>
-    </Field>
   );
 }
 
@@ -383,7 +359,7 @@ function Maintenance({ onDone }: { onDone: () => void }) {
         </div>
         <div>
           <span className="mb-1 block text-sm font-medium text-ink-2">Restore default settings</span>
-          <p className="mb-2 text-xs text-ink-3">Keeps ports, server certificates, trusted CAs and the UI password.</p>
+          <p className="mb-2 text-xs text-ink-3">Keeps ports, server certificates and trusted CAs. User accounts and API keys are not affected.</p>
           <Button icon={RotateCcw} loading={busy === 'defaults'} onClick={async () => {
             if (await confirm({ title: 'Restore default settings?', body: 'All other settings return to their defaults.', confirm: 'Restore defaults', danger: true })) {
               await run('defaults', () => api.post('/api/settings/defaults'), 'Defaults restored');

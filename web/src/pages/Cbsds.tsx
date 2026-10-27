@@ -1,17 +1,20 @@
 import { useMemo, useState } from 'react';
-import { Check, RadioTower, Search } from 'lucide-react';
+import { BookUser, Check, RadioTower, Search } from 'lucide-react';
 import { api } from '../lib/api';
 import { useResource } from '../lib/live';
 import { useChangeMarks } from '../lib/follow';
 import type { Cbsd, Grant } from '../lib/types';
 import { CbsdRack, groupGrants, useHeartbeatPulses } from '../components/rack';
 import { Button, Empty, ErrorNote, Input, Module, Note, PageHeader, Segmented, SkeletonRows, useAction } from '../components/ui';
+import { notInRegistry, type RadioRow } from './Registry';
 
 type Filter = 'all' | 'REGISTERED' | 'PENDING' | 'UNREGISTERED';
 
 export function CbsdsPage() {
   const cbsds = useResource<Cbsd[]>('/api/cbsds', ['cbsds', 'grants']);
   const grants = useResource<Grant[]>('/api/grants?state=GRANTED,AUTHORIZED', ['grants', 'cbsds']);
+  const radios = useResource<RadioRow[]>('/api/registry/from-cbsds', ['registry', 'cbsds']);
+  const unlisted = (radios.data ?? []).filter(notInRegistry);
   const [filter, setFilter] = useState<Filter>('all');
   const [q, setQ] = useState('');
   const { run, busy } = useAction();
@@ -32,6 +35,13 @@ export function CbsdsPage() {
         title="CBSDs"
         sub="Every radio that has sent a registration request. Open one to see its parameters, grants and exchanges, or to approve, deregister and cap it."
       >
+        {unlisted.length > 0 && (
+          <Button icon={BookUser} loading={busy === 'registry'} title="Add their FCC IDs, user IDs and registration data to the registry (Registry → Registered radios)"
+            onClick={() => run('registry', () => api.post('/api/registry/from-cbsds', { cbsdIds: unlisted.map((r) => r.cbsdId) }),
+              `Added ${unlisted.length} radio${unlisted.length > 1 ? 's' : ''} to the registry`)}>
+            Add {unlisted.length} to registry
+          </Button>
+        )}
         <div className="relative">
           <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-ink-3" aria-hidden />
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="FCC ID, serial, user, IP…" className="w-64 pl-7" aria-label="Search CBSDs" />

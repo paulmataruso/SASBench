@@ -190,6 +190,11 @@ export function Module({ title, actions, children, className, bodyClass, id, met
   );
 }
 
+/** A form column beside a list (stacked on narrow screens). */
+export function TwoUp({ form, list }: { form: ReactNode; list: ReactNode }) {
+  return <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">{form}{list}</div>;
+}
+
 export function PageHeader({ title, children, sub }: { title: ReactNode; children?: ReactNode; sub?: ReactNode }) {
   return (
     <div className="mb-4 flex flex-wrap items-end gap-x-4 gap-y-2">

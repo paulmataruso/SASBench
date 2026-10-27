@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import { DEFAULT_SETTINGS, LISTENER_KEYS, type Settings } from '../../../settings.ts';
 import { PRESETS } from '../../../presets.ts';
-import { detectProfile, redact } from '../../../api.ts';
+import { detectProfile } from '../../../api.ts';
 import { validateTemplate } from '../../../map/tiles.ts';
 import type { Route, V1Deps } from '../http.ts';
 import { invalid } from '../http.ts';
@@ -58,14 +58,13 @@ export function checkSettings(d: V1Deps, patch: Partial<Settings>) {
 
 /** Apply a validated patch; waits for a listener restart when one was triggered. */
 export async function applySettings(d: V1Deps, patch: Partial<Settings>, label?: string) {
-  if (patch.uiPassword === '********') delete patch.uiPassword;
   checkSettings(d, patch);
   const changed = d.settings.update(patch);
   if (changed.length) d.bus.event('info', 'settings', label ?? `Settings changed: ${changed.join(', ')}`);
   d.bus.changed('settings');
   const restarted = changed.some((k) => LISTENER_KEYS.includes(k));
   if (restarted) await d.sas.idle();
-  return { changed, listenersRestarted: restarted, settings: redact(d.settings.get()), profile: detectProfile(d.settings.get()), listeners: d.sas.getStatus() };
+  return { changed, listenersRestarted: restarted, settings: d.settings.get(), profile: detectProfile(d.settings.get()), listeners: d.sas.getStatus() };
 }
 
 const keyParam = { key: { description: 'Setting name, e.g. heartbeatIntervalSec (see GET /settings/schema).', schema: S.enum(settingKeys) } };
@@ -74,9 +73,9 @@ export const settingsRoutes: Route[] = [
   {
     method: 'GET', path: '/settings', operationId: 'getSettings', tag: 'Settings', scope: 'read',
     summary: 'Get all settings',
-    description: 'Current values of every runtime setting and the matching settings profile, if any. The UI password reads back as "********" when set.',
+    description: 'Current values of every runtime setting and the matching settings profile, if any.',
     responses: ok('Settings.', S.obj({ settings: ref('Settings'), profile: S.nullable(S.str()) }, ['settings', 'profile'])),
-    handler: ({ d }) => ({ settings: redact(d.settings.get()), profile: detectProfile(d.settings.get()) }),
+    handler: ({ d }) => ({ settings: d.settings.get(), profile: detectProfile(d.settings.get()) }),
   },
   {
     method: 'PATCH', path: '/settings', operationId: 'updateSettings', tag: 'Settings', scope: 'write',
@@ -117,10 +116,10 @@ export const settingsRoutes: Route[] = [
   {
     method: 'POST', path: '/settings/reset', operationId: 'resetSettings', tag: 'Settings', scope: 'write',
     summary: 'Restore default settings',
-    description: 'Every setting returns to its default except the server certificates, trusted client CAs, UI password and listener ports.',
+    description: 'Every setting returns to its default except the server certificates, trusted client CAs and listener ports.',
     responses: okRef('What changed and the resulting settings.', 'SettingsChange'),
     handler: ({ d }) => {
-      const keep: Array<keyof Settings> = ['serverCertIds', 'trustedClientCaIds', 'uiPassword', 'sasHttpPort', 'sasHttpsPort'];
+      const keep: Array<keyof Settings> = ['serverCertIds', 'trustedClientCaIds', 'sasHttpPort', 'sasHttpsPort'];
       const patch: Partial<Settings> = {};
       for (const k of settingKeys) if (!keep.includes(k)) (patch as any)[k] = DEFAULT_SETTINGS[k];
       return applySettings(d, patch, 'Settings restored to defaults');

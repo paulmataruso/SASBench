@@ -7,3 +7,4 @@ server/test
 .impeccable
 *.log
 .DS_Store
+.env

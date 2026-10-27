@@ -23,11 +23,11 @@ This document explains how the public REST API (`/api/v1`) is built: where it si
 
 ## Goals and constraints
 
-1. **Everything, over HTTP.** Every function the console offers, every harness admin call, and read access to every stored datum. The API has 165 operations in 24 groups.
+1. **Everything, over HTTP.** Every function the console offers, every harness admin call, and read access to every stored datum. The API has 176 operations in 25 groups.
 2. **No change to how the SAS works.** The protocol engine, registration and grant policy, fault injection, the harness admin implementation and the PKI are not modified. The API calls them; it never reimplements them. The WInnForum harness suites must pass unchanged.
 3. **One source of truth.** Dispatch, input validation, the OpenAPI document and the Markdown reference all come from the same route table, so they cannot disagree.
 4. **No new dependencies.** The server's only runtime dependency stays `fflate`. Validation, OpenAPI generation, coverage and docs generation are small in-repo code.
-5. **Safe by default on a lab network.** It is open when the console is open, scoped tokens are available, cross-site browser attacks are refused, and secrets never leave through read paths.
+5. **Safe by default on a lab network.** Every call needs a user account or an API key, roles limit what each may do, cross-site browser attacks are refused, and secrets never leave through read paths.
 
 ## Where the API sits
 
@@ -48,9 +48,9 @@ SASBench is one Node.js process with three listeners:
                           └───────────────────────────────────────────────────────────────────────────┘
 ```
 
-`server/src/index.ts` builds the shared objects once and hands the same instances to the SAS listeners, the console API and API v1: the database, settings store, event bus, PKI, engine, admin, tile store and downloaders, and the token store. API v1 is therefore a second front end on the same state. A change made through it is visible in the console at once, and the reverse is also true. The bus `changed` notifications reach both.
+`server/src/index.ts` builds the shared objects once and hands the same instances to the SAS listeners, the console API and API v1: the database, settings store, event bus, PKI, engine, admin, tile store and downloaders, and the accounts, sessions and key stores (`Auth`). API v1 is therefore a second front end on the same state. A change made through it is visible in the console at once, and the reverse is also true. The bus `changed` notifications reach both.
 
-The UI request handler routes `/api/v1` and `/api/v1/*` to the v1 dispatcher **before** any console authentication. The dispatcher authenticates and reports errors itself, in its own JSON format. All other paths go through the console's authentication as before. That authentication now also accepts API tokens, and refuses read-only tokens on the console's private `/api/*` routes.
+The UI request handler routes `/api/v1` and `/api/v1/*` to the v1 dispatcher, which authenticates and reports errors itself, in its own JSON format. The console's own data (`/api/*`, map tiles) passes through the same `Auth` with the console's rules ([below](#the-console)). When `SAS_API_PORT` is set, a fourth listener serves `/api/v1` alone. The SAS protocol listeners and the harness admin API on them are not behind sign-in: radios and the WInnForum harness authenticate with TLS client certificates, as the specifications require.
 
 ## Source layout
 
@@ -61,14 +61,15 @@ server/src/api/v1/
 ├── schema.ts         JSON Schema subset: validator, query coercion, S.* schema builders
 ├── components.ts     named response schemas (Cbsd, Grant, Certificate, Error, …) for OpenAPI and tests
 ├── openapi.ts        OpenAPI 3.1 generator, tag descriptions
-├── auth.ts           ApiTokens (hashed token store) and authenticate()
+├── auth.ts           ApiTokens (hashed key store) and Auth (principals, password cache, throttle)
 ├── settingsMeta.ts   type, range, group, unit and restart flag of every setting
 ├── mappers.ts        database rows → API objects (reuses the console's mappers)
 └── routes/
     ├── index.ts      ROUTES: every module's routes, in documentation order
     ├── common.ts     paging and cursor helpers, shared parameter specs, response helpers
     ├── system.ts     index, health, openapi.json, status, system, activity, reference
-    ├── tokens.ts     API tokens, whoami
+    ├── tokens.ts     API keys, whoami
+    ├── users.ts      user accounts, sessions, your own password
     ├── settings.ts   settings, schema, profiles, reset; applySettings() and cross-checks
     ├── cbsds.ts      CBSDs and their grants, events, messages, availability, actions
     ├── grants.ts     grants and SAS-side grant actions
@@ -85,10 +86,14 @@ server/src/api/v1/
     ├── config.ts     configuration export/import, database backup
     └── data.ts       read-only table browser
 
+server/src/auth/users.ts           accounts, password hashing, sessions
+server/src/auth/console.ts         the console's sign-in routes and gate()
+server/src/tools/reset-password.ts command-line password reset
 server/src/tools/terrainFetch.ts   terrain download code shared by the CLI and the API job
 server/test/api-v1.test.ts         black-box test of every operation
+server/test/auth.test.ts           first-start admin, throttle, reset tool, SAS_AUTH=off
 scripts/api-reference.mjs          generates docs/API-REFERENCE.md (and checks it in CI)
-scripts/api-coverage.mjs           V8 line/function coverage of server/src/api/v1
+scripts/api-coverage.mjs           V8 line/function coverage of server/src/api/v1 and server/src/auth
 ```
 
 ## The route table
@@ -112,7 +117,7 @@ Each endpoint is one static object:
 | `method`, `path` | Dispatcher (matching, 405 `Allow`), OpenAPI paths. `{name}` is one segment; `{name+}` matches the rest of the path (used only by the harness passthrough). |
 | `operationId` | Unique, stable name: `X-Operation-Id` header, OpenAPI, the reference, test guards |
 | `tag`, `summary`, `description` | OpenAPI and the reference |
-| `scope` | Authorization: `public`, `read` or `write` |
+| `scope` | Authorization: `public`, `read`, `write` or `admin` |
 | `params`, `query`, `body` | Validation (and coercion of path and query strings), OpenAPI parameters and request bodies |
 | `responses` | OpenAPI responses. The test validates every real response against them. |
 | `errors` | Extra error statuses beyond those the generator infers |
@@ -125,7 +130,7 @@ At start-up the dispatcher compiles each path to a regular expression and sorts 
 ```mermaid
 flowchart TD
   A[Request on UI port] --> B{path under /api/v1?}
-  B -- no --> Z[console auth → console API / static files]
+  B -- no --> Z[console: gate → console API, tiles / static files]
   B -- yes --> C[X-Request-Id: echo or generate]
   C --> D{Origin header?}
   D -- foreign, not allowed, non-GET --> E1[403 origin_not_allowed]
@@ -135,9 +140,10 @@ flowchart TD
   F -- wrong method --> E4[405 + Allow]
   F -- hit --> G[X-Operation-Id]
   G --> H{scope public?}
-  H -- no --> I[authenticate: Bearer / ?access_token on /stream / Basic / open]
+  H -- no --> I[authenticate: API key / ?access_token on /stream / session cookie / Basic / open]
   I -- fails --> E5[401 + WWW-Authenticate]
-  I -- read token on write route --> E6[403 forbidden]
+  I -- too many wrong passwords --> E8[429 + Retry-After]
+  I -- read scope on write route, non-admin on admin route --> E6[403 forbidden]
   H -- yes --> J
   I -- ok --> J[decode + coerce + validate path params, query, body]
   J -- issues --> E7[400 validation_failed + details]
@@ -148,7 +154,7 @@ flowchart TD
 
 These details matter:
 
-- **Bodies are drained on early errors.** On 401, 403, 404 and 405 the dispatcher reads the request body before answering, so keep-alive connections stay usable.
+- **Bodies are drained on early errors.** On 401, 403, 404, 405 and 429 the dispatcher reads the request body before answering, so keep-alive connections stay usable.
 - **Query strings are strict.** Every query parameter must be declared on the route. Repeated keys use the first value. List parameters are comma-separated and declared as arrays.
 - **Path parameters are percent-decoded once, then validated.** Invalid percent-encoding is a validation error, not a crash.
 - **Optional bodies.** A route whose body is optional and an object receives `{}` when the request has no body, so handlers never test for `undefined`.
@@ -211,37 +217,78 @@ If a handler fails after it has started writing (a download or the stream), the 
 
 ## Authentication and authorization
 
-`auth.ts` holds both the token store and the `authenticate()` function. The console's authentication now uses the same function.
+Since user accounts were added, everything on the UI port except the console's static files and three public API endpoints needs a signed-in user or an API key. The code is in three places:
 
-**Precedence.** If an `Authorization: Bearer` header is present, the token decides, even when no password is set. An invalid, expired or revoked token gets 401, so a misconfigured client fails loudly instead of quietly getting open access. Without a token:
+| File | Holds |
+|---|---|
+| `server/src/auth/users.ts` | `Users` (accounts, scrypt password hashes, the last-admin guard), `Sessions` (console sign-ins), password rules, cookie parsing |
+| `server/src/api/v1/auth.ts` | `ApiTokens` (hashed key store) and `Auth`, which turns a request into a `Principal` and owns the wrong-password throttle |
+| `server/src/auth/console.ts` | The console's sign-in routes (`/api/auth/login`, `/logout`, `/me`) and `gate()`, the check in front of the console's private API and map tiles |
 
-- no UI password means open, with write scope;
-- HTTP Basic with the password means write scope;
-- anything else gets 401.
+### Principals
 
-The console's pages and private API call the same function with `foreignBearer: 'ignore'`. There, a Bearer credential without the `sasb_` prefix (for example an OAuth token a reverse proxy forwards) is ignored, as it was before API tokens existed. The API itself refuses such credentials.
+`Auth.authenticate(req)` returns a principal `{method, role, scope, userId?, username?, tokenId?, tokenName?, sessionId?}` or a failure reason (`missing`, `invalid`, `expired`, `disabled`, `throttled`). It tries, in order:
 
-`?access_token=` is accepted only on routes that declare it as a query parameter. Only `/stream` does, because browsers' `EventSource` cannot send headers.
+1. **API key.** `Authorization: Bearer sasb_…` (or `?access_token=` on routes that declare it). If one is presented it decides, even when sign-in is off: a wrong, expired or revoked key is a 401, never a fall-through to weaker access. The key acts as its owner with `min(key scope, owner's role)`, re-read from the database on every request, so a demoted or disabled owner limits or stops the key at once.
+2. **Session cookie** `sasb_session`, set by the console's sign-in form.
+3. **HTTP Basic** with a user name and password (skipped when sign-in is off).
+4. **Open**, only with `SAS_AUTH=off`: role admin, scope write.
 
-**Tokens.** Each token is `sasb_` followed by 24 random bytes in base64url (192 bits). Only its SHA-256 hash is stored, in the `api_tokens` table, with the name, scope, the first characters of the secret (for recognition), expiry and last use. Since the secret has full entropy, a fast hash is appropriate: there is nothing to brute-force. Lookups are by hash, an indexed unique column. `lastUsedAt` and `lastUsedAddr` are written at most once a minute per token, so polling clients do not turn every read into a database write.
+Roles map to scopes: viewer → `read`; operator and admin → `write`. A `read` key acts as a viewer whatever its owner's role.
 
-The Basic password is compared by hashing both sides with SHA-256 and using `timingSafeEqual`, so the comparison takes the same time whatever the input length.
+The console's pages and private API call `Auth.authenticate()` with `foreignBearer: 'ignore'`. There, a Bearer credential without the `sasb_` prefix (for example an OAuth token a reverse proxy forwards) is ignored and the session decides. The public API refuses such credentials.
 
-**Scopes.** Every route declares a scope:
+### Passwords
+
+Passwords are hashed with scrypt (N = 2¹⁴, r = 8, p = 1, 16-byte salt) and stored as `scrypt$N$r$p$salt$hash`, so the parameters can be raised later without breaking existing hashes. Verification uses `timingSafeEqual`. For an unknown user name the same scrypt work is done against a dummy hash, so response times do not reveal which names exist. User names are unique case-insensitively (`COLLATE NOCASE`).
+
+A password check costs tens of milliseconds by design, which would make every HTTP Basic request slow. `Auth` therefore remembers an accepted `Authorization` header for 5 minutes, keyed by its SHA-256. A cache hit is only used while `Users.generation` (bumped on every account change in this process) and the user's `passwordChangedAt` (which also catches the command-line reset tool, a separate process) are unchanged. The user's role and enabled flag are read from the database on every request.
+
+**Throttle.** Wrong passwords are counted per client address: after 10 within 5 minutes, every password check from that address (sign-in form, Basic, `POST /auth/password`) gets 429 with `Retry-After` until the window passes. A successful check resets the count. API keys are 192-bit random secrets and are not throttled.
+
+### Sessions
+
+Signing in creates a session: a 256-bit random secret sent as the cookie `sasb_session` (`HttpOnly; SameSite=Strict; Path=/`, plus `Secure` when the request came over TLS or `X-Forwarded-Proto: https`). The database stores only the secret's SHA-256 as the session id. A session expires after 7 days without use, and in any case 30 days after sign-in. Use extends it at most once a minute, so polling does not turn every read into a write.
+
+Sessions end on sign-out, when the user's password is set (except the session that changed it), when the user is disabled, gets another role or is deleted, and on **Sign out everywhere**. Long-lived connections (the console's `/api/stream` and the API's `/stream`) re-check `Auth.stillValid(principal)` when the bus announces `auth-changed` for their user and at every keep-alive, and end when the principal is no longer valid.
+
+### Keys
+
+Each API key is `sasb_` followed by 24 random bytes in base64url (192 bits). Only its SHA-256 hash is stored, in `api_tokens`, with the name, scope, owner (`user_id`), the first characters of the secret (for recognition), expiry and last use. Since the secret has full entropy, a fast hash is appropriate: there is nothing to brute-force. Lookups are by hash, an indexed unique column. `lastUsedAt` and `lastUsedAddr` are written at most once a minute per key. Keys are created and revoked by people (session or password principals), never by other keys, so a leaked key cannot mint itself a successor. Deleting a user deletes their keys.
+
+### Scopes
+
+Every route declares a scope:
 
 | Route scope | Who may call it |
 |---|---|
 | `public` | anyone (index, health, OpenAPI document) |
-| `read` | any authenticated principal |
-| `write` | write tokens, the password, or open mode |
+| `read` | any principal |
+| `write` | principals with scope `write` (operators, admins, their `write` keys, open mode) |
+| `admin` | admins with scope `write` (users, database backup) |
 
-Some `GET` routes return secrets: private-key download formats and the database backup. They are either declared `write` (backup, token management) or call `c.requireWrite()` for the specific variant (the key-bearing formats of `downloadCert`). A read token is meant for monitoring and dashboards. It must never be able to extract key material or mint itself a write token.
+Some routes need more for particular inputs, checked in the handler with `c.requireWrite()` or `c.requireAdmin()`: the key-bearing formats of `downloadCert`, the raw rows of `api_tokens` (write) and of `users` and `sessions` (admin). Token routes are `read` but filter by owner: non-admins see and revoke only their own keys, and another user's key is a 404, not a 403, so ids do not leak.
 
-The console's private API at `/api/*` can change anything and download keys, so read tokens get 403 there. Write tokens are accepted there too, so a script can use one credential everywhere.
+The last enabled admin cannot be deleted, disabled or demoted (409), whoever asks, including open mode, so there is always an account that can manage the others.
+
+### The console
+
+The UI request handler routes `/api/v1/*` to the v1 dispatcher, `/api/auth/*` to the sign-in routes, and passes every other `/api/*` request and every map tile through `gate()`:
+
+- no valid credentials → 401 **without** a `WWW-Authenticate` challenge, so browsers show the console's own sign-in form instead of their password dialog;
+- too many wrong passwords → 429;
+- a state-changing request from another origin → 403 `origin_not_allowed` (see below);
+- a viewer or `read` key changing something, or downloading a private key → 403.
+
+The page and its scripts load without signing in (they contain no data), so the browser can render the sign-in form. The SPA wraps everything in `AuthGate`: it asks `GET /api/auth/me`, shows the sign-in form until there is a session, and returns to it whenever any request comes back 401. The API dispatcher likewise sends the Basic challenge only to clients that are not pages (no `Sec-Fetch-Mode`, or `navigate`), so a console session that ends never pops up a browser dialog.
+
+**First start and upgrades.** When the `users` table is empty, `index.ts` creates `admin` with the password from `SAS_ADMIN_PASSWORD`, else the single UI password of earlier versions (`SAS_UI_PASSWORD` or the `uiPassword` setting), else `admin`. The default password is flagged (`defaultPassword`), which drives the console's warning banner until it is changed. The old `uiPassword` setting is deleted. `server/src/tools/reset-password.ts` sets a password (or creates an admin) directly in the database, for when nobody can sign in.
+
+**Sign-in off.** `SAS_AUTH=off` restores the open behaviour of earlier versions: requests without credentials get an `open` admin principal. HTTP Basic is ignored, presented API keys are still checked, and sessions still work.
 
 ## Browser safety: origin check and CORS
 
-An open lab API is exposed to cross-site request forgery. Any web page an engineer visits could `fetch('http://172.16.0.45:8080/api/v1/operations/reset', {method: 'POST', …})`. Browsers send `Origin` on such requests, and scripts do not, so the dispatcher refuses any non-GET, non-HEAD, non-OPTIONS request whose `Origin` meets none of these:
+A browser that is signed in to the console (or has cached Basic credentials, or runs against a SAS with sign-in off) is exposed to cross-site request forgery. Any web page an engineer visits could `fetch('http://172.16.0.45:8080/api/v1/operations/reset', {method: 'POST', …})`. The session cookie is `SameSite=Strict`, so browsers do not send it with cross-site requests, but the check does not rely on that alone. Browsers send `Origin` on such requests, and scripts do not, so the dispatcher refuses any non-GET, non-HEAD, non-OPTIONS request whose `Origin` meets none of these:
 
 - it is the SAS's own host (compared with `Host`, and with `X-Forwarded-Host` for reverse proxies);
 - it is listed in `SAS_API_CORS_ORIGINS`;
@@ -251,7 +298,9 @@ The refusal is `403 origin_not_allowed`. An unparseable `Origin`, including the 
 
 For allowed foreign origins the dispatcher adds `Access-Control-Allow-Origin` (the origin itself, or `*`), `Vary: Origin` and `Access-Control-Expose-Headers`. Preflight requests (`OPTIONS`) get `Access-Control-Allow-Methods`, `Access-Control-Allow-Headers` (`Authorization, Content-Type, X-Request-Id`) and a 10-minute max age. Credentialed CORS (`Access-Control-Allow-Credentials`) is never enabled.
 
-Browsers can attach cached HTTP Basic credentials to cross-site requests. That is why the origin check runs whatever credentials a request carries: a cross-site write is refused even from a browser that is logged in. A cross-site read can be sent, but its response stays unreadable to the page without CORS approval.
+The origin check runs whatever credentials a request carries: a cross-site write is refused even from a browser that is signed in. A cross-site read can be sent, but its response stays unreadable to the page without CORS approval.
+
+The console's `gate()` applies the same rule to the private API: a state-changing request whose `Origin` host differs from `Host` (or, without `Origin`, whose `Sec-Fetch-Site` is `cross-site` or `same-site`) gets 403 `origin_not_allowed`, and so does a sign-in attempt from another origin. During development the Vite proxy rewrites `Origin` to the SAS's own, since the page then comes from port 5173.
 
 **DNS rebinding.** The origin check cannot catch a page whose own domain is made to resolve to the SAS, because to the browser that page is same-origin. After matching a non-public route, the dispatcher therefore checks `Host` on requests made by a page, meaning those with an `Origin` header or a `Sec-Fetch-Site` header other than `none`. `Host` must be one of:
 
@@ -266,11 +315,13 @@ Otherwise the request gets `403 host_not_allowed`, unless its origin is explicit
 | Secret | Where it could leak | Protection |
 |---|---|---|
 | Private keys (`certs.key_pem`) | certificate objects, downloads, raw tables, backup | Never in JSON objects (only `hasKey`). Key-bearing downloads and the backup need write scope. The raw table browser returns `[redacted]`. |
-| UI password | settings, raw tables, config export | `********` in settings and exports, `[redacted]` in raw tables. Never imported from a config file. |
-| Token secrets | anywhere | Shown once at creation. Only the hash is stored, and the hash is redacted in raw tables. |
-| Token metadata (names, prefixes, client addresses) | `/tokens`, raw `api_tokens` rows | Write scope for both, so a read token cannot enumerate tokens |
+| Passwords | anywhere | Never stored: only scrypt hashes, which never appear in API objects. `users.password_hash` is `[redacted]` in raw tables, and the `users` table needs admin. |
+| Session secrets | the cookie | Only their SHA-256 is stored (as `sessions.id`), redacted in raw tables; the `sessions` table needs admin. Session objects in the API carry no id. |
+| API key secrets | anywhere | Shown once at creation. Only the hash is stored, and the hash is redacted in raw tables. |
+| Key metadata (names, prefixes, owners, client addresses) | `/tokens`, raw `api_tokens` rows | Non-admins see only their own keys; raw `api_tokens` rows need write scope |
+| The whole database | `GET /system/backup` | Admin scope: it contains private keys and password hashes |
 
-The raw table browser also refuses to filter or sort on a secret column (`certs.key_pem`, `settings.value`, `api_tokens.token_hash`). Otherwise a caller could recover a secret one character at a time with `like=` or by ordering. Table and column names are checked against the database's own catalogue (`sqlite_master`, `PRAGMA table_info`) before they appear in SQL. Values are always bound parameters. The configuration import validates column names the same way, so a crafted import file cannot inject SQL.
+The raw table browser also refuses to filter or sort on a secret column (`certs.key_pem`, `api_tokens.token_hash`, `users.password_hash`, `sessions.id`). Otherwise a caller could recover a secret one character at a time with `like=` or by ordering. Table and column names are checked against the database's own catalogue (`sqlite_master`, `PRAGMA table_info`) before they appear in SQL. Values are always bound parameters. The configuration import validates column names the same way, so a crafted import file cannot inject SQL.
 
 ## Settings metadata
 
@@ -369,19 +420,23 @@ The running server serves this at `/api/v1/openapi.json`, built on the first req
 
 ## The boundary with the SAS core
 
-The API was added without changing SAS behaviour. The complete list of changes outside `server/src/api/v1/`:
+The API, the deployment settings and user accounts were added without changing SAS behaviour. The complete list of changes outside `server/src/api/v1/`:
 
 | File | Change | Effect on the SAS |
 |---|---|---|
-| `server/src/api.ts` (console API) | `export` added to existing helpers: row mappers (`cbsdOut`, `grantOut`, `protectionOut`, `ppaOut`), `upsertProtection`, `upsertPpa`, `faultVals`, `sasUrls`, `detectProfile`, `redact`, `safe` | None. Same code, now shared, so both APIs describe objects identically. |
-| `server/src/db.ts` | New `api_tokens` table (`CREATE TABLE IF NOT EXISTS`) | None. A new, independent table. Existing databases gain it on start. |
-| `server/src/net/sasServer.ts` | New read-only `idle()` returning the existing restart promise | None |
-| `server/src/index.ts` | Builds the token store, terrain downloader and API v1. Routes `/api/v1` to it. The console's auth uses `authenticate()` (adds Bearer tokens; read tokens refused on `/api/*`). | Console auth gains `sasb_` token support. Password and open behaviour are unchanged, and other Bearer credentials are ignored as before. SAS listeners are untouched. |
-| `server/src/tools/fetch-terrain.ts` → `tools/terrainFetch.ts` | Download code moved into a shared module | CLI behaviour unchanged |
+| `server/src/api.ts` (console API) | `export` added to existing helpers: row mappers (`cbsdOut`, `grantOut`, `protectionOut`, `ppaOut`), `upsertProtection`, `upsertPpa`, `faultVals`, `sasUrls`, `detectProfile`, `safe`. Registry routes for adding registered radios. Status URLs list the advertised addresses only. | None. Same code, now shared, so both APIs describe objects identically. |
+| `server/src/registry.ts` | New: copies what a registered radio sent into the registry (FCC ID, user ID, preloaded registration data) | None. It writes the same tables the registry pages and the harness's `injectdata` calls write. |
+| `server/src/db.ts` | New tables `api_tokens`, `users`, `sessions` (`CREATE TABLE IF NOT EXISTS`); `api_tokens.user_id` added to existing databases | None. New, independent tables. |
+| `server/src/settings.ts`, `settingsMeta.ts` | The `uiPassword` setting removed (replaced by accounts; migrated on first start) | None on the SAS listeners |
+| `server/src/net/sasServer.ts` | New read-only `idle()` returning the existing restart promise; `bindHost` (default `0.0.0.0`) for `SAS_BIND_IP` | None with the default |
+| `server/src/net/addresses.ts` | New: address helpers for `SAS_BIND_IP`, `SAS_FQDN` and the advertised endpoints | None |
+| `server/src/auth/*` | New: accounts, sessions, the console's sign-in and gate | Only the UI port |
+| `server/src/index.ts` | Builds the stores and API v1, routes `/api/v1`, `/api/auth/*` and the console gate, creates the first admin, reads the deployment variables (`SAS_FQDN`, `SAS_BIND_IP`, `SAS_API_PORT`, `SAS_PROFILE`, `SAS_AUTH`, `SAS_ADMIN_PASSWORD`) | The UI port requires sign-in. SAS listeners, the harness admin API on them, and protocol behaviour are untouched. |
+| `server/src/tools/fetch-terrain.ts` → `tools/terrainFetch.ts`; `tools/reset-password.ts` | Download code moved into a shared module; new password reset tool | CLI behaviour unchanged |
 
-Untouched: the protocol engine, registration and grant policy, spectrum and protection logic, fault injection, the harness admin implementation, the PKI, TLS handling and the database schema of existing tables.
+Untouched: the protocol engine, registration and grant policy, spectrum and protection logic, fault injection, the harness admin implementation, the PKI, TLS handling and the database schema of the existing SAS tables.
 
-The full WInnForum CBSD-facing harness run (86 test cases) is the regression check for this boundary. It passes before and after the API.
+The full WInnForum CBSD-facing harness run (86 test cases) is the regression check for this boundary. It passes before and after these changes.
 
 ## Design decisions and the plan critique
 
@@ -391,7 +446,7 @@ The API was planned first, then the plan was criticised, and each criticism chan
 |---|---|---|
 | 1 | Two implementations of the same operations will drift. | v1 reuses the console's mappers and helpers and calls the same engine, admin and PKI methods. No SAS logic is copied. |
 | 2 | Strict validation could block deliberate protocol errors used to test radios. | Protocol payloads are only checked to be JSON objects. The engine answers 102/103 exactly as on the wire. |
-| 3 | Read-only tokens could reach the console's private API or private keys. | Read tokens stop at `/api/v1`. Key-bearing downloads, backups and token management need write scope. The raw table browser redacts secrets and refuses to filter on them. |
+| 3 | Read-only tokens could reach the console's private API or private keys. | Read keys can only read, on `/api/v1` and the console's private API alike. Key-bearing downloads need write scope, backups admin scope. The raw table browser redacts secrets and refuses to filter on them. |
 | 4 | An open API is reachable from any web page an engineer visits (CSRF). | Non-GET requests with a foreign `Origin` are refused unless the origin is explicitly allowed. Scripts send no `Origin` and are unaffected. |
 | 5 | Ids contain `/` (cbsdId, PPA and zone ids). | Percent-encoding everywhere, documented with examples. `route_not_found` errors carry the hint. Only the harness passthrough uses a catch-all segment. |
 | 6 | The console's request path skips fault rules and TLS checks. | `transport=http/https` loops back through the real listener, optionally with a client certificate from the store. |
@@ -399,8 +454,27 @@ The API was planned first, then the plan was criticised, and each criticism chan
 | 8 | A settings change that restarts listeners returns before they are up. | `SasServer.idle()` is awaited, and the response carries the new listener status. |
 | 9 | "Tested 100%" must be verifiable. | Guard tests require every operation to succeed at least once, every response to match its schema, and every returned error status to be documented. A V8 coverage script reports line and function coverage. |
 | 10 | Terrain download exists only as a CLI. | Moved into a shared module used by the CLI and a background job. Tests use a local stub server. |
-| 11 | Scope creep into the console UI. | No console changes. Tokens are managed through the API. |
+| 11 | Scope creep into the console UI. | The API added no console changes. (User accounts later added the Users and API keys pages.) |
 | 12 | Generated docs drift from code. | The reference is generated from the route table, and CI checks it. |
+
+### User accounts: plan and critique
+
+User accounts replaced the single optional UI password. The plan was criticised the same way:
+
+| # | Criticism | Resolution |
+|---|---|---|
+| 1 | A known default (admin / admin) is itself a weakness. | The first start logs a warning, the account is flagged `defaultPassword`, and the console shows a banner on every page until the password changes. `SAS_ADMIN_PASSWORD` sets another password at first start. The sign-in page does not show the default. |
+| 2 | Upgrades would lock existing labs out, or silently open them. | The old UI password (setting or `SAS_UI_PASSWORD`) becomes the admin's password on the first start after the upgrade. |
+| 3 | HTTP Basic with a slow password hash makes every scripted request slow. | Accepted headers are cached for 5 minutes, invalidated by any account change and by the user's password timestamp. Scripts should use API keys anyway. |
+| 4 | Cookies bring cross-site request forgery. | `SameSite=Strict`, plus the `Origin`/`Sec-Fetch-Site` check on every state-changing console request and on sign-in. |
+| 5 | A 401 with a Basic challenge pops up the browser's password dialog over the console. | No challenge on console routes, nor on API responses to page requests (`Sec-Fetch-Mode` other than `navigate`). |
+| 6 | API keys could outlive their owner's access. | A key acts with `min(key scope, owner's current role)`, re-read on every request; disabling or deleting the owner stops it. Keys cannot create or revoke keys. |
+| 7 | Admins can lock themselves out. | The last enabled admin cannot be removed, disabled or demoted, nobody deletes their own account, and `tools/reset-password.ts` works on the host even while the SAS runs. |
+| 8 | Online password guessing. | 10 failures per address per 5 minutes, then 429. Unknown user names cost the same as known ones. |
+| 9 | Open live streams would keep flowing after access is withdrawn. | Streams re-check their principal on `auth-changed` and at each keep-alive. |
+| 10 | Viewers could get secrets through side doors. | Backups need admin; key-bearing downloads need write on both APIs; `users`, `sessions` and `api_tokens` rows are restricted; other people's keys are invisible (404). |
+| 11 | Radios and the WInnForum harness must keep working. | The SAS listeners and the harness admin API are not behind sign-in (they use TLS client certificates). The harness setup script signs in to the console API like any client. |
+| 12 | Some benches want the old open console. | `SAS_AUTH=off`, explicit and logged, with a "Sign-in off" tag in the console. |
 
 **Other decisions:**
 
@@ -431,7 +505,7 @@ The suite ends with three guards that turn "tested" into a checked claim:
 2. **Every JSON response matched its documented schema.** Hundreds of responses are validated, with zero problems allowed. A negative check proves the validator does reject a bad document.
 3. **Every error status returned is documented.** No operation returned a status that its OpenAPI entry does not list.
 
-Between them, the 35 tests cover:
+Between them, the 36 tests cover:
 
 - every endpoint's success path;
 - the protocol over all three transports, including mutual TLS with lab certificates and fault rules on the listener;
@@ -440,19 +514,22 @@ Between them, the 35 tests cover:
 - the live stream, including payload shapes and type filtering;
 - daily activities, harness calls, map and terrain downloads (completion, cancellation, conflicts);
 - configuration round trips, backup, redaction;
-- tokens and scopes once a password is set, and streams ending on revocation, expiry or a new password (the suite sets `SAS_API_STREAM_PING_MS=300` so it need not wait 15 s for a keep-alive);
+- user accounts: create, change, disable, delete, the last-admin guard, sessions, sign-in and sign-out, password changes, viewers and operators on both APIs, CSRF refusal on the console;
+- API keys: ownership and visibility, scopes against owner roles, keys that cannot manage keys, streams ending on revocation, expiry, sign-out or a new password (the suite sets `SAS_API_STREAM_PING_MS=300` so it need not wait 15 s for a keep-alive);
 - CORS, origin refusal and DNS-rebinding refusal, including a malformed `Host`;
 - validation and the error paths of the less common branches.
 
-**Coverage.** `npm run api:coverage` runs the suite with `NODE_V8_COVERAGE`. The SAS child writes its coverage on exit. The script merges the per-process block counts and reports line and function coverage of `server/src/api/v1` (`--uncovered` lists the lines; `--min N` fails below N %). At the time of writing: **99.8 % of lines (3,538) and 96.1 % of functions (437)**. Seven lines remain uncovered. They are defensive code that cannot be reached without a fault in the SAS itself, plus one validator keyword:
+`server/test/auth.test.ts` covers what needs its own SAS: the first-start admin (default, `SAS_ADMIN_PASSWORD`, and an upgraded database with the old UI password), the reset tool against a running SAS (including the password cache), the wrong-password throttle, and `SAS_AUTH=off`.
 
-- the 500 mapping for programming errors;
-- destroying a connection after headers were sent;
-- a file that disappears between listing and stat;
-- the terrain downloader refusing a start after validation;
-- the validator's `const` check, which no request schema uses yet.
+**Coverage.** `npm run api:coverage` runs both suites with `NODE_V8_COVERAGE`. The SAS child writes its coverage on exit. The script merges the per-process block counts and reports line and function coverage of `server/src/api/v1` and `server/src/auth` (`--uncovered` lists the lines; `--min N` fails below N %). At the time of writing: **99.6 % of lines (4,162) and 97.3 % of functions (522)**. The uncovered lines are defensive or time-dependent code:
 
-The uncovered functions are mostly inline callbacks for those same paths, such as socket and timer error handlers.
+- the 500 mapping for programming errors, and destroying a connection after headers were sent;
+- a file that disappears between listing and stat, and the terrain downloader refusing a start after validation;
+- the validator's `const` check, which no request schema uses yet;
+- error branches for account changes the request schemas already rule out, and a corrupt password hash;
+- the end of the 5-minute throttle window and the once-a-minute session extension.
+
+The uncovered functions are mostly inline callbacks for those same paths, such as socket, timer and request-body error handlers.
 
 **Regression.** `npm test` runs every suite, including the console API, protocol, TLS and harness-admin tests. The full WInnForum harness run must stay at 86/86.
 

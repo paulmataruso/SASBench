@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { ArrowLeft, Check, Crosshair, Save, Send, Trash2, Unplug } from 'lucide-react';
+import { ArrowLeft, BookUser, Check, Crosshair, Save, Send, Trash2, Unplug } from 'lucide-react';
 import { api } from '../lib/api';
 import { useNow, useResource } from '../lib/live';
 import { useChangeMarks, useFollow } from '../lib/follow';
@@ -20,6 +20,7 @@ interface Detail extends Cbsd {
   events: EventRow[];
   messages: Array<{ id: number; ts: number; transport: string; method: string; http_status: number; codes: string | null; error: string | null }>;
   conditional: any;
+  registry: { fccId: boolean; userId: boolean; registration: boolean };
   limits: { maxEirpPer10MHz: number; maxEirpDbmMhz: number };
   availability: Array<{ low: number; high: number; [k: string]: any }> | any;
   protections: Array<{ id: string; name: string; kind: string }>;
@@ -28,7 +29,7 @@ interface Detail extends Cbsd {
 const MEAS = ['RECEIVED_POWER_WITHOUT_GRANT', 'RECEIVED_POWER_WITH_GRANT'];
 
 export function CbsdDetailPage({ id }: { id: string }) {
-  const r = useResource<Detail>(`/api/cbsds/${encodeURIComponent(id)}`, ['cbsds', 'grants', 'spectrum']);
+  const r = useResource<Detail>(`/api/cbsds/${encodeURIComponent(id)}`, ['cbsds', 'grants', 'spectrum', 'registry']);
   const { followed, setFollowed } = useFollow();
   const { run, busy } = useAction();
   const confirm = useConfirm();
@@ -55,6 +56,7 @@ export function CbsdDetailPage({ id }: { id: string }) {
   const ip = d.effective?.installationParam ?? {};
   const active = groupGrants(grants).get(d.cbsdId) ?? [];
   const enc = encodeURIComponent(d.cbsdId);
+  const inRegistry = d.registry && d.registry.fccId && (d.registry.userId || !d.userId) && d.registry.registration;
 
   const live = (
     <div>
@@ -157,6 +159,12 @@ export function CbsdDetailPage({ id }: { id: string }) {
           </div>
           <div className="ml-auto flex flex-wrap items-center gap-2">
             <Button icon={Crosshair} variant={isF ? 'primary' : 'secondary'} aria-pressed={isF} onClick={() => setFollowed(isF ? null : d.cbsdId)}>{isF ? 'Following' : 'Follow'}</Button>
+            {inRegistry ? (
+              <Link to="/registry" title="Its FCC ID, user ID and registration data are in the registry"><Tag tone="ok"><BookUser className="size-3" aria-hidden />In registry</Tag></Link>
+            ) : (
+              <Button icon={BookUser} loading={busy === 'registry'} title="Add its FCC ID, user ID and registration data to the registry"
+                onClick={() => run('registry', () => api.post(`/api/cbsds/${enc}/registry`), 'Added to the registry')}>Add to registry</Button>
+            )}
             {d.state === 'PENDING' && (
               <Button icon={Check} variant="primary" loading={busy === 'approve'} onClick={() => run('approve', () => api.post(`/api/cbsds/${enc}/approve`), 'Approved: registration completes on the next request')}>Approve registration</Button>
             )}

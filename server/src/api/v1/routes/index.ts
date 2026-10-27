@@ -1,6 +1,7 @@
 import type { Route } from '../http.ts';
 import { systemRoutes } from './system.ts';
 import { tokenRoutes } from './tokens.ts';
+import { userRoutes } from './users.ts';
 import { settingsRoutes } from './settings.ts';
 import { cbsdRoutes } from './cbsds.ts';
 import { grantRoutes } from './grants.ts';
@@ -20,7 +21,7 @@ import { dataRoutes } from './data.ts';
 // Every /api/v1 route, in documentation order (tags appear in the order of their first route).
 
 export const ROUTES: Route[] = [
-  ...systemRoutes, ...tokenRoutes, ...settingsRoutes, ...cbsdRoutes, ...grantRoutes, ...sasRoutes, ...registryRoutes,
+  ...systemRoutes, ...tokenRoutes, ...userRoutes, ...settingsRoutes, ...cbsdRoutes, ...grantRoutes, ...sasRoutes, ...registryRoutes,
   ...spectrumRoutes, ...faultRoutes, ...logRoutes, ...operationRoutes, ...harnessRoutes, ...certRoutes, ...mapRoutes,
   ...terrainRoutes, ...configRoutes, ...dataRoutes,
 ];

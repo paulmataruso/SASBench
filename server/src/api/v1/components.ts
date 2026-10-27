@@ -31,7 +31,7 @@ export const COMPONENTS: SchemaRegistry = {
   Error: R({
     error: R({
       status: S.int({ description: 'HTTP status.' }),
-      code: S.str({ description: 'Stable machine-readable code: bad_request, validation_failed, invalid_json, unauthorized, forbidden, origin_not_allowed, not_found, route_not_found, method_not_allowed, conflict, payload_too_large, operation_failed, internal_error.' }),
+      code: S.str({ description: 'Stable machine-readable code: bad_request, validation_failed, invalid_json, unauthorized, account_disabled, forbidden, origin_not_allowed, host_not_allowed, not_found, route_not_found, method_not_allowed, conflict, payload_too_large, too_many_attempts, operation_failed, internal_error.' }),
       message: S.str({ description: 'Human-readable explanation.' }),
       requestId: S.str({ description: 'Same as the X-Request-Id response header; quote it when reporting a problem.' }),
       details: S.arr(R({ path: str, message: str }), { description: 'With validation_failed: one entry per problem.' }),
@@ -64,7 +64,7 @@ export const COMPONENTS: SchemaRegistry = {
   OperationsState: R({ daily: ref('DailyStatus'), ppaStatus: ref('PpaStatus'), flags: ref('Flags'), measurementTriggers: ref('MeasurementTriggers') }),
   Status: R({
     version: str, startedAt: ms('Process start'), now: ms('Server time'), hostname: str, listeners: ref('Listeners'),
-    urls: S.arr(S.str(), { description: 'SAS base URLs to configure in CBSDs.' }),
+    urls: S.arr(S.str(), { description: 'SAS base URLs to configure in CBSDs: one per advertised name or address (SAS_FQDN and the address in use) and enabled listener.' }),
     counts: R({
       cbsdsRegistered: int, cbsdsPending: int, cbsdsTotal: int, grantsByState: S.obj({}, [], { additionalProperties: S.int() }),
       authorizedMHz: num, messagesLastHour: int, errorsLastHour: int, activeProtections: int, ppas: int, faultRules: S.int({ description: 'Enabled fault rules.' }),
@@ -74,7 +74,12 @@ export const COMPONENTS: SchemaRegistry = {
   }),
   SystemInfo: R({
     version: str, apiVersion: str, node: str, platform: str, arch: str, hostname: str, pid: int, startedAt: int, uptimeMs: int,
-    memory: S.obj({}, [], { additionalProperties: S.int() }), uiPort: int, hostnames: strs, dataDir: str,
+    memory: S.obj({}, [], { additionalProperties: S.int() }), uiPort: int,
+    apiPort: S.int({ description: 'Port of the public API (SAS_API_PORT; the UI port when not set).' }),
+    bindIp: S.str({ description: 'Address the listeners bind (SAS_BIND_IP); 0.0.0.0 means all.' }),
+    hostnames: S.arr(S.str(), { description: 'Names and addresses in the auto-generated server certificates.' }),
+    advertised: S.arr(S.str(), { description: 'Names and addresses radios should use: SAS_FQDN and the address in use.' }),
+    dataDir: str,
     database: R({ file: str, sizeBytes: nint, walSizeBytes: nint }), terrainDir: nstr, tilesDir: str,
   }),
   Activity: R({
@@ -89,14 +94,29 @@ export const COMPONENTS: SchemaRegistry = {
     harnessMethods: S.arr(R({ method: str, description: str })), settingsProfiles: strs, tokenScopes: strs,
   }),
   Principal: R({
-    method: S.enum(['open', 'password', 'token']), scope: S.enum(['read', 'write']), tokenId: str, tokenName: str,
-    passwordSet: S.bool({ description: 'A UI password is set (otherwise the API is open).' }),
-  }, ['tokenId', 'tokenName']),
+    method: S.enum(['open', 'session', 'password', 'token'], { description: 'session: the console login; password: HTTP Basic; token: an API key; open: authentication is switched off (SAS_AUTH=off).' }),
+    scope: S.enum(['read', 'write']), role: S.enum(['admin', 'operator', 'viewer'], { description: 'Effective role (a read API key acts as a viewer).' }),
+    userId: int, username: str, tokenId: str, tokenName: str,
+    authEnabled: S.bool({ description: 'Authentication is required (false only with SAS_AUTH=off).' }),
+  }, ['userId', 'username', 'tokenId', 'tokenName']),
   Token: R({
     id: str, name: str, scope: S.enum(['read', 'write']), prefix: S.str({ description: 'First characters of the secret, to recognise it.' }),
     createdAt: int, expiresAt: nint, lastUsedAt: nms('Last use (updated at most once a minute)'), lastUsedAddr: nstr,
-    token: S.str({ description: 'The secret. Returned once, when the token is created.' }),
+    userId: S.nullable(S.int({ description: 'Owner. The key acts as this user, with at most its own scope.' })),
+    username: S.nullable(S.str({ description: 'Owner\'s user name.' })),
+    token: S.str({ description: 'The secret. Returned once, when the key is created.' }),
   }, ['token']),
+  User: R({
+    id: int, username: str, displayName: nstr,
+    role: S.enum(['admin', 'operator', 'viewer'], { description: 'admin: everything; operator: everything except users; viewer: read-only.' }),
+    enabled: S.bool({ description: 'Disabled users cannot sign in; their sessions and API keys stop working.' }),
+    defaultPassword: S.bool({ description: 'Still using the default password it was created with (admin/admin).' }),
+    createdAt: int, updatedAt: int, passwordChangedAt: int, lastLoginAt: nms('Last console sign-in'), lastLoginAddr: nstr,
+  }),
+  Session: R({
+    createdAt: int, lastSeenAt: int, expiresAt: int, addr: nstr, userAgent: nstr,
+    current: S.bool({ description: 'The session making this request.' }),
+  }, [], { description: 'A console sign-in.' }),
 
   // ---------------------------------------------------------------- settings
   Settings: settingsSchema,
@@ -148,6 +168,25 @@ export const COMPONENTS: SchemaRegistry = {
   Registry: R({
     fccIds: S.arr(ref('FccId')), userIds: S.arr(ref('UserId')), blacklist: S.arr(ref('BlacklistEntry')),
     conditional: S.arr(ref('ConditionalRegistration')), cpiUsers: S.arr(ref('CpiUser')),
+  }),
+  RegistryEntry: R({
+    cbsdId: str, fccId: str, serial: str, userId: S.nullable(S.str({ description: 'Null when the CBSD registered without one.' })),
+    state: S.str({ description: 'REGISTERED, PENDING or UNREGISTERED.' }),
+    inRegistry: R({
+      fccId: S.bool({ description: 'The FCC ID is listed.' }),
+      userId: S.bool({ description: 'The user ID is listed (false when the CBSD has none).' }),
+      registration: S.bool({ description: 'Registration data is preloaded for this FCC ID and serial number.' }),
+    }),
+  }, [], { description: 'A CBSD the SAS has a record of, and what the registry holds for it.' }),
+  RegistryAddResult: R({
+    cbsdId: str, fccId: str, serial: str, userId: nstr, state: str,
+    inRegistry: R({ fccId: bool, userId: bool, registration: bool }, [], { description: 'After the call.' }),
+    added: R({ fccId: bool, userId: bool, registration: bool }, [], { description: 'What this call added.' }),
+    notes: S.arr(S.str(), { description: 'Why something was not added (already listed, no user ID, preload kept).' }),
+  }),
+  RegistryAddResults: R({
+    results: S.arr(ref('RegistryAddResult')),
+    unknown: S.arr(S.str(), { description: 'Requested cbsdIds with no CBSD record.' }),
   }),
 
   // ---------------------------------------------------------------- spectrum

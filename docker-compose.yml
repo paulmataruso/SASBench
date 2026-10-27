@@ -7,9 +7,10 @@ services:
     restart: unless-stopped
     # Host networking: the SAS sees the host's real IP addresses, puts them in the SAN list of its
     # server certificate automatically, and logs each radio's real source address. The listeners
-    # bind directly on the host: 8080 (web UI + REST API), 8000 (SAS HTTP), 8443 (SAS HTTPS/mTLS).
-    # Linux only. On Docker Desktop, remove network_mode, enable the ports block below and list
-    # the host's IP in SAS_HOSTNAMES.
+    # bind directly on the host: 8080 (web UI + REST API), 8000 (SAS HTTP), 8443 (SAS HTTPS/mTLS),
+    # on every address unless SAS_BIND_IP is set in .env.
+    # Linux only. On Docker Desktop, remove network_mode, enable the ports block below and set
+    # SAS_FQDN in .env to the name or address radios use.
     network_mode: host
     # ports:
     #   - "8080:8080"   # web UI + REST API
@@ -17,28 +18,12 @@ services:
     #   - "8443:8443"   # SAS-CBSD protocol, HTTPS / mutual TLS (WINNF-TS-0065)
     volumes:
       - sas-data:/data
+    # Deployment settings (FQDN, bind address, ports, settings profile, …): copy .env.example to
+    # .env and edit it. Every variable is described there.
+    env_file:
+      - path: .env
+        required: false
     environment:
-      # Extra hostnames / IPs the radios use to reach the SAS (a DNS name, a NAT address). The
-      # host's own interface addresses are added automatically. Checked on every start: the
-      # auto-generated server certificates are reissued when one is missing. Comma-separated.
-      # SAS_HOSTNAMES: "sas.lab.local"
-      # Settings profile applied once on first start: lab | winnforum | open
-      # SAS_PROFILE: "lab"
-      # Protect the web UI and the REST API with HTTP Basic auth (any user name, this password).
-      # SAS_UI_PASSWORD: "change-me"
-      # Browser origins allowed to call the REST API from another site (scripts need nothing).
-      # SAS_API_CORS_ORIGINS: "http://dashboard.lab:3000"
-      # Listener ports; with host networking these are the ports on the host. Applied on every
-      # start, so they override the ports set in Settings.
-      # UI_PORT: "8080"
-      # SAS_HTTP_PORT: "8000"
-      # SAS_HTTPS_PORT: "8443"
-      # Elevation tiles for the Category A HAAT check (default /data/terrain): USGS GeoTIFF or NED
-      # GridFloat. Fetch with `docker exec sasbench node server/src/tools/fetch-terrain.ts --around LAT,LON`.
-      # SAS_TERRAIN_DIR: "/data/terrain"
-      # Offline map tile store: MBTiles files and z/x/y folders (default /data/tiles). Copy files in
-      # with `docker cp lab.mbtiles sasbench:/data/tiles/`, or download an area in Settings → Map.
-      # SAS_TILES_DIR: "/data/tiles"
       TZ: "UTC"
 
 volumes:
