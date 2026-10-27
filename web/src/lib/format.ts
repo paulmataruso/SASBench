@@ -74,6 +74,12 @@ export function rcTone(code: number): 'ok' | 'warn' | 'bad' {
   return 'bad';
 }
 
+/** Short name for a WInnForum radioTechnology value: E_UTRA is LTE, NR stays NR, anything else shows as sent. */
+export function ratLabel(t: string | null | undefined): string | null {
+  if (!t) return null;
+  return t === 'E_UTRA' ? 'LTE' : t;
+}
+
 export function bytesHuman(n: number): string {
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;

@@ -3,7 +3,7 @@ import { Crosshair } from 'lucide-react';
 import { useLiveMessages, useNow } from '../lib/live';
 import { useFollow } from '../lib/follow';
 import { Link, navigate } from '../lib/router';
-import { ago, cbsdLabel, cbsdParts, dur, mhz, parseCodes, patchColor, patchFg, range } from '../lib/format';
+import { ago, cbsdLabel, cbsdParts, dur, mhz, parseCodes, patchColor, patchFg, range, ratLabel } from '../lib/format';
 import type { Cbsd, Grant } from '../lib/types';
 import { Button, Led, Switch, Tag, cx, type Tone } from './ui';
 
@@ -177,14 +177,16 @@ export function RackLeds({ c, gs, p, now, labels }: { c: Cbsd; gs: Grant[]; p: P
   );
 }
 
+/** The row's tags as one group, so on a narrow rack they wrap under the name together instead of squeezing it. */
 function RackTags({ c }: { c: Cbsd }) {
   return (
-    <>
+    <span className="flex flex-none items-center gap-1.5">
       {c.category && <Tag>CAT {c.category}</Tag>}
+      {c.radioTechnology && <Tag title={`Air interface: ${c.radioTechnology}`}>{ratLabel(c.radioTechnology)}</Tag>}
       {c.state === 'PENDING' && <Tag tone="warn">PENDING APPROVAL</Tag>}
       {c.state === 'UNREGISTERED' && <Tag>UNREGISTERED</Tag>}
       {c.pendingDeregister && <Tag tone="warn">105 PENDING</Tag>}
-    </>
+    </span>
   );
 }
 
@@ -307,7 +309,7 @@ export function CbsdRack({ cbsds, grants, pulses, marks, onAck, detail }: {
                 <td><span className="pl-1"><RackLeds c={c} gs={gs} p={pulses[c.cbsdId]} now={now} /></span></td>
                 <td><TxIndicator grants={gs} now={now} /></td>
                 <td className="max-w-0 py-1.5">
-                  <div className="flex min-w-0 items-center gap-2">
+                  <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
                     <CbsdName cbsdId={c.cbsdId} fccId={c.fccId} serial={c.serial} swatch={false} className="font-medium text-ink" />
                     {isFollowed && <Crosshair className="size-3.5 flex-none text-sel" aria-label="Followed" />}
                     <RackTags c={c} />

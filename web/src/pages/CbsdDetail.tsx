@@ -4,7 +4,7 @@ import { api } from '../lib/api';
 import { useNow, useResource } from '../lib/live';
 import { useChangeMarks, useFollow } from '../lib/follow';
 import { Link, navigate } from '../lib/router';
-import { ago, clock, iso, range } from '../lib/format';
+import { ago, clock, iso, range, ratLabel } from '../lib/format';
 import type { Cbsd, EventRow, Grant } from '../lib/types';
 import { GrantTable } from '../components/grants';
 import { MessageDrawer, transportTag } from '../components/message';
@@ -143,6 +143,7 @@ export function CbsdDetailPage({ id }: { id: string }) {
               <span className="truncate">{d.fccId}</span><span className="flex-none whitespace-pre text-ink-3"> / </span><span className="flex-none">{d.serial}</span>
             </h1>
             {d.category && <Tag className="flex-none">CAT {d.category}</Tag>}
+            {d.radioTechnology && <Tag className="flex-none" title={`Air interface: ${d.radioTechnology}`}>{ratLabel(d.radioTechnology)}</Tag>}
             {d.state === 'PENDING' && <Tag tone="warn" className="flex-none">PENDING APPROVAL</Tag>}
             {d.state === 'UNREGISTERED' && <Tag className="flex-none">UNREGISTERED</Tag>}
             {d.pendingDeregister && <Tag tone="warn" className="flex-none">DEREGISTER (105) PENDING</Tag>}
