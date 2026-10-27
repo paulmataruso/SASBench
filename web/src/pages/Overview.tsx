@@ -240,8 +240,9 @@ function LiveWire() {
 
 function summarizeCodes(codes: number[]) {
   const uniq = [...new Set(codes)];
-  if (uniq.length === 1 && codes.length > 1) return <><CodeTag code={uniq[0]} /><span className="num text-2xs text-ink-3">×{codes.length}</span></>;
-  return uniq.slice(0, 2).map((c) => <CodeTag key={c} code={c} />);
+  // Numbers only: the column is narrow and the CBSD name must keep its serial. Names are in the tooltip.
+  if (uniq.length === 1 && codes.length > 1) return <><CodeTag code={uniq[0]} compact /><span className="num text-2xs text-ink-3">×{codes.length}</span></>;
+  return uniq.slice(0, 2).map((c) => <CodeTag key={c} code={c} compact />);
 }
 
 function StateReadout() {

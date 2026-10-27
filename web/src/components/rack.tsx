@@ -131,7 +131,7 @@ export function CbsdName({ cbsdId, fccId, serial, link = true, swatch = true, cl
   const body = (
     <>
       {swatch && <Swatch cbsdId={cbsdId} />}
-      <span className="flex min-w-0 items-baseline">
+      <span className="flex min-w-0 items-baseline overflow-hidden">
         <span className="truncate">{p.fccId}</span>
         {p.serial && <><span className="flex-none whitespace-pre text-ink-3"> / </span><span className="flex-none">{p.serial}</span></>}
       </span>

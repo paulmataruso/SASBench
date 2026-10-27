@@ -1,0 +1,37 @@
+SASBench
+Copyright (c) 2026 Paul Mataruso. All rights reserved.
+
+This software, including its source code, documentation, images and
+associated files (the "Software"), is proprietary.
+
+1. No license granted. Except as expressly permitted in a separate written
+   agreement signed by the copyright holder, no right or license is granted
+   to use, run, copy, modify, merge, publish, distribute, sublicense, sell,
+   or create derivative works of the Software, in whole or in part.
+
+2. Viewing. Where the Software is published in a public repository, you may
+   view it, and fork it within that hosting service to the extent the
+   service's terms require. This does not grant any right to run, deploy,
+   or redistribute the Software.
+
+3. Licensing. For an evaluation or commercial license, contact the copyright
+   holder: https://github.com/paulmataruso
+
+4. Third-party components. The Software includes open-source components
+   that are licensed by their authors under their own terms. They are
+   listed, with their license texts, in THIRD_PARTY_NOTICES.md. Nothing in
+   this license limits your rights under those licenses for those
+   components.
+
+5. Laboratory use. The Software is a test tool. It is not a Spectrum Access
+   System certified by the FCC or the Wireless Innovation Forum, and it must
+   not be used to authorize radio transmissions outside a controlled test
+   environment.
+
+6. No warranty. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY
+   KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+   NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR
+   OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+   ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.

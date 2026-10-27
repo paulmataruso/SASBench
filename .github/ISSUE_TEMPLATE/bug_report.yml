@@ -1,0 +1,57 @@
+name: Bug report
+description: SASBench did something wrong or unexpected.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what SASBench did, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Apply the Lab profile
+        2. Register a Category B radio without installationParam
+        3. ...
+  - type: input
+    id: version
+    attributes:
+      label: SASBench version
+      description: Shown at the bottom of the console's navigation rail, e.g. v1.0.0.
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How it runs
+      options:
+        - Docker Compose (host networking)
+        - Docker with port mappings / Docker Desktop
+        - From source (npm start)
+    validations:
+      required: true
+  - type: dropdown
+    id: profile
+    attributes:
+      label: Settings profile
+      options:
+        - Lab
+        - WInnForum test harness
+        - Open
+        - Custom settings
+  - type: textarea
+    id: wire
+    attributes:
+      label: Wire log or events
+      description: The relevant exchanges (Wire log → Export NDJSON, or copy from an exchange) and events. Remove private keys and passwords.
+      render: json
+  - type: textarea
+    id: logs
+    attributes:
+      label: Container log
+      description: Output of `docker logs sasbench` around the problem.
+      render: text

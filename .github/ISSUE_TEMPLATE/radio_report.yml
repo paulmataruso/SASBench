@@ -1,0 +1,54 @@
+name: Radio compatibility report
+description: Tell us how a CBSD or Domain Proxy works with SASBench, good or bad.
+labels: [radio-compatibility]
+body:
+  - type: markdown
+    attributes:
+      value: Reports from real radios help everyone. Successes are as useful as failures.
+  - type: input
+    id: radio
+    attributes:
+      label: Radio
+      description: Vendor, model and category, e.g. "Vendor X model Y, Category B".
+    validations:
+      required: true
+  - type: input
+    id: firmware
+    attributes:
+      label: Radio firmware or software version
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: SASBench version
+    validations:
+      required: true
+  - type: dropdown
+    id: transport
+    attributes:
+      label: Connection
+      options:
+        - HTTPS with a client certificate (mutual TLS)
+        - HTTPS without a client certificate
+        - Plain HTTP
+    validations:
+      required: true
+  - type: checkboxes
+    id: works
+    attributes:
+      label: What works
+      options:
+        - label: Registration
+        - label: Spectrum inquiry
+        - label: Grant
+        - label: Heartbeat and authorized transmission
+        - label: Suspension (501) and resumption
+        - label: Termination (500)
+        - label: SAS-initiated deregistration (105)
+        - label: Relinquishment and deregistration by the radio
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Certificate formats the radio needed, settings you changed, anything that did not work. Attach wire-log exports if something failed (remove private keys and passwords).

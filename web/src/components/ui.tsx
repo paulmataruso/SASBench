@@ -299,11 +299,12 @@ export function GrantStateTag({ state, suspended }: { state: string; suspended?:
   );
 }
 
-export function CodeTag({ code }: { code: number }) {
+/** responseCode tag; `compact` shows the number only (the name stays in the tooltip) for narrow columns. */
+export function CodeTag({ code, compact }: { code: number; compact?: boolean }) {
   return (
     <Tag tone={rcTone(code)} mono title={RC_NAMES[code] ?? 'unknown'}>
       {code}
-      {code !== 0 && <span className="font-label text-2xs font-semibold tracking-[0.04em] opacity-80">{RC_NAMES[code] ?? ''}</span>}
+      {code !== 0 && !compact && <span className="font-label text-2xs font-semibold tracking-[0.04em] opacity-80">{RC_NAMES[code] ?? ''}</span>}
     </Tag>
   );
 }
