@@ -1,4 +1,4 @@
-# CBRS Lab SAS
+# SASBench
 
 A self-hosted Spectrum Access System for bringing up and testing CBRS radios (CBSDs and Domain Proxies) in a lab. It implements the WInnForum SAS–CBSD protocol (**WINNF-TS-0016 v1.2**) and the TLS security profile (**WINNF-TS-0065**), plus the admin API of the WInnForum test harness. A web console shows every exchange and lets you change policy, grants and certificates while it runs.
 
@@ -35,10 +35,10 @@ On Docker Desktop (no host networking), remove `network_mode`, enable the `ports
 ### docker run
 
 ```bash
-docker build -t cbrs-lab-sas .
-docker run -d --name cbrs-lab-sas --network host \
-  -v cbrs-sas-data:/data \
-  cbrs-lab-sas
+docker build -t sasbench .
+docker run -d --name sasbench --network host \
+  -v sasbench-data:/data \
+  sasbench
 ```
 
 With port mappings (`-p 8080:8080 -p 8000:8000 -p 8443:8443`) instead of `--network host`, the container only sees its bridge address. Add `-e SAS_HOSTNAMES=<host-ip>` so the server certificate covers the host's IP.
@@ -72,11 +72,11 @@ npm start              # http://localhost:8080
 On first start the SAS creates a lab PKI. It is stored in the database and kept across restarts.
 
 ```
-CBRS Lab Root CA
-├── CBRS Lab SAS CA            → "SAS server RSA (auto)" + "SAS server ECDSA (auto)"
-├── CBRS Lab CBSD CA           → device certificates
-├── CBRS Lab Domain Proxy CA   → domain proxy (operator) certificates
-└── CBRS Lab Installer CA      → CPI (professional installer) certificates
+SASBench Root CA
+├── SASBench SAS CA            → "SAS server RSA (auto)" + "SAS server ECDSA (auto)"
+├── SASBench CBSD CA           → device certificates
+├── SASBench Domain Proxy CA   → domain proxy (operator) certificates
+└── SASBench Installer CA      → CPI (professional installer) certificates
 ```
 
 Every CA carries the matching WInnForum certificate-policy OIDs (`1.3.6.1.4.1.46609.1.1.x`). Device certificates carry the radio's FCC ID and serial number as WInnForum `FCCID`/`SERIAL` otherNames, with CN `<fccId>:<serial>`.
@@ -169,7 +169,7 @@ The Spectrum page map shows CBSDs, protection areas and PPAs. Choose its base ma
   - MBTiles files (`*.mbtiles`) with PNG, JPEG or WebP tiles. Vector MBTiles (`pbf`) are not supported.
   - Folders laid out as `<name>/<z>/<x>/<y>.png` (or `.jpg`/`.webp`).
 
-  Copy them in with `docker cp lab.mbtiles cbrs-lab-sas:/data/tiles/`, then press **Rescan**.
+  Copy them in with `docker cp lab.mbtiles sasbench:/data/tiles/`, then press **Rescan**.
 - **Online tile server.** Any XYZ URL template with `{z}`, `{x}` and `{y}`. `{-y}` (TMS) and `{s}` also work. The presets are the USGS National Map (Topo, Imagery, Imagery + Topo), which is public domain and needs no API key.
 
 **Downloading an area for offline use.** Settings → Map → *Download an area* saves tiles from a tile server into a new MBTiles file in the store. The area can be the registered CBSDs plus a margin, or a box you enter. Pick the zoom range, start the download, and switch the map to the file once it finishes. A download is limited to 100,000 tiles. Zoom 6–14 around a few sites is typically 1,000–5,000 tiles (20–100 MB).
@@ -186,8 +186,8 @@ Fetch tiles from USGS (3DEP, public domain; 40–70 MB per 1°×1° tile):
 
 ```bash
 # Docker
-docker exec cbrs-lab-sas node server/src/tools/fetch-terrain.ts --around 39.74,-104.99
-docker exec cbrs-lab-sas node server/src/tools/fetch-terrain.ts --harness
+docker exec sasbench node server/src/tools/fetch-terrain.ts --around 39.74,-104.99
+docker exec sasbench node server/src/tools/fetch-terrain.ts --harness
 
 # Local
 npm run terrain -- n39w078 n39w077
@@ -239,7 +239,7 @@ Back up the volume to keep your PKI. Deleting it regenerates a fresh one, and ra
 
 ## Third-party notices
 
-`THIRD_PARTY_NOTICES.md` lists every third-party component that ships with CBRS Lab SAS, with its license text:
+`THIRD_PARTY_NOTICES.md` lists every third-party component that ships with SASBench, with its license text:
 
 - the npm packages of the server and the web UI bundle;
 - the runtime in the container image (Node.js, OpenSSL, tini, Alpine packages);

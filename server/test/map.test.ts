@@ -14,7 +14,7 @@ let sas: TestSas;
 let tilesDir: string;
 
 before(async () => {
-  tilesDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cbrs-sas-tiles-'));
+  tilesDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sasbench-tiles-'));
   const db = new DatabaseSync(path.join(tilesDir, 'lab.mbtiles'));
   db.exec(`CREATE TABLE metadata (name TEXT, value TEXT);
     CREATE TABLE tiles (zoom_level INTEGER, tile_column INTEGER, tile_row INTEGER, tile_data BLOB);`);

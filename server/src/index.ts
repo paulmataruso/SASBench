@@ -18,7 +18,7 @@ import { buildApi, harnessHook } from './api.ts';
 import { sendJson } from './net/http.ts';
 import { PRESETS } from './presets.ts';
 
-// CBRS Lab SAS — entry point. One process serves:
+// SASBench — entry point. One process serves:
 //   - the SAS-CBSD protocol on HTTP (default 8000) and HTTPS/mTLS (default 8443), plus the
 //     WInnForum test-harness admin API under /admin/ on the same listeners;
 //   - the web UI and its REST API on UI_PORT (default 8080).
@@ -97,7 +97,7 @@ const ui = http.createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', 'http://x');
   try {
     if (!authorized(req)) {
-      res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="CBRS Lab SAS", charset="UTF-8"', 'Content-Type': 'text/plain' });
+      res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="SASBench", charset="UTF-8"', 'Content-Type': 'text/plain' });
       res.end('Authentication required');
       return;
     }
@@ -163,7 +163,7 @@ function serveStatic(req: http.IncomingMessage, pathname: string, res: http.Serv
   if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(WEB_DIR, 'index.html');
   if (!fs.existsSync(file)) {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-    res.end('<h1>CBRS Lab SAS</h1><p>The web UI has not been built. Run <code>npm run build:web</code>. The REST API is available under /api/.</p>');
+    res.end('<h1>SASBench</h1><p>The web UI has not been built. Run <code>npm run build:web</code>. The REST API is available under /api/.</p>');
     return;
   }
   const ext = path.extname(file);

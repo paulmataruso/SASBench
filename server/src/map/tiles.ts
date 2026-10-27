@@ -287,7 +287,7 @@ export class TileDownloader {
       for (const [k, v] of Object.entries({
         name: job.file.replace(/\.mbtiles$/, ''), format: format ?? 'png', type: 'baselayer', version: '1.0',
         minzoom: String(job.minZoom), maxzoom: String(job.maxZoom), bounds: `${w},${s},${e},${n}`,
-        attribution, description: `Downloaded by CBRS Lab SAS from ${job.url}`,
+        attribution, description: `Downloaded by SASBench from ${job.url}`,
       })) meta.run(k, v);
       db.close();
       fs.renameSync(part, path.join(this.store.dir, job.file));
@@ -330,7 +330,7 @@ async function fetchTile(url: string, signal: AbortSignal): Promise<{ data: Buff
   for (let attempt = 0; attempt < 3; attempt++) {
     if (signal.aborted) return 'failed';
     try {
-      const r = await fetch(url, { signal: AbortSignal.any([signal, AbortSignal.timeout(20_000)]), headers: { 'User-Agent': 'CBRS-Lab-SAS offline map cache' } });
+      const r = await fetch(url, { signal: AbortSignal.any([signal, AbortSignal.timeout(20_000)]), headers: { 'User-Agent': 'SASBench offline map cache' } });
       if (r.status === 404 || r.status === 204) return 'missing';
       if (r.ok) {
         const data = Buffer.from(await r.arrayBuffer());

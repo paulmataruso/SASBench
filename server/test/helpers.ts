@@ -46,7 +46,7 @@ async function distinctPorts(n: number): Promise<number[]> {
 
 export async function startSas(env: Record<string, string> = {}): Promise<TestSas> {
   const [uiPort, httpPort, httpsPort] = await distinctPorts(3);
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cbrs-sas-test-'));
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sasbench-test-'));
   let output = '';
   const child: ChildProcess = spawn(process.execPath, [path.join(ROOT, 'server', 'src', 'index.ts')], {
     cwd: ROOT,

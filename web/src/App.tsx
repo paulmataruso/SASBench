@@ -106,9 +106,9 @@ function Shell() {
   }, [cbsds.data]);
   useEffect(() => setMenu(false), [path]);
   const menuRef = useModalFocus(menu, () => setMenu(false));
-  const title = NAV.flatMap((g) => g.items).find((i) => (i.to === '/' ? path === '/' : path.startsWith(i.to)))?.label ?? 'CBRS Lab SAS';
+  const title = NAV.flatMap((g) => g.items).find((i) => (i.to === '/' ? path === '/' : path.startsWith(i.to)))?.label ?? 'SASBench';
   useEffect(() => {
-    document.title = `${title} · CBRS Lab SAS`;
+    document.title = `${title} · SASBench`;
   }, [title]);
 
   return (
@@ -151,7 +151,7 @@ function Rail({ className, expanded, onClose }: { className?: string; expanded?:
     <nav aria-label="Main" className={cx('on-rail h-full flex-none flex-col bg-rail text-rail-fg', expanded ? '' : 'w-14 lg:w-[216px]', className)}>
       <div className="flex h-12 items-center gap-2.5 border-b border-rail-3 px-[15px]">
         <RackMark />
-        <span className={cx('whitespace-nowrap text-md font-semibold tracking-[-0.01em] text-white', full)}>CBRS Lab SAS</span>
+        <span className={cx('whitespace-nowrap text-md font-semibold tracking-[-0.01em] text-white', full)}>SASBench</span>
         {onClose && (
           <button type="button" onClick={onClose} className="ml-auto text-rail-mute hover:text-white" aria-label="Close menu">
             <X className="size-4" />

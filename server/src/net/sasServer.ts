@@ -229,7 +229,7 @@ export class SasServer {
       transport, remoteAddr: req.socket.remoteAddress ?? '', cert: cert.summary, certAuthorized: cert.authorized,
       certError: cert.error, version: '',
     };
-    res.setHeader('Server', 'CBRS-Lab-SAS');
+    res.setHeader('Server', 'SASBench');
     const s = this.settings.get();
     const reject403 = async (why: string) => {
       const body = await readBody(req).catch(() => Buffer.alloc(0));
@@ -255,7 +255,7 @@ export class SasServer {
 
       if (req.method === 'GET' || req.method === 'HEAD') {
         return sendJson(res, 200, {
-          service: 'CBRS Lab SAS', protocol: 'WINNF-TS-0016', supportedVersions: s.supportedVersions,
+          service: 'SASBench', protocol: 'WINNF-TS-0016', supportedVersions: s.supportedVersions,
           methods: SAS_METHODS, transport, clientCertificate: cert.summary ? cert.summary.subject : null,
         });
       }

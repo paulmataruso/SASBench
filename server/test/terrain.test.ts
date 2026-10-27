@@ -165,7 +165,7 @@ const VARIANTS = {
 };
 
 before(() => {
-  root = fs.mkdtempSync(path.join(os.tmpdir(), 'cbrs-sas-terrain-'));
+  root = fs.mkdtempSync(path.join(os.tmpdir(), 'sasbench-terrain-'));
   const z = surface();
   gridFloat(path.join(root, 'flt'), z);
   for (const [name, o] of Object.entries(VARIANTS)) {

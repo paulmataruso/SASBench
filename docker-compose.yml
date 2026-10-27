@@ -2,8 +2,8 @@
 services:
   sas:
     build: .
-    image: cbrs-lab-sas:latest
-    container_name: cbrs-lab-sas
+    image: sasbench:latest
+    container_name: sasbench
     restart: unless-stopped
     # Host networking: the SAS sees the host's real IP addresses, puts them in the SAN list of its
     # server certificate automatically, and logs each radio's real source address. The listeners
@@ -32,10 +32,10 @@ services:
       # SAS_HTTP_PORT: "8000"
       # SAS_HTTPS_PORT: "8443"
       # Elevation tiles for the Category A HAAT check (default /data/terrain): USGS GeoTIFF or NED
-      # GridFloat. Fetch with `docker exec cbrs-lab-sas node server/src/tools/fetch-terrain.ts --around LAT,LON`.
+      # GridFloat. Fetch with `docker exec sasbench node server/src/tools/fetch-terrain.ts --around LAT,LON`.
       # SAS_TERRAIN_DIR: "/data/terrain"
       # Offline map tile store: MBTiles files and z/x/y folders (default /data/tiles). Copy files in
-      # with `docker cp lab.mbtiles cbrs-lab-sas:/data/tiles/`, or download an area in Settings → Map.
+      # with `docker cp lab.mbtiles sasbench:/data/tiles/`, or download an area in Settings → Map.
       # SAS_TILES_DIR: "/data/tiles"
       TZ: "UTC"
 

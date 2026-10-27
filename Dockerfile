@@ -1,4 +1,4 @@
-# CBRS Lab SAS — single container: SAS-CBSD protocol on HTTP (8000) and HTTPS/mTLS (8443),
+# SASBench — single container: SAS-CBSD protocol on HTTP (8000) and HTTPS/mTLS (8443),
 # web UI + REST API on 8080. State (SQLite database, lab PKI, terrain tiles) lives in /data.
 
 # ---- web UI build -------------------------------------------------------------

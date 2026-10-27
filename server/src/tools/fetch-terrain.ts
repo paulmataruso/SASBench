@@ -4,7 +4,7 @@
 //   node server/src/tools/fetch-terrain.ts n39w078 n39w077       # tiles by name (north-west corner)
 //   node server/src/tools/fetch-terrain.ts --around 39.74,-104.99   # tiles a HAAT check at this point reads
 //   node server/src/tools/fetch-terrain.ts --harness             # tiles for the WInnForum harness CBSD tests
-//   docker exec cbrs-lab-sas node server/src/tools/fetch-terrain.ts --harness
+//   docker exec sasbench node server/src/tools/fetch-terrain.ts --harness
 //
 // Files go to SAS_TERRAIN_DIR, else $SAS_DATA_DIR/terrain (./data/terrain); --dir DIR overrides.
 // Existing tiles are kept unless --force. A running SAS picks new tiles up within 30 s.

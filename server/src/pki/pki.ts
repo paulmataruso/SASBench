@@ -16,6 +16,9 @@ import { summarizeCert, splitPemCerts, extractPrivateKeyPem, WINNF_OID } from '.
 //            ├─ Domain Proxy CA ── Domain proxy certificates (ROLE_OPERATOR)
 //            └─ Installer CA ───── CPI certificates (ROLE_INSTALLER, CPIRID) for cpiSignatureData
 
+/** Organization of the certificates the lab PKI issues. Existing PKIs keep the names they were made with. */
+const PKI_ORG = 'SASBench';
+
 export type KeyType = 'rsa2048' | 'rsa3072' | 'rsa4096' | 'ec256' | 'ec384';
 export type CaRole = 'sas' | 'cbsd' | 'operator' | 'installer';
 export type CertKind = 'root' | 'sub_ca' | 'server' | 'cbsd' | 'domain_proxy' | 'installer' | 'trusted' | 'imported';
@@ -184,7 +187,7 @@ export class Pki {
   }
 
   issueCbsd(opts: { parentId: string; fccId: string; serial: string; dn?: Partial<DnInput>; keyType?: KeyType; days?: number; name?: string }): CertRecord {
-    const dn: DnInput = { O: 'CBRS Lab', ...opts.dn, CN: opts.dn?.CN || `${opts.fccId}:${opts.serial}` };
+    const dn: DnInput = { O: PKI_ORG, ...opts.dn, CN: opts.dn?.CN || `${opts.fccId}:${opts.serial}` };
     return this.issue({
       parentId: opts.parentId, kind: 'cbsd', role: 'cbsd', name: opts.name ?? `${opts.fccId} / ${opts.serial}`, dn,
       keyType: opts.keyType ?? 'rsa2048', days: opts.days ?? 3650,
@@ -220,7 +223,7 @@ export class Pki {
   issueInstaller(opts: { parentId: string; cpiId: string; cpiName: string; keyType?: KeyType; days?: number }): CertRecord {
     return this.issue({
       parentId: opts.parentId, kind: 'installer', role: 'installer', name: `CPI ${opts.cpiName} (${opts.cpiId})`,
-      dn: { CN: opts.cpiName, O: 'CBRS Lab CPI' }, keyType: opts.keyType ?? 'rsa2048', days: opts.days ?? 1825,
+      dn: { CN: opts.cpiName, O: `${PKI_ORG} CPI` }, keyType: opts.keyType ?? 'rsa2048', days: opts.days ?? 1825,
       alt: [`otherName.1 = ${WINNF_OID.CPIRID};UTF8:${opts.cpiId}`], meta: { cpiId: opts.cpiId, cpiName: opts.cpiName },
       ext: [
         'subjectKeyIdentifier = hash',
@@ -563,12 +566,12 @@ export class Pki {
       return { serverCertIds: srv.map((r) => r.id) };
     }
     log('Generating lab PKI (root CA, SAS/CBSD/Domain Proxy/Installer CAs, SAS server certificate)…');
-    const O = 'CBRS Lab SAS';
-    const root = this.createRoot({ dn: { CN: 'CBRS Lab Root CA', O, OU: 'Lab PKI' } });
-    const sasCa = this.createSubCa({ parentId: root.id, role: 'sas', dn: { CN: 'CBRS Lab SAS CA', O, OU: 'Lab PKI' } });
-    this.createSubCa({ parentId: root.id, role: 'cbsd', dn: { CN: 'CBRS Lab CBSD CA', O, OU: 'Lab PKI' } });
-    this.createSubCa({ parentId: root.id, role: 'operator', dn: { CN: 'CBRS Lab Domain Proxy CA', O, OU: 'Lab PKI' } });
-    this.createSubCa({ parentId: root.id, role: 'installer', dn: { CN: 'CBRS Lab Installer CA', O, OU: 'Lab PKI' } });
+    const O = PKI_ORG;
+    const root = this.createRoot({ dn: { CN: `${PKI_ORG} Root CA`, O, OU: 'Lab PKI' } });
+    const sasCa = this.createSubCa({ parentId: root.id, role: 'sas', dn: { CN: `${PKI_ORG} SAS CA`, O, OU: 'Lab PKI' } });
+    this.createSubCa({ parentId: root.id, role: 'cbsd', dn: { CN: `${PKI_ORG} CBSD CA`, O, OU: 'Lab PKI' } });
+    this.createSubCa({ parentId: root.id, role: 'operator', dn: { CN: `${PKI_ORG} Domain Proxy CA`, O, OU: 'Lab PKI' } });
+    this.createSubCa({ parentId: root.id, role: 'installer', dn: { CN: `${PKI_ORG} Installer CA`, O, OU: 'Lab PKI' } });
     const srv = this.issueServer({ parentId: sasCa.id, dn: { CN: sans[0] ?? 'localhost', O }, sans, name: 'SAS server RSA (auto)' });
     // An ECDSA certificate as well, so the ECDHE-ECDSA cipher suites of WINNF-TS-0065 can be negotiated.
     const srvEc = this.issueServer({ parentId: sasCa.id, dn: { CN: sans[0] ?? 'localhost', O }, sans, keyType: 'ec256', name: 'SAS server ECDSA (auto)' });
@@ -589,7 +592,7 @@ export class Pki {
       const have = new Set(sanEntries(r.cert_pem));
       const missing = sans.filter((s) => !have.has(s.toLowerCase()));
       if (!missing.length) return id;
-      const c = this.issueServer({ parentId: r.parent_id, dn: { CN: sans[0] ?? 'localhost', O: 'CBRS Lab SAS' }, sans, keyType: r.key_type as KeyType, name: r.name });
+      const c = this.issueServer({ parentId: r.parent_id, dn: { CN: sans[0] ?? 'localhost', O: PKI_ORG }, sans, keyType: r.key_type as KeyType, name: r.name });
       this.delete(id);
       log(`Reissued ${r.name} to add ${missing.join(', ')} to its subject alternative names`);
       changed = true;
@@ -716,8 +719,8 @@ function safeName(s: string): string {
 }
 
 function bundleReadme(r: Row, opts: { password: string; sasUrls: string[] }): string {
-  return `CBRS Lab SAS — device credential bundle
-=========================================
+  return `SASBench — device credential bundle
+===================================
 Certificate : ${r.name}
 Subject     : ${r.subject}
 Issued by   : ${r.issuer}
@@ -748,4 +751,4 @@ configured SAS URL, so enter the URL ending in /v1.2/ (or as your radio expects)
 `;
 }
 
-export const tmpBase = () => path.join(os.tmpdir(), 'cbrs-sas');
+export const tmpBase = () => path.join(os.tmpdir(), 'sasbench');

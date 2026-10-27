@@ -102,7 +102,7 @@ function TileStorePanel({ cfg, field, reload }: { cfg: MapConfig | null | undefi
       {sets.length === 0 ? (
         <p className="text-sm text-ink-3">
           No tile sets yet. Download an area below, or copy a raster <code>.mbtiles</code> file (or a <code>z/x/y</code> folder of PNG/JPEG tiles) into the folder
-          above, e.g. <code>docker cp lab.mbtiles cbrs-lab-sas:/data/tiles/</code>, then press Rescan.
+          above, e.g. <code>docker cp lab.mbtiles sasbench:/data/tiles/</code>, then press Rescan.
         </p>
       ) : (
         <ul className="divide-y divide-line rounded border border-line">

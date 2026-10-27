@@ -280,7 +280,7 @@ function SingleKit({ certs }: { certs: CertRecord[] }) {
           <Field label="Common name (optional)" htmlFor="kit-cn" hint={`Default: ${f.fccId || 'FCCID'}:${f.serial || 'serial'}`}>
             <Input id="kit-cn" value={f.CN} onChange={(e) => set('CN', e.target.value)} />
           </Field>
-          <Field label="Organization (optional)" htmlFor="kit-o" hint="Default: CBRS Lab">
+          <Field label="Organization (optional)" htmlFor="kit-o" hint="Default: SASBench">
             <Input id="kit-o" value={f.O} onChange={(e) => set('O', e.target.value)} />
           </Field>
         </div>
@@ -762,7 +762,7 @@ function CertDrawer({ id, onClose, serverCertIds, trustedClientCaIds }: { id: st
 type IssueKind = 'server' | 'root' | 'sub-ca' | 'domain-proxy' | 'installer';
 
 interface Dn { CN: string; O: string; OU: string; L: string; ST: string; C: string }
-const EMPTY_DN: Dn = { CN: '', O: 'CBRS Lab', OU: '', L: '', ST: '', C: '' };
+const EMPTY_DN: Dn = { CN: '', O: 'SASBench', OU: '', L: '', ST: '', C: '' };
 
 function DnFields({ dn, onChange, cnLabel = 'Common name (CN)', cnHint, cnError }: { dn: Dn; onChange: (d: Dn) => void; cnLabel?: string; cnHint?: ReactNode; cnError?: string }) {
   const set = (k: keyof Dn) => (e: { target: { value: string } }) => onChange({ ...dn, [k]: e.target.value });

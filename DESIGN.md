@@ -1,5 +1,5 @@
 ---
-name: CBRS Lab SAS
+name: SASBench
 description: Self-hosted Spectrum Access System console, built as the equipment rack the radios live in.
 colors:
   rail: "#14181f"
@@ -168,7 +168,7 @@ components:
     size: "8px"
 ---
 
-# Design System: CBRS Lab SAS
+# Design System: SASBench
 
 ## Overview
 
