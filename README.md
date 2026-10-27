@@ -15,7 +15,7 @@ Register, grant and heartbeat real CBSDs on your bench, see exactly what the rad
 [![Node.js 24](https://img.shields.io/badge/Node.js-24-5FA04E?logo=nodedotjs&logoColor=white)](docs/DEVELOPMENT.md)
 [![License: proprietary](https://img.shields.io/badge/license-proprietary-14181f)](LICENSE)
 
-[Install](docs/INSTALL.md) · [User guide](docs/GUIDE.md) · [Development](docs/DEVELOPMENT.md) · [Changelog](CHANGELOG.md)
+[Install](docs/INSTALL.md) · [User guide](docs/GUIDE.md) · [Radios](RADIOS.md) · [Development](docs/DEVELOPMENT.md) · [Changelog](CHANGELOG.md)
 
 </div>
 
@@ -39,7 +39,9 @@ Commercial SAS services give a lab little visibility and no control. Simple stub
 - **Ready for the WInnForum harness.** Its admin API, a strict profile that matches its expectations, and a generated `sas.cfg`.
 - **Offline and self-contained.** One Docker container, a SQLite database, a built-in basemap and offline map tiles. No cloud account.
 
-Radios that register without location data, as many Category B units do, are handled explicitly: hold them for preloaded data, or register them anyway. SASBench has been used with a Nokia AirScale BBU over HTTPS, and the console includes step-by-step certificate instructions for AirScale.
+Radios that register without location data, as many Category B units do, are handled explicitly: hold them for preloaded data, or register them anyway. The console includes step-by-step certificate instructions for Nokia AirScale BBUs.
+
+**Confirmed radios** are listed in [RADIOS.md](RADIOS.md), starting with the Nokia AirScale AMIA + ASIA + AZQC on SBTS25R2. Tested one that is not there? Add it with a pull request.
 
 ## Screenshots
 
@@ -89,6 +91,7 @@ The **Overview** page lists the exact URLs, and the **Certificates** page makes 
 | [Install](docs/INSTALL.md) | Requirements, Docker Compose, configuration, firewall, upgrading, backup and restore, troubleshooting |
 | [User guide](docs/GUIDE.md) | The console, connecting radios, certificates, TLS, settings profiles, map, terrain, the WInnForum test harness, limitations |
 | [Development](docs/DEVELOPMENT.md) | Running from source, project layout, tests, third-party notices |
+| [Radio compatibility](RADIOS.md) | Radios confirmed to work with SASBench, and how to add yours |
 | [Changelog](CHANGELOG.md) | Release notes |
 | [Security](SECURITY.md) | Reporting a vulnerability |
 
@@ -96,7 +99,7 @@ The **Overview** page lists the exact URLs, and the **Certificates** page makes 
 
 Bug reports and radio compatibility reports are welcome in [GitHub Issues](https://github.com/paulmataruso/SASBench/issues). Include the radio model and firmware, the SASBench version, and the relevant exchanges exported from the wire log.
 
-SASBench is proprietary software, so outside pull requests are not accepted.
+SASBench is proprietary software, so code pull requests are not accepted. Pull requests that add a tested radio to [RADIOS.md](RADIOS.md) are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 

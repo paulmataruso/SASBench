@@ -4,7 +4,10 @@ labels: [radio-compatibility]
 body:
   - type: markdown
     attributes:
-      value: Reports from real radios help everyone. Successes are as useful as failures.
+      value: |
+        Reports from real radios help everyone. Successes are as useful as failures.
+
+        If the radio works, you can also add it to the [compatibility list](https://github.com/paulmataruso/SASBench/blob/main/RADIOS.md) yourself with a pull request.
   - type: input
     id: radio
     attributes:

@@ -14,3 +14,4 @@ First release.
 - Web console: CBSD rack with live LEDs, band plan and map, wire log with full JSON and NDJSON export, events, request console, certificates, registry and live settings.
 - Offline map: built-in North America basemap, offline MBTiles and tile folders, and area downloads from a tile server.
 - One Docker container with host networking, SQLite storage and a health check.
+- Radio compatibility list ([RADIOS.md](RADIOS.md)), starting with the Nokia AirScale AMIA + ASIA + AZQC on SBTS25R2.
