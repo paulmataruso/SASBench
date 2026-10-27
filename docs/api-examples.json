@@ -187,7 +187,7 @@
         "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/settings\"",
         "status": 200,
         "kind": "json",
-        "json": "{\n  \"settings\": {\n    \"sasHttpEnabled\": true,\n    \"sasHttpPort\": 8000,\n    \"sasHttpsEnabled\": true,\n    \"sasHttpsPort\": 8443,\n    \"tlsClientAuth\": \"optional\",\n    \"tlsMinVersion\": \"TLSv1.2\",\n    \"tlsMaxVersion\": \"TLSv1.2\",\n    \"tlsCipherPolicy\": \"winnforum\",\n    \"serverCertIds\": [\"854a3c37-4fdf-4759-b1cb-3a02c07bdab3\", \"d2ce1631-5c73-453a-b8ae-c725c46e0921\"],\n    \"trustedClientCaIds\": [],\n    \"tlsCheckCrl\": true,\n    \"certRoleCheck\": \"lenient\",\n    \"rejectUnverifiedClientCert\": false,\n    \"supportedVersions\": [\"v1.2\"],\n    \"acceptVersionlessPaths\": true,\n    \"heartbeatIntervalSec\": 60,\n    \"transmitExpireSec\": 240,\n    \"grantExpireSec\": 604800,\n    \"connectivityLostSec\": 604800,\n    \"versionErrorAsResponseCode\": false,\n    \"siqChannelization\": \"none\",\n    \"siqIncludeDpa\": false,\n    \"strictOperationState\": false,\n    \"responseDelayMs\": 0,\n    \"…\": \"28 more\"\n  },\n  \"profile\": \"lab\"\n}"
+        "json": "{\n  \"settings\": {\n    \"sasHttpEnabled\": true,\n    \"sasHttpPort\": 8000,\n    \"sasHttpsEnabled\": true,\n    \"sasHttpsPort\": 8443,\n    \"tlsClientAuth\": \"optional\",\n    \"tlsMinVersion\": \"TLSv1.2\",\n    \"tlsMaxVersion\": \"TLSv1.2\",\n    \"tlsCipherPolicy\": \"winnforum\",\n    \"serverCertIds\": [\"854a3c37-4fdf-4759-b1cb-3a02c07bdab3\", \"d2ce1631-5c73-453a-b8ae-c725c46e0921\"],\n    \"trustedClientCaIds\": [],\n    \"tlsCheckCrl\": true,\n    \"certRoleCheck\": \"lenient\",\n    \"rejectUnverifiedClientCert\": false,\n    \"supportedVersions\": [\"v1.2\"],\n    \"acceptVersionlessPaths\": true,\n    \"heartbeatIntervalSec\": 60,\n    \"transmitExpireSec\": 240,\n    \"grantExpireSec\": 604800,\n    \"connectivityLostSec\": 604800,\n    \"versionErrorAsResponseCode\": false,\n    \"siqChannelization\": \"none\",\n    \"siqIncludeDpa\": false,\n    \"strictOperationState\": false,\n    \"responseDelayMs\": 0,\n    \"…\": \"28 more\"\n  },\n  \"profile\": \"lab\",\n  \"fromEnv\": {\"sasHttpPort\": \"SAS_HTTP_PORT\", \"sasHttpsPort\": \"SAS_HTTPS_PORT\"}\n}"
       }
     ],
     "updateSettings": [
@@ -205,7 +205,7 @@
         "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/settings/schema\"",
         "status": 200,
         "kind": "json",
-        "json": "{\n  \"items\": [\n    {\n      \"key\": \"sasHttpEnabled\",\n      \"group\": \"Listeners\",\n      \"description\": \"Serve the SAS–CBSD protocol over plain HTTP.\",\n      \"unit\": null,\n      \"schema\": {\"type\": \"boolean\"},\n      \"default\": true,\n      \"value\": true,\n      \"restartsListeners\": true\n    },\n    {\n      \"key\": \"sasHttpPort\",\n      \"group\": \"Listeners\",\n      \"description\": \"Plain-HTTP listener port. The SAS_HTTP_PORT environment variable overrides it on every start.\",\n      \"unit\": null,\n      \"schema\": {\"type\": \"integer\", \"minimum\": 1, \"maximum\": 65535},\n      \"default\": 8000,\n      \"value\": 37771,\n      \"restartsListeners\": true\n    },\n    \"… 50 more\"\n  ]\n}"
+        "json": "{\n  \"items\": [\n    {\n      \"key\": \"sasHttpEnabled\",\n      \"group\": \"Listeners\",\n      \"description\": \"Serve the SAS–CBSD protocol over plain HTTP.\",\n      \"unit\": null,\n      \"schema\": {\"type\": \"boolean\"},\n      \"default\": true,\n      \"value\": true,\n      \"restartsListeners\": true,\n      \"fromEnv\": null\n    },\n    {\n      \"key\": \"sasHttpPort\",\n      \"group\": \"Listeners\",\n      \"description\": \"Plain-HTTP listener port. While the SAS_HTTP_PORT environment variable is set, it sets the port instead and this setting cannot be changed.\",\n      \"unit\": null,\n      \"schema\": {\"type\": \"integer\", \"minimum\": 1, \"maximum\": 65535},\n      \"default\": 8000,\n      \"value\": 8000,\n      \"restartsListeners\": true,\n      \"fromEnv\": \"SAS_HTTP_PORT\"\n    },\n    \"… 50 more\"\n  ]\n}"
       }
     ],
     "listSettingsProfiles": [
@@ -241,7 +241,7 @@
         "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/settings/heartbeatIntervalSec\"",
         "status": 200,
         "kind": "json",
-        "json": "{\n  \"key\": \"heartbeatIntervalSec\",\n  \"group\": \"Protocol\",\n  \"description\": \"heartbeatInterval returned in grant responses.\",\n  \"unit\": \"s\",\n  \"schema\": {\"type\": \"integer\", \"minimum\": 1},\n  \"default\": 60,\n  \"value\": 60,\n  \"restartsListeners\": false\n}"
+        "json": "{\n  \"key\": \"heartbeatIntervalSec\",\n  \"group\": \"Protocol\",\n  \"description\": \"heartbeatInterval returned in grant responses.\",\n  \"unit\": \"s\",\n  \"schema\": {\"type\": \"integer\", \"minimum\": 1},\n  \"default\": 60,\n  \"value\": 60,\n  \"restartsListeners\": false,\n  \"fromEnv\": null\n}"
       }
     ],
     "putSetting": [

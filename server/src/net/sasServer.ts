@@ -41,6 +41,13 @@ const VERSIONLESS_RE = /\/([A-Za-z]+)\/?$/;
  */
 const SERVER_OPTIONS: http.ServerOptions = { requireHostHeader: false };
 
+/** Why a listener could not start, with the two usual causes spelled out. */
+function listenError(e: NodeJS.ErrnoException, port: number): string {
+  if (e.code === 'EADDRINUSE') return `port ${port} is already in use by another program`;
+  if (e.code === 'EACCES' && port < 1024) return `no permission for port ${port}: ports below 1024 need root or the CAP_NET_BIND_SERVICE capability`;
+  return e.message;
+}
+
 export type AdminHook = (req: IncomingMessage, res: ServerResponse, pathname: string, ctx: RequestCtx) => Promise<boolean>;
 
 export interface ListenerStatus {
@@ -137,8 +144,8 @@ export class SasServer {
         this.status.http.listening = true;
         this.bus.event('info', 'listener', `SAS HTTP listening on port ${s.sasHttpPort}`);
       } catch (e: any) {
-        this.status.http.error = e.message;
-        this.bus.event('error', 'listener', `SAS HTTP failed to listen on ${s.sasHttpPort}: ${e.message}`);
+        this.status.http.error = listenError(e, s.sasHttpPort);
+        this.bus.event('error', 'listener', `SAS HTTP failed to listen on ${s.sasHttpPort}: ${this.status.http.error}`);
       }
     }
 
@@ -159,8 +166,8 @@ export class SasServer {
         this.status.https.listening = true;
         this.bus.event('info', 'listener', `SAS HTTPS listening on port ${s.sasHttpsPort} (client auth: ${s.tlsClientAuth}, ${this.status.https.protocols})`);
       } catch (e: any) {
-        this.status.https.error = e.message;
-        this.bus.event('error', 'listener', `SAS HTTPS failed to start on ${s.sasHttpsPort}: ${e.message}`);
+        this.status.https.error = listenError(e, s.sasHttpsPort);
+        this.bus.event('error', 'listener', `SAS HTTPS failed to start on ${s.sasHttpsPort}: ${this.status.https.error}`);
       }
     }
     this.bus.changed('listeners');

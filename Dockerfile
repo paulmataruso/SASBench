@@ -27,6 +27,9 @@ RUN mkdir -p licenses && apk list --installed > licenses/alpine-packages.txt \
 ENV NODE_ENV=production \
     SAS_DATA_DIR=/data \
     UI_PORT=8080
+# Radios that expect a SAS URL without a port need 443 (or 80). The listeners run as the node user,
+# which may bind ports below 1024 only with this capability (the default with host networking).
+RUN apk add --no-cache --virtual .setcap libcap-utils && setcap cap_net_bind_service=+ep "$(command -v node)" && apk del .setcap
 RUN mkdir -p /data && chown node:node /data
 USER node
 VOLUME /data

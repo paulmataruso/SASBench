@@ -139,7 +139,7 @@ export async function startSas(env: Record<string, string> = {}, opts: { dataDir
   return { uiPort, httpPort, httpsPort, dataDir, authHeader, log: () => output, sas, sasRaw, api, apiText, stop };
 }
 
-export { freePort };
+export { distinctPorts, freePort };
 
 export function cbsdIdFor(fccId: string, serial: string): string {
   return `${fccId}/${crypto.createHash('sha1').update(serial).digest('hex')}`;

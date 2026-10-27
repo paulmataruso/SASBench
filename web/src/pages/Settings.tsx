@@ -9,7 +9,7 @@ import { Choice, Grid, Mhz, Num, Text, Toggle, type FProps, type S } from './set
 import { MapSettings } from './settings/MapSettings';
 import { Button, Input, Module, Note, PageHeader, Select, Switch, Tag, cx, useAction, useConfirm, useToast } from '../components/ui';
 
-interface SettingsResp { settings: S; defaults: S; presets: Record<string, Preset>; profile: string | null }
+interface SettingsResp { settings: S; defaults: S; presets: Record<string, Preset>; profile: string | null; fromEnv: Record<string, string> }
 
 const SECTIONS = [
   ['profiles', 'Profiles'],
@@ -74,9 +74,9 @@ export function SettingsPage() {
           <Module id="listeners" title="Listeners & TLS">
             <Grid>
               <Toggle {...field} k="sasHttpsEnabled" label="HTTPS listener" desc="TLS endpoint for real radios (WINNF-TS-0065)." />
-              <Num {...field} k="sasHttpsPort" label="HTTPS port" min={1} max={65535} />
+              <Num {...field} k="sasHttpsPort" label="HTTPS port" min={1} max={65535} fromEnv={r.data.fromEnv.sasHttpsPort} />
               <Toggle {...field} k="sasHttpEnabled" label="HTTP listener" desc="Plain HTTP for simulators and radios in test mode." />
-              <Num {...field} k="sasHttpPort" label="HTTP port" min={1} max={65535} />
+              <Num {...field} k="sasHttpPort" label="HTTP port" min={1} max={65535} fromEnv={r.data.fromEnv.sasHttpPort} />
               <Choice {...field} k="tlsClientAuth" label="Client certificates" options={[['require', 'Require (mutual TLS, WInnForum)'], ['optional', 'Request, but optional'], ['none', 'Do not request']]} hint="Require rejects the TLS handshake without a certificate from a trusted CA." />
               <Toggle {...field} k="rejectUnverifiedClientCert" label="Reject unverified client certificates" desc="With optional client auth: HTTP 403 when a presented certificate does not chain to a trusted CA." />
               <Choice {...field} k="tlsMinVersion" label="Minimum TLS version" options={[['TLSv1.2', 'TLS 1.2'], ['TLSv1.3', 'TLS 1.3']]} />

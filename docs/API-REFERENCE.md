@@ -1140,7 +1140,7 @@ Every runtime setting: read, change (validated), describe, profiles and defaults
 
 **Get all settings.**
 
-Current values of every runtime setting and the matching settings profile, if any.
+Current values of every runtime setting, the matching settings profile, if any, and the settings that environment variables set (.env).
 
 Example:
 
@@ -1179,7 +1179,8 @@ Response `200`:
     "responseDelayMs": 0,
     "…": "28 more"
   },
-  "profile": "lab"
+  "profile": "lab",
+  "fromEnv": {"sasHttpPort": "SAS_HTTP_PORT", "sasHttpsPort": "SAS_HTTPS_PORT"}
 }
 ```
 
@@ -1199,6 +1200,7 @@ Response 200 body:
 |---|---|---|---|
 | `settings` | [Settings](#schema-settings) | yes |  |
 | `profile` | string \| null | yes |  |
+| `fromEnv` | map of string | yes | Settings an environment variable sets, with the variable, e.g. {"sasHttpsPort": "SAS_HTTPS_PORT"}. They cannot be changed through the API. |
 
 ### updateSettings
 
@@ -1206,7 +1208,7 @@ Response 200 body:
 
 **Change settings.**
 
-Send only the settings to change. Every value is checked against its type and range before anything is applied. Changing a listener or TLS setting restarts the SAS listeners; the response is sent once they are back.
+Send only the settings to change. Every value is checked against its type and range before anything is applied. Changing a listener or TLS setting restarts the SAS listeners; the response is sent once they are back. A setting that an environment variable sets (`fromEnv` in GET /settings) cannot be changed: 409.
 
 Example:
 
@@ -1235,9 +1237,9 @@ Request body (JSON, required):
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `sasHttpEnabled` | boolean |  | Serve the SAS–CBSD protocol over plain HTTP. |
-| `sasHttpPort` | integer |  | Plain-HTTP listener port. The SAS_HTTP_PORT environment variable overrides it on every start. · ≥ 1, ≤ 65535 |
+| `sasHttpPort` | integer |  | Plain-HTTP listener port. While the SAS_HTTP_PORT environment variable is set, it sets the port instead and this setting cannot be changed. · ≥ 1, ≤ 65535 |
 | `sasHttpsEnabled` | boolean |  | Serve the SAS–CBSD protocol over HTTPS (WINNF-TS-0065). |
-| `sasHttpsPort` | integer |  | HTTPS listener port. The SAS_HTTPS_PORT environment variable overrides it on every start. · ≥ 1, ≤ 65535 |
+| `sasHttpsPort` | integer |  | HTTPS listener port. While the SAS_HTTPS_PORT environment variable is set, it sets the port instead and this setting cannot be changed. · ≥ 1, ≤ 65535 |
 | `tlsClientAuth` | `"require"` \| `"optional"` \| `"none"` |  | `require`: WInnForum mutual TLS, the handshake fails without a trusted client certificate. `optional`: a certificate is requested but not required. `none`: no certificate is requested. |
 | `tlsMinVersion` | `"TLSv1.2"` \| `"TLSv1.3"` |  | Lowest TLS version accepted. WINNF-TS-0065 requires TLS 1.2. |
 | `tlsMaxVersion` | `"TLSv1.2"` \| `"TLSv1.3"` |  | Highest TLS version offered. |
@@ -1297,6 +1299,7 @@ Responses:
 | 400 | The request is invalid (validation_failed, invalid_json, bad_request) or the operation was refused (operation_failed). | [Error](#schema-error) |
 | 401 | No valid credentials (unauthorized), or the account is disabled (account_disabled). | [Error](#schema-error) |
 | 403 | The caller's role or API key does not allow this (forbidden), a browser request came from an origin that is not allowed (origin_not_allowed), or a web page reached the SAS by an unknown host name (host_not_allowed). | [Error](#schema-error) |
+| 409 | The resource is in a state that does not allow this (conflict). | [Error](#schema-error) |
 | 429 | Too many wrong passwords from this address (too_many_attempts); retry after the Retry-After seconds. | [Error](#schema-error) |
 | default | Unexpected error. | [Error](#schema-error) |
 
@@ -1327,17 +1330,19 @@ Response `200`:
       "schema": {"type": "boolean"},
       "default": true,
       "value": true,
-      "restartsListeners": true
+      "restartsListeners": true,
+      "fromEnv": null
     },
     {
       "key": "sasHttpPort",
       "group": "Listeners",
-      "description": "Plain-HTTP listener port. The SAS_HTTP_PORT environment variable overrides it on every start.",
+      "description": "Plain-HTTP listener port. While the SAS_HTTP_PORT environment variable is set, it sets the port instead and this setting cannot be changed.",
       "unit": null,
       "schema": {"type": "integer", "minimum": 1, "maximum": 65535},
       "default": 8000,
-      "value": 37771,
-      "restartsListeners": true
+      "value": 8000,
+      "restartsListeners": true,
+      "fromEnv": "SAS_HTTP_PORT"
     },
     "… 50 more"
   ]
@@ -1528,7 +1533,8 @@ Response `200`:
   "schema": {"type": "integer", "minimum": 1},
   "default": 60,
   "value": 60,
-  "restartsListeners": false
+  "restartsListeners": false,
+  "fromEnv": null
 }
 ```
 
@@ -10810,7 +10816,7 @@ Responses:
 
 **Import a configuration.**
 
-Takes a document from GET /config/export (or the console). Settings are validated and applied, except server certificates and trusted CAs, which stay as they are on this installation (user accounts and API keys are never imported); unknown settings are skipped and listed. Rows are inserted or replaced by primary key; nothing is deleted.
+Takes a document from GET /config/export (or the console). Settings are validated and applied, except server certificates and trusted CAs, which stay as they are on this installation (user accounts and API keys are never imported); unknown settings, and settings that an environment variable sets (.env) to another value, are skipped and listed. Rows are inserted or replaced by primary key; nothing is deleted.
 
 Example:
 
@@ -11783,15 +11789,16 @@ A console sign-in.
 | `default` | any | yes |  |
 | `value` | any | yes |  |
 | `restartsListeners` | boolean | yes |  |
+| `fromEnv` | string \| null | yes | The environment variable (.env) that sets it, e.g. SAS_HTTPS_PORT; it cannot be changed through the API while set. |
 
 ### Schema: Settings
 
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `sasHttpEnabled` | boolean | yes | Serve the SAS–CBSD protocol over plain HTTP. |
-| `sasHttpPort` | integer | yes | Plain-HTTP listener port. The SAS_HTTP_PORT environment variable overrides it on every start. · ≥ 1, ≤ 65535 |
+| `sasHttpPort` | integer | yes | Plain-HTTP listener port. While the SAS_HTTP_PORT environment variable is set, it sets the port instead and this setting cannot be changed. · ≥ 1, ≤ 65535 |
 | `sasHttpsEnabled` | boolean | yes | Serve the SAS–CBSD protocol over HTTPS (WINNF-TS-0065). |
-| `sasHttpsPort` | integer | yes | HTTPS listener port. The SAS_HTTPS_PORT environment variable overrides it on every start. · ≥ 1, ≤ 65535 |
+| `sasHttpsPort` | integer | yes | HTTPS listener port. While the SAS_HTTPS_PORT environment variable is set, it sets the port instead and this setting cannot be changed. · ≥ 1, ≤ 65535 |
 | `tlsClientAuth` | `"require"` \| `"optional"` \| `"none"` | yes | `require`: WInnForum mutual TLS, the handshake fails without a trusted client certificate. `optional`: a certificate is requested but not required. `none`: no certificate is requested. |
 | `tlsMinVersion` | `"TLSv1.2"` \| `"TLSv1.3"` | yes | Lowest TLS version accepted. WINNF-TS-0065 requires TLS 1.2. |
 | `tlsMaxVersion` | `"TLSv1.2"` \| `"TLSv1.3"` | yes | Highest TLS version offered. |

@@ -946,6 +946,7 @@ These affect the API. The full list is in [INSTALL.md](INSTALL.md#configuration)
 | `UI_PORT` | `8080` | Port of the console and the API |
 | `SAS_API_PORT` | none | Also serve the API (only the API) on this port |
 | `SAS_BIND_IP` | all addresses | The address every listener binds |
+| `SAS_HTTP_PORT`, `SAS_HTTPS_PORT` | none | The radio ports. While set, `sasHttpPort` and `sasHttpsPort` cannot be changed through the API (409), and `GET /settings` lists them under `fromEnv` |
 | `SAS_ADMIN_PASSWORD` | `admin` | Password of the `admin` account created on the first start. Ignored once accounts exist. |
 | `SAS_AUTH` | on | `off` opens the console and the API to anyone, with admin access. See [Switching sign-in off](#switching-sign-in-off). |
 | `SAS_API_CORS_ORIGINS` | none | Comma-separated browser origins allowed to call the API cross-site; `*` for any. See [Browsers and CORS](#browsers-and-cors). |

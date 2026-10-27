@@ -8,14 +8,14 @@ services:
     # Host networking: the SAS sees the host's real IP addresses, puts them in the SAN list of its
     # server certificate automatically, and logs each radio's real source address. The listeners
     # bind directly on the host: 8080 (web UI + REST API), 8000 (SAS HTTP), 8443 (SAS HTTPS/mTLS),
-    # on every address unless SAS_BIND_IP is set in .env.
+    # or the ports set in .env, on every address unless SAS_BIND_IP is set there.
     # Linux only. On Docker Desktop, remove network_mode, enable the ports block below and set
     # SAS_FQDN in .env to the name or address radios use.
     network_mode: host
     # ports:
-    #   - "8080:8080"   # web UI + REST API
-    #   - "8000:8000"   # SAS-CBSD protocol, plain HTTP
-    #   - "8443:8443"   # SAS-CBSD protocol, HTTPS / mutual TLS (WINNF-TS-0065)
+    #   - "${UI_PORT:-8080}:${UI_PORT:-8080}"               # web UI + REST API
+    #   - "${SAS_HTTP_PORT:-8000}:${SAS_HTTP_PORT:-8000}"    # SAS-CBSD protocol, plain HTTP
+    #   - "${SAS_HTTPS_PORT:-8443}:${SAS_HTTPS_PORT:-8443}"  # SAS-CBSD protocol, HTTPS / mutual TLS (WINNF-TS-0065)
     volumes:
       - sas-data:/data
     # Deployment settings (FQDN, bind address, ports, settings profile, …): copy .env.example to

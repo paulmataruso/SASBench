@@ -63,7 +63,7 @@ sudo firewall-cmd --permanent --add-port={8080,8000,8443}/tcp
 sudo firewall-cmd --reload
 ```
 
-The console and the REST API on `8080` always ask for a user account or an API key, but it is still wise to allow `8080` only from your own subnet. If you set `SAS_API_PORT`, open that port too. Ports `8000` and `8443` carry the SAS protocol itself and need no sign-in: radios are identified by their certificates (WINNF-TS-0065).
+The console and the REST API on `8080` always ask for a user account or an API key, but it is still wise to allow `8080` only from your own subnet. If you set `SAS_API_PORT`, open that port too, and if you [change the ports](#configuration), open those instead. Ports `8000` and `8443` carry the SAS protocol itself and need no sign-in: radios are identified by their certificates (WINNF-TS-0065).
 
 ## Configuration
 
@@ -100,8 +100,10 @@ Everything else (TLS policy, registration policy, grant timing, map source and m
 |----------|---------|---------|
 | `UI_PORT` | `8080` | Web console and REST API (the public REST API is served here under `/api/v1`). |
 | `SAS_API_PORT` | — | An extra port that serves only the public REST API (`/api/v1`), so it can be firewalled or proxied apart from the console. The API stays on `UI_PORT` as well. |
-| `SAS_HTTP_PORT` | `8000` | SAS HTTP port. Overrides the port set in Settings on every start. |
-| `SAS_HTTPS_PORT` | `8443` | SAS HTTPS port. Overrides the port set in Settings on every start. |
+| `SAS_HTTP_PORT` | `8000` | The port radios use for the SAS protocol over plain HTTP. While it is set, it replaces the port in **Settings → Listeners & TLS**, which can then not be changed there. Remove it and the port set in Settings applies again. |
+| `SAS_HTTPS_PORT` | `8443` | The port radios use for the SAS protocol over HTTPS (mutual TLS), on the same terms as `SAS_HTTP_PORT`. |
+
+The SAS ports can be any free port, including `443` and `80` for radios that expect a SAS URL without a port (`https://sas.lab.example/v1.2/`): the Docker image may bind ports below 1024. Every listener needs a port of its own; SASBench does not start when two of these variables name the same port, and says which. `docker logs sasbench` shows the port each SAS listener is on. The **Overview**, the radio bundles and the harness `sas.cfg` use the ports in effect.
 
 **Profile and sign-in**
 
@@ -166,14 +168,14 @@ Pass settings with `--env-file .env`, or one by one with `-e`, for example `-e S
 
 ### Docker Desktop (macOS and Windows)
 
-Docker Desktop has no host networking, so publish the ports instead. In `docker-compose.yml`, remove `network_mode: host` and uncomment the `ports:` block. In `.env`, set `SAS_FQDN` to the host's LAN IP or name. The container cannot see the host's addresses, so without it the server certificate would not cover the address the radios use. Leave `SAS_BIND_IP` unset: inside the container the listeners must bind every address.
+Docker Desktop has no host networking, so publish the ports instead. In `docker-compose.yml`, remove `network_mode: host` and uncomment the `ports:` block. The mappings follow `UI_PORT`, `SAS_HTTP_PORT` and `SAS_HTTPS_PORT` from `.env`, so set ports there rather than in Settings, which the mappings cannot follow. In `.env`, set `SAS_FQDN` to the host's LAN IP or name. The container cannot see the host's addresses, so without it the server certificate would not cover the address the radios use. Leave `SAS_BIND_IP` unset: inside the container the listeners must bind every address.
 
 ```yaml
     # network_mode: host
     ports:
-      - "8080:8080"
-      - "8000:8000"
-      - "8443:8443"
+      - "${UI_PORT:-8080}:${UI_PORT:-8080}"
+      - "${SAS_HTTP_PORT:-8000}:${SAS_HTTP_PORT:-8000}"
+      - "${SAS_HTTPS_PORT:-8443}:${SAS_HTTPS_PORT:-8443}"
 ```
 
 ```bash
@@ -281,6 +283,10 @@ Then delete the cloned folder and, if you like, the image: `docker image rm sasb
 **The sign-in page will not accept the password.** On a new install it is `admin` / `admin`, or `SAS_ADMIN_PASSWORD` if that was set on the first start; changing `SAS_ADMIN_PASSWORD` later has no effect. After 10 failed attempts from one address, sign-in from it pauses for a few minutes. Use the [reset tool](#forgotten-passwords) if nobody knows the password.
 
 **The console does not open.** Check `docker compose ps` and `docker logs sasbench`. If a port is already taken, the log names it. Find the other process with `sudo ss -ltnp | grep -E ':(8080|8000|8443) '`, or move SASBench with `UI_PORT`, `SAS_HTTP_PORT` and `SAS_HTTPS_PORT`.
+
+**`docker logs` says a SAS listener is not listening.** The line gives the reason. *Port … is already in use by another program*: choose another port, or stop that program. *No permission for port …*: ports below 1024 need the `CAP_NET_BIND_SERVICE` capability. The Docker image has it; on a source install, run `sudo setcap cap_net_bind_service=+ep "$(command -v node)"` or use a port above 1023. The **Overview** and **Events** pages show the same.
+
+**The container stops at once with `exec node failed: Operation not permitted`.** The container runs without the `NET_BIND_SERVICE` capability, for example with `cap_drop: [ALL]`. Add it back with `cap_add: [NET_BIND_SERVICE]`.
 
 **The radio cannot connect over HTTPS.**
 - The radio must trust the SAS root CA. Install `sas-root-ca.pem` from the radio bundle, or the CAs shown on the **Certificates** page.

@@ -4,7 +4,7 @@ import { PRESETS } from '../../../presets.ts';
 import { detectProfile } from '../../../api.ts';
 import { validateTemplate } from '../../../map/tiles.ts';
 import type { Route, V1Deps } from '../http.ts';
-import { invalid } from '../http.ts';
+import { conflict, invalid } from '../http.ts';
 import { S, ref, validate } from '../schema.ts';
 import { COMPONENTS } from '../components.ts';
 import { SETTINGS_META, describeSettings, settingKeys, settingsPatchSchema } from '../settingsMeta.ts';
@@ -26,6 +26,12 @@ export function checkSettings(d: V1Deps, patch: Partial<Settings>) {
   for (const k of Object.keys(patch)) if (!Object.hasOwn(SETTINGS_META, k)) throw invalid(k, 'is not a setting');
   const next = { ...d.settings.get(), ...patch };
   if (next.sasHttpPort === next.sasHttpsPort) throw invalid('sasHttpsPort', 'must differ from sasHttpPort');
+  for (const [k, v] of Object.entries(patch)) {
+    const variable = d.settings.envVariable(k);
+    if (variable && JSON.stringify(v) !== JSON.stringify(d.settings.get()[k as keyof Settings])) {
+      throw conflict(`${k} is set by ${variable} in .env; change it there and start SASBench again (docker compose up -d)`);
+    }
+  }
   if (!(next.bandLowHz < next.bandHighHz)) throw invalid('bandHighHz', 'must be above bandLowHz');
   next.gaaRanges.forEach((r, i) => {
     if (!(r.low < r.high)) throw invalid(`gaaRanges[${i}]`, 'low must be below high');
@@ -73,16 +79,23 @@ export const settingsRoutes: Route[] = [
   {
     method: 'GET', path: '/settings', operationId: 'getSettings', tag: 'Settings', scope: 'read',
     summary: 'Get all settings',
-    description: 'Current values of every runtime setting and the matching settings profile, if any.',
-    responses: ok('Settings.', S.obj({ settings: ref('Settings'), profile: S.nullable(S.str()) }, ['settings', 'profile'])),
-    handler: ({ d }) => ({ settings: d.settings.get(), profile: detectProfile(d.settings.get()) }),
+    description: 'Current values of every runtime setting, the matching settings profile, if any, and the settings that environment variables set (.env).',
+    responses: ok('Settings.', S.obj({
+      settings: ref('Settings'), profile: S.nullable(S.str()),
+      fromEnv: S.obj({}, [], {
+        additionalProperties: S.str(),
+        description: 'Settings an environment variable sets, with the variable, e.g. {"sasHttpsPort": "SAS_HTTPS_PORT"}. They cannot be changed through the API.',
+      }),
+    }, ['settings', 'profile', 'fromEnv'])),
+    handler: ({ d }) => ({ settings: d.settings.get(), profile: detectProfile(d.settings.get()), fromEnv: d.settings.fromEnv() }),
   },
   {
     method: 'PATCH', path: '/settings', operationId: 'updateSettings', tag: 'Settings', scope: 'write',
     summary: 'Change settings',
-    description: 'Send only the settings to change. Every value is checked against its type and range before anything is applied. Changing a listener or TLS setting restarts the SAS listeners; the response is sent once they are back.',
+    description: 'Send only the settings to change. Every value is checked against its type and range before anything is applied. Changing a listener or TLS setting restarts the SAS listeners; the response is sent once they are back. A setting that an environment variable sets (`fromEnv` in GET /settings) cannot be changed: 409.',
     body: { required: true, schema: settingsPatchSchema, example: { heartbeatIntervalSec: 30, missingInstallParams: 'register' } },
     responses: okRef('What changed and the resulting settings.', 'SettingsChange'),
+    errors: [409],
     handler: ({ d, body }) => applySettings(d, body),
   },
   {
@@ -90,7 +103,7 @@ export const settingsRoutes: Route[] = [
     summary: 'Describe every setting',
     description: 'For each setting: group, meaning, unit, JSON schema (type, allowed values, range), default, current value and whether changing it restarts the listeners.',
     responses: ok('Setting descriptions.', S.obj({ items: S.arr(ref('SettingDescription')) }, ['items'])),
-    handler: ({ d }) => ({ items: describeSettings(d.settings.get()) }),
+    handler: ({ d }) => ({ items: describeSettings(d.settings.get(), d.settings.fromEnv()) }),
   },
   {
     method: 'GET', path: '/settings/profiles', operationId: 'listSettingsProfiles', tag: 'Settings', scope: 'read',
@@ -130,7 +143,7 @@ export const settingsRoutes: Route[] = [
     summary: 'Get one setting',
     params: keyParam,
     responses: okRef('The setting with its description.', 'SettingDescription'),
-    handler: ({ d, params }) => describeSettings(d.settings.get()).find((s) => s.key === params.key),
+    handler: ({ d, params }) => describeSettings(d.settings.get(), d.settings.fromEnv()).find((s) => s.key === params.key),
   },
   {
     method: 'PUT', path: '/settings/{key}', operationId: 'putSetting', tag: 'Settings', scope: 'write',

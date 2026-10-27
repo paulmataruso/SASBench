@@ -95,7 +95,11 @@ function scrubJson(v, key = '') {
   if (typeof v === 'string') return scrub(v);
   if (typeof v === 'number') return /port/i.test(key) && PORTS.has(v) ? PORTS.get(v) : v;
   if (Array.isArray(v)) return v.map((x) => scrubJson(x, key));
-  if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [scrub(k), scrubJson(x, k)]));
+  if (v && typeof v === 'object') {
+    // A setting description ({ key: 'sasHttpPort', value: 37771 }) names the port in `key`.
+    const named = typeof v.key === 'string' && /port/i.test(v.key);
+    return Object.fromEntries(Object.entries(v).map(([k, x]) => [scrub(k), scrubJson(x, named && k === 'value' ? v.key : k)]));
+  }
   return v;
 }
 

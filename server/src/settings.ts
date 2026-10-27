@@ -180,6 +180,8 @@ export const LISTENER_KEYS: Array<keyof Settings> = [
 export class SettingsStore {
   private cache: Settings;
   private listeners: Array<(changed: Array<keyof Settings>) => void> = [];
+  /** Settings set by an environment variable (.env) for this run, with the variable's name. */
+  private env = new Map<keyof Settings, string>();
 
   private db: Db;
 
@@ -203,11 +205,31 @@ export class SettingsStore {
     this.listeners.push(fn);
   }
 
+  /**
+   * Overrides a setting from an environment variable for this run, without storing it: nothing can
+   * change it until the next start, and once the variable is removed the stored value applies again.
+   */
+  setFromEnv<K extends keyof Settings>(key: K, value: Settings[K], variable: string) {
+    this.cache = { ...this.cache, [key]: value };
+    this.env.set(key, variable);
+  }
+
+  /** The environment variable that sets `key`, if one does. */
+  envVariable(key: string): string | undefined {
+    return this.env.get(key as keyof Settings);
+  }
+
+  /** Every setting set by an environment variable, with the variable's name. */
+  fromEnv(): Partial<Record<keyof Settings, string>> {
+    return Object.fromEntries(this.env);
+  }
+
   update(patch: Partial<Settings>): Array<keyof Settings> {
     const changed: Array<keyof Settings> = [];
     const next = { ...this.cache };
     for (const [k, v] of Object.entries(patch)) {
-      if (!(k in DEFAULT_SETTINGS) || v === undefined) continue;
+      // Settings set by an environment variable stay as they are (imports, profiles, defaults).
+      if (!(k in DEFAULT_SETTINGS) || v === undefined || this.env.has(k as keyof Settings)) continue;
       const key = k as keyof Settings;
       const def = DEFAULT_SETTINGS[key];
       if (typeof def !== typeof v && !(Array.isArray(def) && Array.isArray(v))) {

@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { Db } from './db.ts';
-import { SettingsStore, LISTENER_KEYS, type Settings } from './settings.ts';
+import { SettingsStore, LISTENER_KEYS } from './settings.ts';
 import { Bus } from './bus.ts';
 import { Pki } from './pki/pki.ts';
 import { Engine } from './sas/engine.ts';
@@ -36,9 +36,7 @@ dropBlankEnv();
 const ROOT = path.resolve(import.meta.dirname, '..', '..');
 const VERSION = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version as string;
 const DATA_DIR = path.resolve(process.env.SAS_DATA_DIR ?? path.join(ROOT, 'data'));
-const UI_PORT = Number(process.env.UI_PORT ?? 8080);
 const BIND_IP = process.env.SAS_BIND_IP ?? '0.0.0.0';
-const API_PORT = process.env.SAS_API_PORT ? Number(process.env.SAS_API_PORT) : null;
 const FQDN = process.env.SAS_FQDN ? hostOrIp(process.env.SAS_FQDN) : null;
 const WEB_DIR = path.resolve(process.env.SAS_WEB_DIR ?? path.join(ROOT, 'web', 'dist'));
 const RESOURCE_DIR = path.join(ROOT, 'server', 'data');
@@ -48,9 +46,19 @@ const fatal = (m: string): never => {
   log(m);
   process.exit(1);
 };
+/** A port number from the environment; null when the variable is not set. Exits on anything else. */
+const envPort = (name: string): number | null => {
+  const v = process.env[name];
+  if (v === undefined) return null;
+  const n = Number(v.trim());
+  return Number.isInteger(n) && n >= 1 && n <= 65535 ? n : fatal(`${name} must be a port number (1-65535), not "${v}"`);
+};
+const UI_PORT = envPort('UI_PORT') ?? 8080;
+const API_PORT = envPort('SAS_API_PORT');
+const SAS_HTTP_PORT = envPort('SAS_HTTP_PORT');
+const SAS_HTTPS_PORT = envPort('SAS_HTTPS_PORT');
 if (!net.isIP(BIND_IP)) fatal(`SAS_BIND_IP must be an IP address of this machine (or 0.0.0.0 for all), not "${BIND_IP}"`);
 if (process.env.SAS_FQDN && !FQDN) fatal(`SAS_FQDN must be a host name or an IP address, not "${process.env.SAS_FQDN}"`);
-if (API_PORT !== null && (!Number.isInteger(API_PORT) || API_PORT < 1 || API_PORT > 65535)) fatal(`SAS_API_PORT must be a port number, not "${process.env.SAS_API_PORT}"`);
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
 const db = new Db(path.join(DATA_DIR, 'sas.db'));
@@ -107,6 +115,9 @@ bus.on('sse', (type: string, data: any) => {
 
 await sas.restart();
 engine.startSweeper();
+for (const [name, l] of [['SAS HTTPS', sas.getStatus().https], ['SAS HTTP', sas.getStatus().http]] as const) {
+  if (l.enabled) log(l.listening ? `${name} on port ${l.port}` : `${name} is not listening: ${l.error}`);
+}
 
 // ---------------------------------------------------------------- UI / REST server
 
@@ -268,11 +279,21 @@ function serveStatic(req: http.IncomingMessage, pathname: string, res: http.Serv
 
 /** Environment variables applied on every start (useful for docker-compose). */
 function applyEnvOverrides(store: SettingsStore) {
-  const patch: Partial<Settings> = {};
-  const int = (k: string) => (process.env[k] ? Number(process.env[k]) : undefined);
-  if (int('SAS_HTTP_PORT')) patch.sasHttpPort = int('SAS_HTTP_PORT');
-  if (int('SAS_HTTPS_PORT')) patch.sasHttpsPort = int('SAS_HTTPS_PORT');
-  if (Object.keys(patch).length) store.update(patch);
+  // SAS_HTTP_PORT and SAS_HTTPS_PORT: the radio ports for this run, in place of the ones in Settings.
+  const s = store.get();
+  const taken: Array<[number | null, string]> = [
+    [UI_PORT, 'the web UI port (UI_PORT)'], [API_PORT, 'the REST API port (SAS_API_PORT)'],
+    [SAS_HTTP_PORT === null ? s.sasHttpPort : null, 'the SAS HTTP port set in Settings'],
+    [SAS_HTTPS_PORT === null ? s.sasHttpsPort : null, 'the SAS HTTPS port set in Settings'],
+  ];
+  for (const [name, port] of [['SAS_HTTPS_PORT', SAS_HTTPS_PORT], ['SAS_HTTP_PORT', SAS_HTTP_PORT]] as const) {
+    if (port === null) continue;
+    const clash = taken.find(([p]) => p === port);
+    if (clash) fatal(`${name} ${port} is also ${clash[1]}; every listener needs a port of its own`);
+    taken.push([port, name]);
+  }
+  if (SAS_HTTP_PORT !== null) store.setFromEnv('sasHttpPort', SAS_HTTP_PORT, 'SAS_HTTP_PORT');
+  if (SAS_HTTPS_PORT !== null) store.setFromEnv('sasHttpsPort', SAS_HTTPS_PORT, 'SAS_HTTPS_PORT');
   // SAS_PROFILE: applied on first start and whenever its value changes, so later changes made in
   // Settings survive restarts; SAS_PROFILE_APPLY=always applies it on every start.
   const profile = process.env.SAS_PROFILE;

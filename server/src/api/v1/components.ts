@@ -128,6 +128,7 @@ export const COMPONENTS: SchemaRegistry = {
   SettingDescription: R({
     key: str, group: str, description: str, unit: nstr, schema: S.anyObj({ description: 'JSON Schema of the value.' }),
     default: S.any(), value: S.any(), restartsListeners: bool,
+    fromEnv: S.nullable(S.str({ description: 'The environment variable (.env) that sets it, e.g. SAS_HTTPS_PORT; it cannot be changed through the API while set.' })),
   }),
   SettingsProfile: R({ name: str, label: str, description: str, settings: S.anyObj({ description: 'The settings the profile sets.' }) }),
 

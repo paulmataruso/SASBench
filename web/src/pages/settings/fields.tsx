@@ -29,13 +29,18 @@ export function Toggle(p: FProps & { k: string; label: string; desc?: string }) 
   );
 }
 
-export function Num(p: FProps & { k: string; label: string; min?: number; max?: number; step?: number; hint?: ReactNode }) {
+/** `fromEnv`: the environment variable that sets this setting; the field is then read-only. */
+export function Num(p: FProps & { k: string; label: string; min?: number; max?: number; step?: number; hint?: ReactNode; fromEnv?: string }) {
   const [text, setText] = useState(String(p.cur[p.k] ?? ''));
   const v = p.cur[p.k];
   useEffect(() => setText(String(v ?? '')), [v]);
   const bad = text === '' || !Number.isFinite(Number(text)) || (p.min !== undefined && Number(text) < p.min) || (p.max !== undefined && Number(text) > p.max);
   return (
-    <Field label={<>{p.label}{changedMark(p, p.k)}</>} hint={p.hint} error={bad ? `Enter a number${p.min !== undefined ? ` ≥ ${p.min}` : ''}${p.max !== undefined ? ` and ≤ ${p.max}` : ''}` : null}>
+    <Field
+      label={<>{p.label}{changedMark(p, p.k)}</>}
+      hint={p.fromEnv ? <>Set by <span className="font-mono">{p.fromEnv}</span> in .env, which applies when SASBench starts (<span className="font-mono">docker compose up -d</span>).</> : p.hint}
+      error={bad ? `Enter a number${p.min !== undefined ? ` ≥ ${p.min}` : ''}${p.max !== undefined ? ` and ≤ ${p.max}` : ''}` : null}
+    >
       <Input
         type="number"
         value={text}
@@ -43,6 +48,7 @@ export function Num(p: FProps & { k: string; label: string; min?: number; max?: 
         max={p.max}
         step={p.step ?? 1}
         aria-invalid={bad}
+        disabled={!!p.fromEnv}
         onChange={(e) => {
           setText(e.target.value);
           const n = Number(e.target.value);

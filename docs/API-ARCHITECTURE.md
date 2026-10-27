@@ -434,7 +434,7 @@ The API, the deployment settings and user accounts were added without changing S
 | `server/src/net/sasServer.ts` | New read-only `idle()` returning the existing restart promise; `bindHost` (default `0.0.0.0`) for `SAS_BIND_IP` | None with the default |
 | `server/src/net/addresses.ts` | New: address helpers for `SAS_BIND_IP`, `SAS_FQDN` and the advertised endpoints | None |
 | `server/src/auth/*` | New: accounts, sessions, the console's sign-in and gate | Only the UI port |
-| `server/src/index.ts` | Builds the stores and API v1, routes `/api/v1`, `/api/auth/*` and the console gate, creates the first admin, reads the deployment variables (`SAS_FQDN`, `SAS_BIND_IP`, `SAS_API_PORT`, `SAS_PROFILE`, `SAS_AUTH`, `SAS_ADMIN_PASSWORD`) | The UI port requires sign-in. SAS listeners, the harness admin API on them, and protocol behaviour are untouched. |
+| `server/src/index.ts` | Builds the stores and API v1, routes `/api/v1`, `/api/auth/*` and the console gate, creates the first admin, reads the deployment variables (`SAS_FQDN`, `SAS_BIND_IP`, `UI_PORT`, `SAS_API_PORT`, `SAS_HTTP_PORT`, `SAS_HTTPS_PORT`, `SAS_PROFILE`, `SAS_AUTH`, `SAS_ADMIN_PASSWORD`) | The UI port requires sign-in. SAS listeners, the harness admin API on them, and protocol behaviour are untouched. |
 | `server/src/tools/fetch-terrain.ts` → `tools/terrainFetch.ts`; `tools/reset-password.ts` | Download code moved into a shared module; new password reset tool | CLI behaviour unchanged |
 
 Untouched: the protocol engine, registration and grant policy, spectrum and protection logic, fault injection, the harness admin implementation, the PKI, TLS handling and the database schema of the existing SAS tables.

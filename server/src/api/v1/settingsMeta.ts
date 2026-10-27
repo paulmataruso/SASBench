@@ -17,9 +17,9 @@ const dbm = (lo: number, hi: number) => S.num({ minimum: lo, maximum: hi });
 
 export const SETTINGS_META: Record<keyof Settings, SettingMeta> = {
   sasHttpEnabled: { group: 'Listeners', schema: S.bool(), description: 'Serve the SAS–CBSD protocol over plain HTTP.' },
-  sasHttpPort: { group: 'Listeners', schema: port, description: 'Plain-HTTP listener port. The SAS_HTTP_PORT environment variable overrides it on every start.' },
+  sasHttpPort: { group: 'Listeners', schema: port, description: 'Plain-HTTP listener port. While the SAS_HTTP_PORT environment variable is set, it sets the port instead and this setting cannot be changed.' },
   sasHttpsEnabled: { group: 'Listeners', schema: S.bool(), description: 'Serve the SAS–CBSD protocol over HTTPS (WINNF-TS-0065).' },
-  sasHttpsPort: { group: 'Listeners', schema: port, description: 'HTTPS listener port. The SAS_HTTPS_PORT environment variable overrides it on every start.' },
+  sasHttpsPort: { group: 'Listeners', schema: port, description: 'HTTPS listener port. While the SAS_HTTPS_PORT environment variable is set, it sets the port instead and this setting cannot be changed.' },
   tlsClientAuth: {
     group: 'TLS', schema: S.enum(['require', 'optional', 'none']),
     description: '`require`: WInnForum mutual TLS, the handshake fails without a trusted client certificate. `optional`: a certificate is requested but not required. `none`: no certificate is requested.',
@@ -108,10 +108,10 @@ export const settingsSchema: Schema = {
   additionalProperties: false,
 };
 
-export function describeSettings(current: Settings) {
+export function describeSettings(current: Settings, fromEnv: Partial<Record<keyof Settings, string>> = {}) {
   return settingKeys.map((key) => ({
     key, group: SETTINGS_META[key].group, description: SETTINGS_META[key].description, unit: SETTINGS_META[key].unit ?? null,
     schema: SETTINGS_META[key].schema, default: DEFAULT_SETTINGS[key], value: current[key],
-    restartsListeners: LISTENER_KEYS.includes(key),
+    restartsListeners: LISTENER_KEYS.includes(key), fromEnv: fromEnv[key] ?? null,
   }));
 }

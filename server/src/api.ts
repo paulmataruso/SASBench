@@ -94,10 +94,18 @@ export function buildApi(d: ApiDeps): Router {
 
   // ------------------------------------------------------------------ settings
 
-  r.get('/api/settings', () => ({ settings: settings.get(), defaults: DEFAULT_SETTINGS, presets: PRESETS, profile: detectProfile(settings.get()) }));
+  r.get('/api/settings', () => ({
+    settings: settings.get(), defaults: DEFAULT_SETTINGS, presets: PRESETS, profile: detectProfile(settings.get()), fromEnv: settings.fromEnv(),
+  }));
   r.put('/api/settings', async ({ body }) => {
     const patch = await body();
     validateSettings(patch);
+    for (const [k, v] of Object.entries(patch)) {
+      const variable = settings.envVariable(k);
+      if (variable && JSON.stringify(v) !== JSON.stringify((settings.get() as any)[k])) {
+        throw new HttpError(409, `${k} is set by ${variable} in .env; change it there and start SASBench again (docker compose up -d)`);
+      }
+    }
     const changed = settings.update(patch);
     if (changed.length) bus.event('info', 'settings', `Settings changed: ${changed.join(', ')}`);
     bus.changed('settings');

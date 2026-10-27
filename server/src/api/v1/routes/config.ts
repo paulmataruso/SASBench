@@ -50,7 +50,7 @@ export const configRoutes: Route[] = [
   {
     method: 'POST', path: '/config/import', operationId: 'importConfig', tag: 'Configuration', scope: 'write',
     summary: 'Import a configuration',
-    description: 'Takes a document from GET /config/export (or the console). Settings are validated and applied, except server certificates and trusted CAs, which stay as they are on this installation (user accounts and API keys are never imported); unknown settings are skipped and listed. Rows are inserted or replaced by primary key; nothing is deleted.',
+    description: 'Takes a document from GET /config/export (or the console). Settings are validated and applied, except server certificates and trusted CAs, which stay as they are on this installation (user accounts and API keys are never imported); unknown settings, and settings that an environment variable sets (.env) to another value, are skipped and listed. Rows are inserted or replaced by primary key; nothing is deleted.',
     body: {
       required: true,
       schema: S.obj({
@@ -68,6 +68,10 @@ export const configRoutes: Route[] = [
       const skipped: string[] = [];
       for (const [k, v] of Object.entries(body.settings ?? {})) {
         if (LOCAL_SETTINGS.includes(k)) continue;
+        if (d.settings.envVariable(k)) {
+          if (JSON.stringify(v) !== JSON.stringify(d.settings.get()[k as keyof Settings])) skipped.push(k);
+          continue;
+        }
         const meta = Object.hasOwn(SETTINGS_META, k) ? (SETTINGS_META as Record<string, { schema: any }>)[k] : null;
         if (!meta) {
           skipped.push(k);

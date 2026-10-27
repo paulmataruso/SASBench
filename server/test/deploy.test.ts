@@ -5,11 +5,13 @@ import fs from 'node:fs';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
-import { freePort, regRequest, startSas, type TestSas } from './helpers.ts';
+import { distinctPorts, freePort, regRequest, startSas, type TestSas } from './helpers.ts';
 import { hostOrIp, lanIPv4 } from '../src/net/addresses.ts';
+import { Db } from '../src/db.ts';
+import { SettingsStore } from '../src/settings.ts';
 
 // Deployment settings from the environment (.env): SAS_FQDN, SAS_BIND_IP, SAS_API_PORT,
-// SAS_PROFILE / SAS_PROFILE_APPLY, and blank values counting as unset.
+// SAS_HTTP_PORT / SAS_HTTPS_PORT, SAS_PROFILE / SAS_PROFILE_APPLY, and blank values counting as unset.
 
 const ADMIN = { Authorization: `Basic ${Buffer.from('admin:admin').toString('base64')}` };
 const json = async (url: string) => {
@@ -96,6 +98,59 @@ describe('deployment settings', () => {
     await assert.rejects(startSas({ SAS_BIND_IP: 'not-an-ip' }), /SAS_BIND_IP must be an IP address/);
     await assert.rejects(startSas({ SAS_FQDN: 'bad host!' }), /SAS_FQDN must be a host name/);
     await assert.rejects(startSas({ SAS_API_PORT: '70000' }), /SAS_API_PORT must be a port number/);
+  });
+
+  it('refuses invalid or clashing ports', async () => {
+    await assert.rejects(startSas({ SAS_HTTP_PORT: 'eighty' }), /SAS_HTTP_PORT must be a port number/);
+    await assert.rejects(startSas({ SAS_HTTPS_PORT: '0' }), /SAS_HTTPS_PORT must be a port number/);
+    await assert.rejects(startSas({ UI_PORT: '8080.5' }), /UI_PORT must be a port number/);
+    const port = String(await freePort());
+    await assert.rejects(startSas({ UI_PORT: port, SAS_HTTPS_PORT: port }), /SAS_HTTPS_PORT \d+ is also the web UI port/);
+    await assert.rejects(startSas({ SAS_HTTP_PORT: port, SAS_HTTPS_PORT: port }), /SAS_HTTP_PORT \d+ is also SAS_HTTPS_PORT/);
+  });
+
+  it('SAS_HTTP_PORT sets the radio port for the run; Settings cannot change it, and its own value returns without it', async () => {
+    const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sasbench-ports-'));
+    dirs.push(dataDir);
+    const [stored, fromEnv] = await distinctPorts(2);
+    const start = async (env: Record<string, string>) => {
+      const s = await startSas(env, { dataDir });
+      started.push(s);
+      return s;
+    };
+
+    // A port chosen in Settings earlier. Without the variable, it applies.
+    const db = new Db(path.join(dataDir, 'sas.db'));
+    new SettingsStore(db).update({ sasHttpPort: stored });
+    db.sql.close();
+    let s = await start({ SAS_HTTP_PORT: '' });
+    const before = await s.api('GET', '/api/v1/settings');
+    assert.deepEqual([before.settings.sasHttpPort, before.fromEnv.sasHttpPort], [stored, undefined]);
+    await s.stop();
+
+    s = await start({ SAS_HTTP_PORT: String(fromEnv) });
+    const got = await s.api('GET', '/api/v1/settings');
+    assert.equal(got.settings.sasHttpPort, fromEnv);
+    assert.equal(got.fromEnv.sasHttpPort, 'SAS_HTTP_PORT');
+    assert.equal((await s.api('GET', '/api/v1/settings/sasHttpPort')).fromEnv, 'SAS_HTTP_PORT');
+    assert.equal((await s.api('GET', '/api/settings')).fromEnv.sasHttpPort, 'SAS_HTTP_PORT');
+    assert.ok(await connects('127.0.0.1', fromEnv));
+    assert.match(s.log(), new RegExp(`SAS HTTP on port ${fromEnv}`));
+
+    // Changing it is refused; sending the same value with other changes is fine; an import skips it.
+    await assert.rejects(s.api('PATCH', '/api/v1/settings', { sasHttpPort: stored }), /→ 409: .*set by SAS_HTTP_PORT in \.env/);
+    await assert.rejects(s.api('PUT', '/api/settings', { sasHttpPort: stored }), /→ 409: .*set by SAS_HTTP_PORT in \.env/);
+    await s.api('PATCH', '/api/v1/settings', { sasHttpPort: fromEnv, heartbeatIntervalSec: 30 });
+    const imported = await s.api('POST', '/api/v1/config/import', { settings: { sasHttpPort: stored, heartbeatIntervalSec: 45 } });
+    assert.ok(imported.settingsSkipped.includes('sasHttpPort'));
+    assert.deepEqual(imported.settingsChanged, ['heartbeatIntervalSec']);
+    assert.equal((await s.api('GET', '/api/v1/settings')).settings.sasHttpPort, fromEnv);
+    await s.stop();
+
+    // The variable's value was never stored: without it, the port from Settings applies again.
+    s = await start({ SAS_HTTP_PORT: '' });
+    assert.equal((await s.api('GET', '/api/v1/settings')).settings.sasHttpPort, stored);
+    await s.stop();
   });
 
   it('applies SAS_PROFILE on first start and when it changes, or always', async () => {
