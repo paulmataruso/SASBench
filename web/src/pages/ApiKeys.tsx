@@ -44,7 +44,10 @@ export function ApiKeysPage() {
     <div>
       <PageHeader
         title="API keys"
-        sub={<>For scripts and other applications using the REST API (<a href="/api/v1/openapi.json" className="text-sel-ink underline" target="_blank" rel="noreferrer">OpenAPI document</a>). A key acts as the user who owns it, never with more access than that user has.</>}
+        sub={<>
+          For scripts and other applications using the REST API. A key acts as the user who owns it, never with more access than that user has.
+          To load every API request into Postman or Insomnia, import the <a href="/api/v1/openapi.json" download="sasbench-openapi.json" className="text-sel-ink underline">API description file</a>.
+        </>}
       />
       <TwoUp
         form={
