@@ -10,6 +10,7 @@ Radios that have been tested against SASBench and confirmed to work. Every entry
 |--------|-------|----------------|------|---------------|------------|----------|----------|-------------|
 | Baicells | Nova 430i ([notes](#baicells-nova-430i)) | BaiBLQ_3.1.14.10 | A | LTE (E_UTRA) | plain HTTP | Registration, grant and heartbeat | 1.0.0 | [paulmataruso](https://github.com/paulmataruso) |
 | Nokia | AirScale AMIA + ASIA + AZQC ([notes](#nokia-airscale-amia--asia--azqc)) | SBTS25R2 | B | LTE (E_UTRA) | HTTPS, no client certificate | Registration, grant and heartbeat, deregistration (105) | 1.0.0 | [paulmataruso](https://github.com/paulmataruso) |
+| Sercomm | SCE4255W, LTE band 48 ([notes](#sercomm-sce4255w)) | not recorded | A | LTE (E_UTRA) | HTTPS, no client certificate | Registration, grant and heartbeat | 1.0.0 | [paulmataruso](https://github.com/paulmataruso) |
 | Sercomm | SCE5164-B48, n48 ([notes](#sercomm-sce5164-b48)) | RC5607@230707 | A | 5G NR (NR) | plain HTTP | Registration, grant and heartbeat | 1.0.0 | [paulmataruso](https://github.com/paulmataruso) |
 
 ### What the columns mean
@@ -40,6 +41,13 @@ Radios that have been tested against SASBench and confirmed to work. Every entry
 - **Trust:** add the SASBench root CA and then the SAS CA in WebEM, under the shield icon, *CBRS Certificate Management › CBRS Certificates › CBRS additional CA certificates*. The **Certificates** page in SASBench walks through it and offers both files.
 - **Location:** the BBU registers without installation data (no latitude, longitude or height). SASBench holds such radios at `REG_PENDING` unless the location is preloaded (**Registry → Conditional registration**) or **Settings → Registration policy → Radio sends no location** is set to *Register anyway*. The *Open* profile sets the latter.
 - Tested on the *Open* settings profile.
+
+### Sercomm SCE4255W
+
+- **Location:** the radio's GUI takes the latitude and longitude in millionths of a degree (`43375246` for 43.375246), and the radio sends them to the SAS that way instead of in degrees. A SAS must refuse such values with responseCode 103. While **Settings → Registration policy → Accept location in millionths of a degree** is on (the *Lab* and *Open* profiles), SASBench reads them as degrees and logs a warning in **Events**; see [Radios that send the location in millionths of a degree](docs/GUIDE.md#radios-that-send-the-location-in-millionths-of-a-degree). The *WInnForum* profile refuses the registration.
+- **Height:** the GUI takes the antenna height in millimetres and the radio sends it in metres. Enter `3000` for 3 m.
+- **After a reboot** the radio carries on heartbeating with its saved cbsdId and grant instead of registering again, so a change to its installation data, such as the height, reaches the SAS only when it next registers.
+- Tested on the *Open* settings profile. The radio asked for and got a 20 MHz GAA grant.
 
 ### Sercomm SCE5164-B48
 
