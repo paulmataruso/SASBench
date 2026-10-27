@@ -4,3 +4,4 @@ web/dist/
 *.log
 .DS_Store
 .env
+.impeccable/
