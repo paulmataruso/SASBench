@@ -79,7 +79,7 @@ The SAS protocol ports (`8000`, `8443`) are not behind sign-in: radios are ident
    - `https://<host>:8443/v1.2/`, the production-like setup (mutual TLS); or
    - `http://<host>:8000/v1.2/`, no TLS, for first bring-up or radios without certificates.
 
-   Most CBSDs append the method name (`registration`, `spectrumInquiry`, `grant`, `heartbeat`, `relinquishment`, `deregistration`) to the configured URL. Paths without a version segment (e.g. `/sas/registration`) are also accepted while **Accept version-less paths** is on (the default). Unsupported versions get HTTP 404. Requests without a `Host` header, as Sercomm NR radios send them, are accepted on both ports.
+   Most CBSDs append the method name (`registration`, `spectrumInquiry`, `grant`, `heartbeat`, `relinquishment`, `deregistration`) to the configured URL. Paths without a version segment (e.g. `/sas/registration`) are also accepted while **Accept version-less paths** is on (the default). Unsupported versions get HTTP 404. A doubled slash counts as one, so a radio that adds `/registration` to a URL ending in `/` (`/v1.2//registration`) works too; the **Wire log** shows the path as sent. Requests without a `Host` header, as Sercomm NR radios send them, are accepted on both ports.
 
    The ports are 8443 and 8000 unless changed in **Settings → Listeners & TLS** or in `.env` (`SAS_HTTPS_PORT`, `SAS_HTTP_PORT`), for example to 443 for a radio that expects a SAS URL without a port. Ports set in `.env` are shown locked in Settings. The Overview always lists the ports in use.
 3. For HTTPS, install a device certificate on the radio and the SAS root CA in its trust store (next section).

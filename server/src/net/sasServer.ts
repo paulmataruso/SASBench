@@ -41,6 +41,16 @@ const VERSIONLESS_RE = /\/([A-Za-z]+)\/?$/;
  */
 const SERVER_OPTIONS: http.ServerOptions = { requireHostHeader: false };
 
+/**
+ * The path a request is routed by, with runs of slashes collapsed. Radios that add "/registration"
+ * to a SAS URL entered with a trailing slash (Baicells) send /v1.2//registration.
+ */
+export function routePath(target: string): string {
+  // Only an origin-form target ("/…"); an absolute one ("http://host/…") has a "//" of its own.
+  const t = target.startsWith('/') ? target.replace(/^[^?]*/, (p) => p.replace(/\/{2,}/g, '/')) : target;
+  return new URL(t, 'http://x').pathname;
+}
+
 /** Why a listener could not start, with the two usual causes spelled out. */
 function listenError(e: NodeJS.ErrnoException, port: number): string {
   if (e.code === 'EADDRINUSE') return `port ${port} is already in use by another program`;
@@ -242,8 +252,9 @@ export class SasServer {
 
   private async onRequest(req: IncomingMessage, res: ServerResponse, transport: 'http' | 'https') {
     const started = Date.now();
-    const url = new URL(req.url ?? '/', 'http://x');
-    const pathname = url.pathname;
+    // The path as sent goes into the wire log; routing collapses runs of slashes (see routePath).
+    const pathname = (req.url ?? '/').split('?')[0];
+    const route = routePath(req.url ?? '/');
     const cert = this.clientCert(req.socket);
     const ctx: RequestCtx = {
       transport, remoteAddr: req.socket.remoteAddress ?? '', cert: cert.summary, certAuthorized: cert.authorized,
@@ -267,8 +278,8 @@ export class SasServer {
         }
       }
 
-      if (pathname.includes('/admin/')) {
-        if (this.adminHook && s.harnessAdminEnabled && (await this.adminHook(req, res, pathname, ctx))) return;
+      if (route.includes('/admin/')) {
+        if (this.adminHook && s.harnessAdminEnabled && (await this.adminHook(req, res, route, ctx))) return;
         await readBody(req).catch(() => undefined);
         return sendJson(res, 404, { error: 'Test harness admin interface is disabled' });
       }
@@ -287,12 +298,12 @@ export class SasServer {
 
       let version: string | null = null;
       let method: string | null = null;
-      const m = PATH_RE.exec(pathname);
+      const m = PATH_RE.exec(route);
       if (m) {
         version = m[1];
         method = m[2];
       } else if (s.acceptVersionlessPaths) {
-        const m2 = VERSIONLESS_RE.exec(pathname);
+        const m2 = VERSIONLESS_RE.exec(route);
         if (m2) {
           version = s.supportedVersions[0] ?? 'v1.2';
           method = m2[1];

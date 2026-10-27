@@ -257,6 +257,21 @@ describe('transport', () => {
     assert.equal(code(r.body.registrationResponse[0]), 0);
   });
 
+  test('a doubled slash before the method is accepted without version-less paths; the wire log keeps the path as sent', async () => {
+    // Baicells radios add "/registration" to a SAS URL entered with a trailing slash.
+    await sas.api('PUT', '/api/settings', { acceptVersionlessPaths: false });
+    try {
+      const r = await sas.sasRaw('/v1.2//registration', { registrationRequest: [regRequest('FCCSLASH', 'SN-S1')] });
+      assert.equal(r.status, 200);
+      assert.equal(code(r.body.registrationResponse[0]), 0);
+      assert.equal((await sas.sasRaw('//registration', { registrationRequest: [] })).status, 404, 'still no version in the path');
+    } finally {
+      await sas.api('PUT', '/api/settings', { acceptVersionlessPaths: true });
+    }
+    const [m] = await sas.api('GET', '/api/messages?method=registration&limit=1');
+    assert.equal(m.path, '/v1.2//registration');
+  });
+
   test('every exchange is recorded in the wire log', async () => {
     const msgs = await sas.api('GET', '/api/messages?method=grant&limit=50');
     assert.ok(msgs.length > 0);

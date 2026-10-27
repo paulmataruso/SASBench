@@ -30,7 +30,7 @@ Radios that have been tested against SASBench and confirmed to work. Every entry
 
 ### Baicells Nova 430i
 
-- **SAS URL:** the radio adds the method name to the URL as entered, so `http://<host>:8000/v1.2/` becomes `/v1.2//registration`. SASBench accepts these requests while **Settings → Protocol → Accept paths without a version** is on, which is the default. The *WInnForum* profile turns it off.
+- **SAS URL:** the radio adds `/` and the method name to the URL as entered, so `http://<host>:8000/v1.2/` becomes `/v1.2//registration`. SASBench treats the doubled slash as one, so the URL works with or without the trailing slash. The **Wire log** shows the path as the radio sent it.
 - **Location:** the radio sends its installation data in a CPI-signed block (`cpiSignatureData`) even though it is Category A, with an empty CPI ID. SASBench cannot verify the signature, so the result depends on the registration policy. The lenient policy (the *Lab* and *Open* profiles) uses the location and logs a warning in **Events**. The strict policy (the *WInnForum* profile) refuses the registration with responseCode 103.
 - Tested on the *Open* settings profile. The radio asked for and got a 20 MHz GAA grant.
 
