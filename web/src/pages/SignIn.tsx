@@ -50,6 +50,7 @@ export function SignInPage({ note, onSignedIn }: { note?: string; onSignedIn: ()
   return (
     <main className="flex min-h-dvh items-center justify-center bg-ground px-4 py-10">
       <div className="w-full max-w-[380px]">
+        <img src="/company-logo.png" alt="DHI Technical Services LLC, Managed Service Provider" width={900} height={120} className="mb-6 h-auto w-full" />
         <div className="on-rail flex items-center gap-2.5 rounded-t border border-b-0 border-rail-3 bg-rail px-4 py-3">
           <RackMark />
           <span className="text-md font-semibold tracking-[-0.01em] text-white">SASBench</span>
