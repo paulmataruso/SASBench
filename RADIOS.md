@@ -8,6 +8,7 @@ Radios that have been tested against SASBench and confirmed to work. Every entry
 
 | Vendor | Radio | Radio software | Cat. | Air interface | Connection | Verified | SASBench | Reported by |
 |--------|-------|----------------|------|---------------|------------|----------|----------|-------------|
+| Baicells | Nova 430i ([notes](#baicells-nova-430i)) | BaiBLQ_3.1.14.10 | A | LTE (E_UTRA) | plain HTTP | Registration, grant and heartbeat | 1.0.0 | [paulmataruso](https://github.com/paulmataruso) |
 | Nokia | AirScale AMIA + ASIA + AZQC ([notes](#nokia-airscale-amia--asia--azqc)) | SBTS25R2 | B | LTE (E_UTRA) | HTTPS, no client certificate | Registration, grant and heartbeat, deregistration (105) | 1.0.0 | [paulmataruso](https://github.com/paulmataruso) |
 
 ### What the columns mean
@@ -26,6 +27,12 @@ Radios that have been tested against SASBench and confirmed to work. Every entry
 - **SASBench**: the SASBench version used for the test.
 
 ## Notes
+
+### Baicells Nova 430i
+
+- **SAS URL:** the radio adds the method name to the URL as entered, so `http://<host>:8000/v1.2/` becomes `/v1.2//registration`. SASBench accepts these requests while **Settings → Protocol → Accept paths without a version** is on, which is the default. The *WInnForum* profile turns it off.
+- **Location:** the radio sends its installation data in a CPI-signed block (`cpiSignatureData`) even though it is Category A, with an empty CPI ID. SASBench cannot verify the signature, so the result depends on the registration policy. The lenient policy (the *Lab* and *Open* profiles) uses the location and logs a warning in **Events**. The strict policy (the *WInnForum* profile) refuses the registration with responseCode 103.
+- Tested on the *Open* settings profile. The radio asked for and got a 20 MHz GAA grant.
 
 ### Nokia AirScale AMIA + ASIA + AZQC
 
