@@ -10,6 +10,7 @@ Radios that have been tested against SASBench and confirmed to work. Every entry
 |--------|-------|----------------|------|---------------|------------|----------|----------|-------------|
 | Baicells | Nova 430i ([notes](#baicells-nova-430i)) | BaiBLQ_3.1.14.10 | A | LTE (E_UTRA) | plain HTTP | Registration, grant and heartbeat | 1.0.0 | [paulmataruso](https://github.com/paulmataruso) |
 | Nokia | AirScale AMIA + ASIA + AZQC ([notes](#nokia-airscale-amia--asia--azqc)) | SBTS25R2 | B | LTE (E_UTRA) | HTTPS, no client certificate | Registration, grant and heartbeat, deregistration (105) | 1.0.0 | [paulmataruso](https://github.com/paulmataruso) |
+| Sercomm | SCE5164-B48, n48 ([notes](#sercomm-sce5164-b48)) | RC5607@230707 | A | 5G NR (NR) | plain HTTP | Registration, grant and heartbeat | 1.0.0 | [paulmataruso](https://github.com/paulmataruso) |
 
 ### What the columns mean
 
@@ -39,6 +40,12 @@ Radios that have been tested against SASBench and confirmed to work. Every entry
 - **Trust:** add the SASBench root CA and then the SAS CA in WebEM, under the shield icon, *CBRS Certificate Management › CBRS Certificates › CBRS additional CA certificates*. The **Certificates** page in SASBench walks through it and offers both files.
 - **Location:** the BBU registers without installation data (no latitude, longitude or height). SASBench holds such radios at `REG_PENDING` unless the location is preloaded (**Registry → Conditional registration**) or **Settings → Registration policy → Radio sends no location** is set to *Register anyway*. The *Open* profile sets the latter.
 - Tested on the *Open* settings profile.
+
+### Sercomm SCE5164-B48
+
+- **No `Host` header:** the radio sends its HTTP/1.1 requests to the SAS without a `Host` header. Many HTTP servers answer those with 400 Bad Request; SASBench accepts them on both SAS ports.
+- **Location:** the radio sends its own installation data (Category A, indoor), so nothing needs to be preloaded for it.
+- Tested on the *Open* settings profile. The radio asked for and got a 40 MHz GAA grant.
 
 ## Adding a radio
 

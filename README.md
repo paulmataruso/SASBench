@@ -43,7 +43,7 @@ Commercial SAS services give a lab little visibility and no control. Simple stub
 
 Radios that register without location data, as many Category B units do, are handled explicitly: hold them for preloaded data, or register them anyway. The console includes step-by-step certificate instructions for Nokia AirScale BBUs.
 
-**Confirmed radios** are listed in [RADIOS.md](RADIOS.md): so far the Baicells Nova 430i on BaiBLQ_3.1.14.10 and the Nokia AirScale AMIA + ASIA + AZQC on SBTS25R2. Tested one that is not there? Add it with a pull request.
+**Confirmed radios** are listed in [RADIOS.md](RADIOS.md): so far the Baicells Nova 430i, the Nokia AirScale AMIA + ASIA + AZQC and the Sercomm SCE5164-B48. Tested one that is not there? Add it with a pull request.
 
 ## Screenshots
 
