@@ -1,0 +1,1675 @@
+{
+  "version": "1.0.0",
+  "generatedBy": "npm run api:examples",
+  "examples": {
+    "getApiIndex": [
+      {
+        "title": null,
+        "curl": "curl -s \"$API/\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"service\": \"SASBench\",\n  \"version\": \"1.0.0\",\n  \"apiVersion\": \"v1\",\n  \"openapi\": \"/api/v1/openapi.json\",\n  \"links\": {\n    \"status\": \"/api/v1/status\",\n    \"system\": \"/api/v1/system\",\n    \"cbsds\": \"/api/v1/cbsds\",\n    \"grants\": \"/api/v1/grants\",\n    \"spectrum\": \"/api/v1/spectrum\",\n    \"registry\": \"/api/v1/registry\",\n    \"faults\": \"/api/v1/faults\",\n    \"messages\": \"/api/v1/messages\",\n    \"events\": \"/api/v1/events\",\n    \"stream\": \"/api/v1/stream\",\n    \"settings\": \"/api/v1/settings\",\n    \"certs\": \"/api/v1/certs\",\n    \"harness\": \"/api/v1/harness/methods\",\n    \"tokens\": \"/api/v1/tokens\"\n  }\n}"
+      }
+    ],
+    "getHealth": [
+      {
+        "title": "Health check (no credentials)",
+        "curl": "curl -s \"$API/health\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"status\": \"ok\",\n  \"version\": \"1.0.0\",\n  \"uptimeMs\": 440,\n  \"listeners\": {\"http\": true, \"https\": true}\n}"
+      }
+    ],
+    "getOpenApi": [
+      {
+        "title": "Download the OpenAPI description (for Postman, Insomnia or code generators)",
+        "curl": "curl -s \"$API/openapi.json\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"openapi\": \"3.1.0\",\n  \"info\": \"{…}\",\n  \"jsonSchemaDialect\": \"https://json-schema.org/draft/2020-12/schema\",\n  \"servers\": [{\"url\": \"/api/v1\", \"description\": \"This SAS (UI port)\"}],\n  \"tags\": \"[…]\",\n  \"paths\": \"{…}\",\n  \"components\": \"{…}\",\n  \"security\": [{\"bearerAuth\": []}, {\"basicAuth\": []}, \"… 1 more\"]\n}"
+      }
+    ],
+    "getStatus": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/status\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"version\": \"1.0.0\",\n  \"startedAt\": 1793120785117,\n  \"now\": 1793120786508,\n  \"hostname\": \"sas-lab\",\n  \"listeners\": {\n    \"http\": {\"enabled\": true, \"listening\": true, \"port\": 8000, \"error\": null},\n    \"https\": {\n      \"enabled\": true,\n      \"listening\": true,\n      \"port\": 8443,\n      \"error\": null,\n      \"clientAuth\": \"optional\",\n      \"serverCerts\": [\"SAS server RSA (auto) (rsa2048)\", \"SAS server ECDSA (auto) (ec256)\"],\n      \"trustAnchors\": 5,\n      \"ciphers\": \"AES128-GCM-SHA256:AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256\",\n      \"protocols\": \"TLSv1.2\"\n    }\n  },\n  \"urls\": [\n    \"https://sas.lab.example:8443/v1.2/\",\n    \"http://sas.lab.example:8000/v1.2/\",\n    \"https://192.0.2.10:8443/v1.2/\",\n    \"http://192.0.2.10:8000/v1.2/\"\n  ],\n  \"counts\": {\n    \"cbsdsRegistered\": 0,\n    \"cbsdsPending\": 0,\n    \"cbsdsTotal\": 0,\n    \"grantsByState\": {},\n    \"authorizedMHz\": 0,\n    \"messagesLastHour\": 0,\n    \"errorsLastHour\": 0,\n    \"activeProtections\": 0,\n    \"ppas\": 0,\n    \"faultRules\": 0\n  },\n  \"triggers\": {\"measInRegistration\": false, \"measInHeartbeat\": false},\n  \"daily\": {\n    \"completed\": true,\n    \"running\": false,\n    \"lastStarted\": null,\n    \"lastCompleted\": null,\n    \"log\": []\n  },\n  \"ppaStatus\": {\"completed\": true, \"withError\": false},\n  \"flags\": {\"ntiaExclusionZones\": false, \"scheduledDailyActivities\": false, \"escConnected\": true},\n  \"terrain\": {\"directory\": \"/data/terrain\", \"tiles\": 1},\n  \"profile\": \"lab\"\n}"
+      }
+    ],
+    "getSystem": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/system\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"version\": \"1.0.0\",\n  \"apiVersion\": \"v1\",\n  \"node\": \"v24.22.1\",\n  \"platform\": \"linux\",\n  \"arch\": \"x64\",\n  \"hostname\": \"sas-lab\",\n  \"pid\": 393959,\n  \"startedAt\": 1793120785117,\n  \"uptimeMs\": 1406,\n  \"memory\": {\n    \"rss\": 145252352,\n    \"heapTotal\": 25600000,\n    \"heapUsed\": 19863000,\n    \"external\": 12679662,\n    \"arrayBuffers\": 858398\n  },\n  \"uiPort\": 8080,\n  \"apiPort\": 8080,\n  \"bindIp\": \"0.0.0.0\",\n  \"hostnames\": [\"sas.lab.example\", \"localhost\", \"127.0.0.1\", \"sas-lab\", \"192.0.2.10\"],\n  \"advertised\": [\"sas.lab.example\", \"192.0.2.10\"],\n  \"dataDir\": \"/data\",\n  \"database\": {\"file\": \"/data/sas.db\", \"sizeBytes\": 4096, \"walSizeBytes\": 655112},\n  \"terrainDir\": \"/data/terrain\",\n  \"tilesDir\": \"/data/tiles\"\n}"
+      }
+    ],
+    "getActivity": [
+      {
+        "title": "Message counts for the last hour",
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/activity?minutes=60\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\"bucketMs\": 60000, \"since\": 1793117186533, \"rows\": []}"
+      }
+    ],
+    "getReference": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/reference\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"responseCodes\": [{\"code\": 0, \"name\": \"SUCCESS\"}, {\"code\": 100, \"name\": \"VERSION\"}, \"… 13 more\"],\n  \"sasMethods\": [\n    \"registration\",\n    \"spectrumInquiry\",\n    \"grant\",\n    \"heartbeat\",\n    \"relinquishment\",\n    \"deregistration\"\n  ],\n  \"radioTechnologies\": [\"E_UTRA\", \"CAMBIUM_NETWORKS\", \"… 7 more\"],\n  \"measCapabilities\": [\"RECEIVED_POWER_WITHOUT_GRANT\", \"RECEIVED_POWER_WITH_GRANT\", \"INDOOR_LOSS_USING_GNSS\"],\n  \"cbsdStates\": [\"REGISTERED\", \"PENDING\", \"UNREGISTERED\"],\n  \"grantStates\": [\"GRANTED\", \"AUTHORIZED\", \"TERMINATED\", \"RELINQUISHED\", \"EXPIRED\", \"DELETED\"],\n  \"channelTypes\": [\"GAA\", \"PAL\"],\n  \"faultActions\": [\"response_code\", \"patch\", \"http_status\", \"delay\", \"drop\", \"malformed\"],\n  \"protectionKinds\": [\"ADMIN\", \"DPA\", \"ESC\", \"FSS\", \"EXCLUSION\", \"GWPZ\", \"FSS_GWBL\", \"EXCLUSION_ZONE\"],\n  \"protectionActions\": [\"suspend\", \"terminate\"],\n  \"incumbentKinds\": [\"fss\", \"wisp\", \"… 8 more\"],\n  \"keyTypes\": [\"rsa2048\", \"rsa3072\", \"rsa4096\", \"ec256\", \"ec384\"],\n  \"caRoles\": [\"sas\", \"cbsd\", \"operator\", \"installer\"],\n  \"downloadFormats\": [\n    {\"format\": \"pem\", \"key\": false, \"description\": \"The certificate (PEM).\"},\n    {\"format\": \"crt\", \"key\": false, \"description\": \"The certificate (PEM, .crt).\"},\n    \"… 11 more\"\n  ],\n  \"harnessMethods\": [\n    {\n      \"method\": \"reset\",\n      \"description\": \"Reset the SAS state (like POST /operations/reset without clearing logs).\"\n    },\n    {\n      \"method\": \"injectdata/fcc_id\",\n      \"description\": \"{\\\"fccId\\\", \\\"fccMaxEirp\\\"}: add an FCC ID.\"\n    },\n    \"… 34 more\"\n  ],\n  \"settingsProfiles\": [\"lab\", \"winnforum\", \"open\"],\n  \"tokenScopes\": [\"read\", \"write\"]\n}"
+      }
+    ],
+    "whoAmI": [
+      {
+        "title": "Who is this key?",
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/auth/whoami\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"method\": \"token\",\n  \"scope\": \"write\",\n  \"role\": \"admin\",\n  \"userId\": 1,\n  \"username\": \"admin\",\n  \"tokenId\": \"0cbd0e9c-fa89-4498-a8f4-9a3d75766a49\",\n  \"tokenName\": \"CI pipeline\",\n  \"authEnabled\": true\n}"
+      }
+    ],
+    "listTokens": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/tokens\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"items\": [\n    {\n      \"id\": \"0cbd0e9c-fa89-4498-a8f4-9a3d75766a49\",\n      \"name\": \"CI pipeline\",\n      \"scope\": \"write\",\n      \"prefix\": \"sasb_g8cUp_\",\n      \"createdAt\": 1793120786430,\n      \"expiresAt\": 1800896786430,\n      \"lastUsedAt\": 1793120786459,\n      \"lastUsedAddr\": \"127.0.0.1\",\n      \"userId\": 1,\n      \"username\": \"admin\"\n    },\n    {\n      \"id\": \"bd39f34c-034a-4ad5-9ae4-a9edc2f84319\",\n      \"name\": \"Grafana dashboard\",\n      \"scope\": \"read\",\n      \"prefix\": \"sasb_ueTHUi\",\n      \"createdAt\": 1793120786449,\n      \"expiresAt\": null,\n      \"lastUsedAt\": null,\n      \"lastUsedAddr\": null,\n      \"userId\": 1,\n      \"username\": \"admin\"\n    }\n  ]\n}"
+      }
+    ],
+    "createToken": [
+      {
+        "title": "Create a read-write key for a CI pipeline, valid for 90 days",
+        "curl": "curl -s -X POST \"$API/tokens\" \\\n  -u \"admin:$PASSWORD\" -H 'Content-Type: application/json' \\\n  -d '{\"name\": \"CI pipeline\", \"scope\": \"write\", \"expiresInDays\": 90}'",
+        "status": 201,
+        "kind": "json",
+        "json": "{\n  \"id\": \"0cbd0e9c-fa89-4498-a8f4-9a3d75766a49\",\n  \"name\": \"CI pipeline\",\n  \"scope\": \"write\",\n  \"prefix\": \"sasb_g8cUp_\",\n  \"createdAt\": 1793120786430,\n  \"expiresAt\": 1800896786430,\n  \"lastUsedAt\": null,\n  \"lastUsedAddr\": null,\n  \"userId\": 1,\n  \"username\": \"admin\",\n  \"token\": \"sasb_g8cUp_fSt03awbIV7juDKn7opLqUJQ_e\"\n}",
+        "note": "Keys are created by people (user name and password, or the console), not by other keys. The `token` is shown only in this response."
+      }
+    ],
+    "getToken": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/tokens/bd39f34c-034a-4ad5-9ae4-a9edc2f84319\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"id\": \"bd39f34c-034a-4ad5-9ae4-a9edc2f84319\",\n  \"name\": \"Grafana dashboard\",\n  \"scope\": \"read\",\n  \"prefix\": \"sasb_ueTHUi\",\n  \"createdAt\": 1793120786449,\n  \"expiresAt\": null,\n  \"lastUsedAt\": null,\n  \"lastUsedAddr\": null,\n  \"userId\": 1,\n  \"username\": \"admin\"\n}"
+      }
+    ],
+    "deleteToken": [
+      {
+        "title": "Revoke a key",
+        "curl": "curl -s -X DELETE -u \"admin:$PASSWORD\" \"$API/tokens/bd39f34c-034a-4ad5-9ae4-a9edc2f84319\"",
+        "status": 204,
+        "kind": "empty"
+      }
+    ],
+    "listUsers": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/users\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"items\": [\n    {\n      \"id\": 1,\n      \"username\": \"admin\",\n      \"displayName\": \"Administrator\",\n      \"role\": \"admin\",\n      \"enabled\": true,\n      \"defaultPassword\": true,\n      \"createdAt\": 1793120785126,\n      \"updatedAt\": 1793120785126,\n      \"passwordChangedAt\": 1793120785126,\n      \"lastLoginAt\": null,\n      \"lastLoginAddr\": null\n    },\n    {\n      \"id\": 2,\n      \"username\": \"olivia\",\n      \"displayName\": \"Olivia Ortiz\",\n      \"role\": \"operator\",\n      \"enabled\": true,\n      \"defaultPassword\": false,\n      \"createdAt\": 1793120786557,\n      \"updatedAt\": 1793120786557,\n      \"passwordChangedAt\": 1793120786557,\n      \"lastLoginAt\": null,\n      \"lastLoginAddr\": null\n    }\n  ]\n}"
+      }
+    ],
+    "createUser": [
+      {
+        "title": "Add an operator",
+        "curl": "curl -s -X POST \"$API/users\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\n    \"username\": \"olivia\",\n    \"password\": \"correct horse 42\",\n    \"role\": \"operator\",\n    \"displayName\": \"Olivia Ortiz\"\n  }'",
+        "status": 201,
+        "kind": "json",
+        "json": "{\n  \"id\": 2,\n  \"username\": \"olivia\",\n  \"displayName\": \"Olivia Ortiz\",\n  \"role\": \"operator\",\n  \"enabled\": true,\n  \"defaultPassword\": false,\n  \"createdAt\": 1793120786557,\n  \"updatedAt\": 1793120786557,\n  \"passwordChangedAt\": 1793120786557,\n  \"lastLoginAt\": null,\n  \"lastLoginAddr\": null\n}"
+      }
+    ],
+    "getUser": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/users/2\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"id\": 2,\n  \"username\": \"olivia\",\n  \"displayName\": \"Olivia Ortiz\",\n  \"role\": \"operator\",\n  \"enabled\": true,\n  \"defaultPassword\": false,\n  \"createdAt\": 1793120786557,\n  \"updatedAt\": 1793120786557,\n  \"passwordChangedAt\": 1793120786557,\n  \"lastLoginAt\": null,\n  \"lastLoginAddr\": null\n}"
+      }
+    ],
+    "updateUser": [
+      {
+        "title": "Make her read-only and fix the display name",
+        "curl": "curl -s -X PATCH \"$API/users/2\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\"displayName\": \"Olivia O.\", \"role\": \"viewer\"}'",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"id\": 2,\n  \"username\": \"olivia\",\n  \"displayName\": \"Olivia O.\",\n  \"role\": \"viewer\",\n  \"enabled\": true,\n  \"defaultPassword\": false,\n  \"createdAt\": 1793120786557,\n  \"updatedAt\": 1793120786792,\n  \"passwordChangedAt\": 1793120786557,\n  \"lastLoginAt\": null,\n  \"lastLoginAddr\": null\n}"
+      }
+    ],
+    "deleteUser": [
+      {
+        "title": null,
+        "curl": "curl -s -X DELETE -H \"Authorization: Bearer $KEY\" \"$API/users/2\"",
+        "status": 204,
+        "kind": "empty"
+      }
+    ],
+    "listUserSessions": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/users/2/sessions\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"items\": [\n    {\n      \"createdAt\": 1793120786990,\n      \"lastSeenAt\": 1793120786990,\n      \"expiresAt\": 1793725586990,\n      \"addr\": \"127.0.0.1\",\n      \"userAgent\": \"Mozilla/5.0 (X11; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0\",\n      \"current\": false\n    }\n  ]\n}"
+      }
+    ],
+    "revokeUserSessions": [
+      {
+        "title": "Sign her out everywhere",
+        "curl": "curl -s -X DELETE -H \"Authorization: Bearer $KEY\" \"$API/users/2/sessions\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\"revoked\": 1}"
+      }
+    ],
+    "changePassword": [
+      {
+        "title": "Change your own password (here, Olivia changes hers)",
+        "curl": "curl -s -X POST \"$API/auth/password\" \\\n  -u 'olivia:correct horse 42' -H 'Content-Type: application/json' \\\n  -d '{\"currentPassword\": \"correct horse 42\", \"newPassword\": \"battery staple 77\"}'",
+        "status": 204,
+        "kind": "empty",
+        "note": "Needs a user name and password or a console session, not an API key. Your other console sessions are signed out."
+      }
+    ],
+    "getSettings": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/settings\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"settings\": {\n    \"sasHttpEnabled\": true,\n    \"sasHttpPort\": 8000,\n    \"sasHttpsEnabled\": true,\n    \"sasHttpsPort\": 8443,\n    \"tlsClientAuth\": \"optional\",\n    \"tlsMinVersion\": \"TLSv1.2\",\n    \"tlsMaxVersion\": \"TLSv1.2\",\n    \"tlsCipherPolicy\": \"winnforum\",\n    \"serverCertIds\": [\"854a3c37-4fdf-4759-b1cb-3a02c07bdab3\", \"d2ce1631-5c73-453a-b8ae-c725c46e0921\"],\n    \"trustedClientCaIds\": [],\n    \"tlsCheckCrl\": true,\n    \"certRoleCheck\": \"lenient\",\n    \"rejectUnverifiedClientCert\": false,\n    \"supportedVersions\": [\"v1.2\"],\n    \"acceptVersionlessPaths\": true,\n    \"heartbeatIntervalSec\": 60,\n    \"transmitExpireSec\": 240,\n    \"grantExpireSec\": 604800,\n    \"connectivityLostSec\": 604800,\n    \"versionErrorAsResponseCode\": false,\n    \"siqChannelization\": \"none\",\n    \"siqIncludeDpa\": false,\n    \"strictOperationState\": false,\n    \"responseDelayMs\": 0,\n    \"…\": \"28 more\"\n  },\n  \"profile\": \"lab\"\n}"
+      }
+    ],
+    "updateSettings": [
+      {
+        "title": "Change several settings at once",
+        "curl": "curl -s -X PATCH \"$API/settings\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\"heartbeatIntervalSec\": 60, \"maxGrantsPerCbsd\": 4}'",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"changed\": [\"heartbeatIntervalSec\", \"maxGrantsPerCbsd\"],\n  \"listenersRestarted\": false,\n  \"settings\": \"{…}\",\n  \"profile\": \"lab\",\n  \"listeners\": \"{…}\"\n}"
+      }
+    ],
+    "getSettingsSchema": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/settings/schema\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"items\": [\n    {\n      \"key\": \"sasHttpEnabled\",\n      \"group\": \"Listeners\",\n      \"description\": \"Serve the SAS–CBSD protocol over plain HTTP.\",\n      \"unit\": null,\n      \"schema\": {\"type\": \"boolean\"},\n      \"default\": true,\n      \"value\": true,\n      \"restartsListeners\": true\n    },\n    {\n      \"key\": \"sasHttpPort\",\n      \"group\": \"Listeners\",\n      \"description\": \"Plain-HTTP listener port. The SAS_HTTP_PORT environment variable overrides it on every start.\",\n      \"unit\": null,\n      \"schema\": {\"type\": \"integer\", \"minimum\": 1, \"maximum\": 65535},\n      \"default\": 8000,\n      \"value\": 37771,\n      \"restartsListeners\": true\n    },\n    \"… 50 more\"\n  ]\n}"
+      }
+    ],
+    "listSettingsProfiles": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/settings/profiles\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"items\": [\n    {\n      \"name\": \"lab\",\n      \"label\": \"Lab (permissive)\",\n      \"description\": \"For bring-up of real radios: HTTP and HTTPS, client certificates optional, unknown FCC/user IDs acce…\",\n      \"settings\": \"{…}\"\n    },\n    {\n      \"name\": \"winnforum\",\n      \"label\": \"WInnForum test harness (strict)\",\n      \"description\": \"Matches WINNF-TS-0061 expectations: mutual TLS required (TLS 1.2, WInnForum ciphers, CRLs), FCC and …\",\n      \"settings\": \"{…}\"\n    },\n    {\n      \"name\": \"open\",\n      \"label\": \"Open (no security)\",\n      \"description\": \"Everything accepted: no client certificates requested, no role/identity checks, and radios that send…\",\n      \"settings\": \"{…}\"\n    }\n  ],\n  \"active\": \"lab\"\n}"
+      }
+    ],
+    "applySettingsProfile": [
+      {
+        "title": "Switch to the WInnForum strict profile",
+        "curl": "curl -s -X POST -H \"Authorization: Bearer $KEY\" \"$API/settings/profiles/winnforum/apply\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"changed\": [\"tlsClientAuth\", \"rejectUnverifiedClientCert\", \"… 7 more\"],\n  \"listenersRestarted\": true,\n  \"settings\": \"{…}\",\n  \"profile\": \"winnforum\",\n  \"listeners\": \"{…}\"\n}"
+      }
+    ],
+    "resetSettings": [
+      {
+        "title": "Back to the defaults (the lab profile)",
+        "curl": "curl -s -X POST -H \"Authorization: Bearer $KEY\" \"$API/settings/reset\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"changed\": [\"tlsClientAuth\", \"rejectUnverifiedClientCert\", \"… 8 more\"],\n  \"listenersRestarted\": true,\n  \"settings\": \"{…}\",\n  \"profile\": \"lab\",\n  \"listeners\": \"{…}\"\n}"
+      }
+    ],
+    "getSetting": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/settings/heartbeatIntervalSec\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"key\": \"heartbeatIntervalSec\",\n  \"group\": \"Protocol\",\n  \"description\": \"heartbeatInterval returned in grant responses.\",\n  \"unit\": \"s\",\n  \"schema\": {\"type\": \"integer\", \"minimum\": 1},\n  \"default\": 60,\n  \"value\": 60,\n  \"restartsListeners\": false\n}"
+      }
+    ],
+    "putSetting": [
+      {
+        "title": "Ask radios to heartbeat every 30 seconds",
+        "curl": "curl -s -X PUT \"$API/settings/heartbeatIntervalSec\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\"value\": 30}'",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"changed\": [\"heartbeatIntervalSec\"],\n  \"listenersRestarted\": false,\n  \"settings\": \"{…}\",\n  \"profile\": null,\n  \"listeners\": \"{…}\"\n}"
+      }
+    ],
+    "listCbsds": [
+      {
+        "title": "Registered CBSDs",
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/cbsds?state=REGISTERED\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"items\": [\n    {\n      \"cbsdId\": \"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\",\n      \"fccId\": \"TEST-FCC\",\n      \"serial\": \"SN-0001\",\n      \"userId\": \"lab-user\",\n      \"category\": \"A\",\n      \"state\": \"REGISTERED\",\n      \"callSign\": null,\n      \"radioTechnology\": \"E_UTRA\",\n      \"latitude\": 37.425,\n      \"longitude\": -122.084,\n      \"height\": 5,\n      \"heightType\": \"AGL\",\n      \"indoor\": true,\n      \"eirpCapability\": 26,\n      \"antennaGain\": 5,\n      \"measCapability\": [],\n      \"registration\": {\n        \"userId\": \"lab-user\",\n        \"fccId\": \"TEST-FCC\",\n        \"cbsdSerialNumber\": \"SN-0001\",\n        \"cbsdCategory\": \"A\",\n        \"airInterface\": {\"radioTechnology\": \"E_UTRA\"},\n        \"measCapability\": [],\n        \"installationParam\": \"{…}\"\n      },\n      \"effective\": {\n        \"userId\": \"lab-user\",\n        \"fccId\": \"TEST-FCC\",\n        \"cbsdSerialNumber\": \"SN-0001\",\n        \"cbsdCategory\": \"A\",\n        \"airInterface\": {\"radioTechnology\": \"E_UTRA\"},\n        \"installationParam\": \"{…}\",\n        \"measCapability\": []\n      },\n      \"certInfo\": null,\n      \"approved\": true,\n      \"transport\": \"internal\",\n      \"remoteAddr\": \"api\",\n      \"eirpCapDbmMhz\": null,\n      \"pendingDeregister\": false,\n      \"…\": \"11 more\"\n    }\n  ],\n  \"total\": 1,\n  \"limit\": 500,\n  \"offset\": 0\n}"
+      }
+    ],
+    "getCbsd": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/cbsds/TEST-FCC%2Fb7eeb0aceec6f6087a0c75b6f69289c95b3e191c\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"cbsdId\": \"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\",\n  \"fccId\": \"TEST-FCC\",\n  \"serial\": \"SN-0001\",\n  \"userId\": \"lab-user\",\n  \"category\": \"A\",\n  \"state\": \"REGISTERED\",\n  \"callSign\": null,\n  \"radioTechnology\": \"E_UTRA\",\n  \"latitude\": 37.425,\n  \"longitude\": -122.084,\n  \"height\": 5,\n  \"heightType\": \"AGL\",\n  \"indoor\": true,\n  \"eirpCapability\": 26,\n  \"antennaGain\": 5,\n  \"measCapability\": [],\n  \"registration\": {\n    \"userId\": \"lab-user\",\n    \"fccId\": \"TEST-FCC\",\n    \"cbsdSerialNumber\": \"SN-0001\",\n    \"cbsdCategory\": \"A\",\n    \"airInterface\": {\"radioTechnology\": \"E_UTRA\"},\n    \"measCapability\": [],\n    \"installationParam\": {\n      \"latitude\": 37.425,\n      \"longitude\": -122.084,\n      \"height\": 5,\n      \"heightType\": \"AGL\",\n      \"indoorDeployment\": true,\n      \"antennaGain\": 5,\n      \"eirpCapability\": 26\n    }\n  },\n  \"effective\": {\n    \"userId\": \"lab-user\",\n    \"fccId\": \"TEST-FCC\",\n    \"cbsdSerialNumber\": \"SN-0001\",\n    \"cbsdCategory\": \"A\",\n    \"airInterface\": {\"radioTechnology\": \"E_UTRA\"},\n    \"installationParam\": {\n      \"latitude\": 37.425,\n      \"longitude\": -122.084,\n      \"height\": 5,\n      \"heightType\": \"AGL\",\n      \"indoorDeployment\": true,\n      \"antennaGain\": 5,\n      \"eirpCapability\": 26\n    },\n    \"measCapability\": []\n  },\n  \"certInfo\": null,\n  \"approved\": true,\n  \"transport\": \"internal\",\n  \"remoteAddr\": \"api\",\n  \"eirpCapDbmMhz\": null,\n  \"pendingDeregister\": false,\n  \"…\": \"16 more\"\n}"
+      }
+    ],
+    "updateCbsd": [
+      {
+        "title": "Note the bench and cap its EIRP",
+        "curl": "curl -s -X PATCH \"$API/cbsds/TEST-FCC%2Fb7eeb0aceec6f6087a0c75b6f69289c95b3e191c\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\"notes\": \"Bench 3, firmware 25R2\", \"eirpCapDbmMhz\": 20}'",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"cbsdId\": \"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\",\n  \"fccId\": \"TEST-FCC\",\n  \"serial\": \"SN-0001\",\n  \"userId\": \"lab-user\",\n  \"category\": \"A\",\n  \"state\": \"REGISTERED\",\n  \"callSign\": null,\n  \"radioTechnology\": \"E_UTRA\",\n  \"latitude\": 37.425,\n  \"longitude\": -122.084,\n  \"height\": 5,\n  \"heightType\": \"AGL\",\n  \"indoor\": true,\n  \"eirpCapability\": 26,\n  \"antennaGain\": 5,\n  \"measCapability\": [],\n  \"registration\": \"{…}\",\n  \"effective\": \"{…}\",\n  \"certInfo\": null,\n  \"approved\": true,\n  \"transport\": \"internal\",\n  \"remoteAddr\": \"api\",\n  \"eirpCapDbmMhz\": 20,\n  \"pendingDeregister\": false,\n  \"…\": \"16 more\"\n}"
+      }
+    ],
+    "deleteCbsd": [
+      {
+        "title": null,
+        "curl": "curl -s -X DELETE \"$API/cbsds/TEST-FCC%2F7cf46ef1e21867030fe34c80fe59f73b6e265b5d\" \\\n  -H \"Authorization: Bearer $KEY\"",
+        "status": 204,
+        "kind": "empty"
+      }
+    ],
+    "approveCbsd": [
+      {
+        "title": "Approve a radio held by manual approval",
+        "curl": "curl -s -X POST \"$API/cbsds/TEST-FCC%2F7cf46ef1e21867030fe34c80fe59f73b6e265b5d/approve\" \\\n  -H \"Authorization: Bearer $KEY\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"cbsdId\": \"TEST-FCC/7cf46ef1e21867030fe34c80fe59f73b6e265b5d\",\n  \"fccId\": \"TEST-FCC\",\n  \"serial\": \"SN-0003\",\n  \"userId\": \"lab-user\",\n  \"category\": \"A\",\n  \"state\": \"PENDING\",\n  \"callSign\": null,\n  \"radioTechnology\": \"E_UTRA\",\n  \"latitude\": 37.425,\n  \"longitude\": -122.084,\n  \"height\": 5,\n  \"heightType\": \"AGL\",\n  \"indoor\": true,\n  \"eirpCapability\": 26,\n  \"antennaGain\": 5,\n  \"measCapability\": [],\n  \"registration\": \"{…}\",\n  \"effective\": \"{…}\",\n  \"certInfo\": null,\n  \"approved\": true,\n  \"transport\": \"internal\",\n  \"remoteAddr\": \"api\",\n  \"eirpCapDbmMhz\": null,\n  \"pendingDeregister\": false,\n  \"…\": \"16 more\"\n}",
+        "note": "Its next registration request then succeeds."
+      }
+    ],
+    "addCbsdToRegistry": [
+      {
+        "title": "Keep its FCC ID, user ID and registration data in the registry",
+        "curl": "curl -s -X POST \"$API/cbsds/TEST-FCC%2Fb7eeb0aceec6f6087a0c75b6f69289c95b3e191c/registry\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{}'",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"cbsdId\": \"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\",\n  \"fccId\": \"TEST-FCC\",\n  \"serial\": \"SN-0001\",\n  \"userId\": \"lab-user\",\n  \"state\": \"REGISTERED\",\n  \"inRegistry\": {\"fccId\": true, \"userId\": true, \"registration\": true},\n  \"added\": {\"fccId\": true, \"userId\": true, \"registration\": true},\n  \"notes\": []\n}"
+      }
+    ],
+    "deregisterCbsd": [
+      {
+        "title": "Send it 105 (DEREGISTER) at its next request",
+        "curl": "curl -s -X POST \"$API/cbsds/TEST-FCC%2F7cf46ef1e21867030fe34c80fe59f73b6e265b5d/deregister\" \\\n  -H \"Authorization: Bearer $KEY\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"cbsdId\": \"TEST-FCC/7cf46ef1e21867030fe34c80fe59f73b6e265b5d\",\n  \"fccId\": \"TEST-FCC\",\n  \"serial\": \"SN-0003\",\n  \"userId\": \"lab-user\",\n  \"category\": \"A\",\n  \"state\": \"REGISTERED\",\n  \"callSign\": null,\n  \"radioTechnology\": \"E_UTRA\",\n  \"latitude\": 37.425,\n  \"longitude\": -122.084,\n  \"height\": 5,\n  \"heightType\": \"AGL\",\n  \"indoor\": true,\n  \"eirpCapability\": 26,\n  \"antennaGain\": 5,\n  \"measCapability\": [],\n  \"registration\": \"{…}\",\n  \"effective\": \"{…}\",\n  \"certInfo\": null,\n  \"approved\": true,\n  \"transport\": \"internal\",\n  \"remoteAddr\": \"api\",\n  \"eirpCapDbmMhz\": null,\n  \"pendingDeregister\": true,\n  \"…\": \"16 more\"\n}"
+      }
+    ],
+    "listCbsdGrants": [
+      {
+        "title": null,
+        "curl": "curl -s \"$API/cbsds/TEST-FCC%2Fb7eeb0aceec6f6087a0c75b6f69289c95b3e191c/grants\" \\\n  -H \"Authorization: Bearer $KEY\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"items\": [\n    {\n      \"grantId\": \"5329943951600446\",\n      \"cbsdId\": \"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\",\n      \"fccId\": \"TEST-FCC\",\n      \"serial\": \"SN-0001\",\n      \"category\": \"A\",\n      \"state\": \"AUTHORIZED\",\n      \"suspended\": false,\n      \"low\": 3550000000,\n      \"high\": 3560000000,\n      \"maxEirp\": 10,\n      \"channelType\": \"GAA\",\n      \"grantExpireTime\": 1793725587000,\n      \"transmitExpireTime\": 1793121027000,\n      \"heartbeatInterval\": 60,\n      \"heartbeatCount\": 2,\n      \"lastHeartbeat\": 1793120787705,\n      \"pendingHeartbeatInterval\": null,\n      \"suggestedOperationParam\": null,\n      \"endReason\": null,\n      \"endedAt\": null,\n      \"createdAt\": 1793120787682\n    }\n  ],\n  \"total\": 1,\n  \"limit\": 500,\n  \"offset\": 0\n}"
+      }
+    ],
+    "listCbsdEvents": [
+      {
+        "title": null,
+        "curl": "curl -s \"$API/cbsds/TEST-FCC%2Fb7eeb0aceec6f6087a0c75b6f69289c95b3e191c/events?limit=3\" \\\n  -H \"Authorization: Bearer $KEY\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"items\": [\n    {\n      \"id\": 30,\n      \"ts\": 1793120787803,\n      \"level\": \"info\",\n      \"category\": \"admin\",\n      \"message\": \"CBSD TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c updated (notes, eirpCapDbmMhz)\",\n      \"cbsdId\": \"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\",\n      \"grantId\": null\n    },\n    {\n      \"id\": 24,\n      \"ts\": 1793120787695,\n      \"level\": \"success\",\n      \"category\": \"grant\",\n      \"message\": \"Grant 5329943951600446 AUTHORIZED (3550–3560 MHz)\",\n      \"cbsdId\": \"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\",\n      \"grantId\": \"5329943951600446\"\n    },\n    \"… 1 more\"\n  ],\n  \"limit\": 3,\n  \"order\": \"desc\",\n  \"next\": 23\n}"
+      }
+    ],
+    "listCbsdMessages": [
+      {
+        "title": null,
+        "curl": "curl -s \"$API/cbsds/TEST-FCC%2Fb7eeb0aceec6f6087a0c75b6f69289c95b3e191c/messages?limit=2\" \\\n  -H \"Authorization: Bearer $KEY\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"items\": [\n    {\n      \"id\": 5,\n      \"ts\": 1793120787704,\n      \"transport\": \"internal\",\n      \"remoteAddr\": \"api\",\n      \"path\": \"/v1.2/heartbeat\",\n      \"method\": \"heartbeat\",\n      \"version\": \"v1.2\",\n      \"httpStatus\": 200,\n      \"durationMs\": 2,\n      \"cbsdIds\": [\"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\"],\n      \"codes\": [0],\n      \"certSubject\": null,\n      \"error\": null\n    },\n    {\n      \"id\": 4,\n      \"ts\": 1793120787691,\n      \"transport\": \"internal\",\n      \"remoteAddr\": \"api\",\n      \"path\": \"/v1.2/heartbeat\",\n      \"method\": \"heartbeat\",\n      \"version\": \"v1.2\",\n      \"httpStatus\": 200,\n      \"durationMs\": 5,\n      \"cbsdIds\": [\"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\"],\n      \"codes\": [0],\n      \"certSubject\": null,\n      \"error\": null\n    }\n  ],\n  \"limit\": 2,\n  \"order\": \"desc\",\n  \"next\": 4\n}"
+      }
+    ],
+    "getCbsdAvailability": [
+      {
+        "title": null,
+        "curl": "curl -s \"$API/cbsds/TEST-FCC%2Fb7eeb0aceec6f6087a0c75b6f69289c95b3e191c/availability\" \\\n  -H \"Authorization: Bearer $KEY\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"limits\": {\"maxEirpPer10MHz\": 26, \"maxEirpDbmMhz\": 16},\n  \"availability\": [{\"low\": 3550000000, \"high\": 3700000000, \"channelType\": \"GAA\", \"maxEirp\": 16}],\n  \"protections\": []\n}"
+      }
+    ],
+    "listGrants": [
+      {
+        "title": "Grants that may transmit",
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/grants?state=AUTHORIZED\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"items\": [\n    {\n      \"grantId\": \"5329943951600446\",\n      \"cbsdId\": \"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\",\n      \"fccId\": \"TEST-FCC\",\n      \"serial\": \"SN-0001\",\n      \"category\": \"A\",\n      \"state\": \"AUTHORIZED\",\n      \"suspended\": false,\n      \"low\": 3550000000,\n      \"high\": 3560000000,\n      \"maxEirp\": 10,\n      \"channelType\": \"GAA\",\n      \"grantExpireTime\": 1793725587000,\n      \"transmitExpireTime\": 1793121027000,\n      \"heartbeatInterval\": 60,\n      \"heartbeatCount\": 2,\n      \"lastHeartbeat\": 1793120787705,\n      \"pendingHeartbeatInterval\": null,\n      \"suggestedOperationParam\": null,\n      \"endReason\": null,\n      \"endedAt\": null,\n      \"createdAt\": 1793120787682\n    }\n  ],\n  \"total\": 1,\n  \"limit\": 500,\n  \"offset\": 0\n}"
+      }
+    ],
+    "purgeEndedGrants": [
+      {
+        "title": "Delete terminated, relinquished and expired grants",
+        "curl": "curl -s -X DELETE -H \"Authorization: Bearer $KEY\" \"$API/grants/ended\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\"deleted\": 2}"
+      }
+    ],
+    "getGrant": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/grants/5329943951600446\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"grantId\": \"5329943951600446\",\n  \"cbsdId\": \"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\",\n  \"fccId\": \"TEST-FCC\",\n  \"serial\": \"SN-0001\",\n  \"category\": \"A\",\n  \"state\": \"AUTHORIZED\",\n  \"suspended\": false,\n  \"low\": 3550000000,\n  \"high\": 3560000000,\n  \"maxEirp\": 10,\n  \"channelType\": \"GAA\",\n  \"grantExpireTime\": 1793725587000,\n  \"transmitExpireTime\": 1793121027000,\n  \"heartbeatInterval\": 60,\n  \"heartbeatCount\": 2,\n  \"lastHeartbeat\": 1793120787705,\n  \"pendingHeartbeatInterval\": null,\n  \"suggestedOperationParam\": null,\n  \"endReason\": null,\n  \"endedAt\": null,\n  \"createdAt\": 1793120787682,\n  \"request\": {\n    \"cbsdId\": \"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\",\n    \"operationParam\": {\n      \"maxEirp\": 10,\n      \"operationFrequencyRange\": {\"lowFrequency\": 3550000000, \"highFrequency\": 3560000000}\n    }\n  }\n}"
+      }
+    ],
+    "updateGrant": [
+      {
+        "title": "Tell the radio to heartbeat every 30 s from its next heartbeat",
+        "curl": "curl -s -X PATCH \"$API/grants/5329943951600446\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\"heartbeatInterval\": 30}'",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"grantId\": \"5329943951600446\",\n  \"cbsdId\": \"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\",\n  \"fccId\": \"TEST-FCC\",\n  \"serial\": \"SN-0001\",\n  \"category\": \"A\",\n  \"state\": \"AUTHORIZED\",\n  \"suspended\": false,\n  \"low\": 3550000000,\n  \"high\": 3560000000,\n  \"maxEirp\": 10,\n  \"channelType\": \"GAA\",\n  \"grantExpireTime\": 1793725587000,\n  \"transmitExpireTime\": 1793121027000,\n  \"heartbeatInterval\": 60,\n  \"heartbeatCount\": 2,\n  \"lastHeartbeat\": 1793120787705,\n  \"pendingHeartbeatInterval\": 30,\n  \"suggestedOperationParam\": null,\n  \"endReason\": null,\n  \"endedAt\": null,\n  \"createdAt\": 1793120787682,\n  \"request\": {\n    \"cbsdId\": \"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\",\n    \"operationParam\": {\n      \"maxEirp\": 10,\n      \"operationFrequencyRange\": {\"lowFrequency\": 3550000000, \"highFrequency\": 3560000000}\n    }\n  }\n}"
+      }
+    ],
+    "suspendGrant": [
+      {
+        "title": "Suspend: the next heartbeat gets 501 SUSPENDED_GRANT",
+        "curl": "curl -s -X POST -H \"Authorization: Bearer $KEY\" \"$API/grants/5329943951600446/suspend\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"grantId\": \"5329943951600446\",\n  \"cbsdId\": \"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\",\n  \"fccId\": \"TEST-FCC\",\n  \"serial\": \"SN-0001\",\n  \"category\": \"A\",\n  \"state\": \"AUTHORIZED\",\n  \"suspended\": true,\n  \"low\": 3550000000,\n  \"high\": 3560000000,\n  \"maxEirp\": 10,\n  \"channelType\": \"GAA\",\n  \"grantExpireTime\": 1793725587000,\n  \"transmitExpireTime\": 1793121027000,\n  \"heartbeatInterval\": 60,\n  \"heartbeatCount\": 2,\n  \"lastHeartbeat\": 1793120787705,\n  \"pendingHeartbeatInterval\": 30,\n  \"suggestedOperationParam\": null,\n  \"endReason\": null,\n  \"endedAt\": null,\n  \"createdAt\": 1793120787682,\n  \"request\": {\n    \"cbsdId\": \"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\",\n    \"operationParam\": {\n      \"maxEirp\": 10,\n      \"operationFrequencyRange\": {\"lowFrequency\": 3550000000, \"highFrequency\": 3560000000}\n    }\n  }\n}"
+      }
+    ],
+    "resumeGrant": [
+      {
+        "title": null,
+        "curl": "curl -s -X POST -H \"Authorization: Bearer $KEY\" \"$API/grants/5329943951600446/resume\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"grantId\": \"5329943951600446\",\n  \"cbsdId\": \"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\",\n  \"fccId\": \"TEST-FCC\",\n  \"serial\": \"SN-0001\",\n  \"category\": \"A\",\n  \"state\": \"AUTHORIZED\",\n  \"suspended\": false,\n  \"low\": 3550000000,\n  \"high\": 3560000000,\n  \"maxEirp\": 10,\n  \"channelType\": \"GAA\",\n  \"grantExpireTime\": 1793725587000,\n  \"transmitExpireTime\": 1793121027000,\n  \"heartbeatInterval\": 60,\n  \"heartbeatCount\": 2,\n  \"lastHeartbeat\": 1793120787705,\n  \"pendingHeartbeatInterval\": 30,\n  \"suggestedOperationParam\": null,\n  \"endReason\": null,\n  \"endedAt\": null,\n  \"createdAt\": 1793120787682,\n  \"request\": {\n    \"cbsdId\": \"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\",\n    \"operationParam\": {\n      \"maxEirp\": 10,\n      \"operationFrequencyRange\": {\"lowFrequency\": 3550000000, \"highFrequency\": 3560000000}\n    }\n  }\n}"
+      }
+    ],
+    "terminateGrant": [
+      {
+        "title": "Terminate: the next heartbeat gets 500 TERMINATED_GRANT",
+        "curl": "curl -s -X POST \"$API/grants/7338392050789261/terminate\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\"reason\": \"Interference test 4\"}'",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"grantId\": \"7338392050789261\",\n  \"cbsdId\": \"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\",\n  \"fccId\": \"TEST-FCC\",\n  \"serial\": \"SN-0001\",\n  \"category\": \"A\",\n  \"state\": \"TERMINATED\",\n  \"suspended\": false,\n  \"low\": 3570000000,\n  \"high\": 3580000000,\n  \"maxEirp\": 10,\n  \"channelType\": \"GAA\",\n  \"grantExpireTime\": 1793725587000,\n  \"transmitExpireTime\": null,\n  \"heartbeatInterval\": 60,\n  \"heartbeatCount\": 0,\n  \"lastHeartbeat\": null,\n  \"pendingHeartbeatInterval\": null,\n  \"suggestedOperationParam\": null,\n  \"endReason\": \"Interference test 4\",\n  \"endedAt\": 1793120787992,\n  \"createdAt\": 1793120787982,\n  \"request\": {\n    \"cbsdId\": \"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\",\n    \"operationParam\": {\n      \"maxEirp\": 10,\n      \"operationFrequencyRange\": {\"lowFrequency\": 3570000000, \"highFrequency\": 3580000000}\n    }\n  }\n}"
+      }
+    ],
+    "sendSasRequest": [
+      {
+        "title": "Register a Category A radio (this creates the CBSD)",
+        "curl": "curl -s -X POST \"$API/sas/registration\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\n    \"registrationRequest\": [\n      {\n        \"userId\": \"lab-user\",\n        \"fccId\": \"TEST-FCC\",\n        \"cbsdSerialNumber\": \"SN-0001\",\n        \"cbsdCategory\": \"A\",\n        \"airInterface\": {\"radioTechnology\": \"E_UTRA\"},\n        \"measCapability\": [],\n        \"installationParam\": {\n          \"latitude\": 37.425,\n          \"longitude\": -122.084,\n          \"height\": 5,\n          \"heightType\": \"AGL\",\n          \"indoorDeployment\": true,\n          \"antennaGain\": 5,\n          \"eirpCapability\": 26\n        }\n      }\n    ]\n  }'",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"transport\": \"internal\",\n  \"method\": \"registration\",\n  \"version\": \"v1.2\",\n  \"httpStatus\": 200,\n  \"durationMs\": 8,\n  \"body\": {\n    \"registrationResponse\": [\n      {\n        \"cbsdId\": \"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\",\n        \"response\": {\"responseCode\": 0, \"responseMessage\": \"SUCCESS\"}\n      }\n    ]\n  },\n  \"error\": null\n}",
+        "note": "The body is exactly what a radio sends. The SAS's verdict is in `body`; a refused request is still HTTP 200 here."
+      },
+      {
+        "title": "Ask which channels it may use",
+        "curl": "curl -s -X POST \"$API/sas/spectrumInquiry\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\n    \"spectrumInquiryRequest\": [\n      {\n        \"cbsdId\": \"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\",\n        \"inquiredSpectrum\": [{\"lowFrequency\": 3550000000, \"highFrequency\": 3700000000}]\n      }\n    ]\n  }'",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"transport\": \"internal\",\n  \"method\": \"spectrumInquiry\",\n  \"version\": \"v1.2\",\n  \"httpStatus\": 200,\n  \"durationMs\": 6,\n  \"body\": {\n    \"spectrumInquiryResponse\": [\n      {\n        \"cbsdId\": \"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\",\n        \"availableChannel\": [\n          {\n            \"frequencyRange\": {\"lowFrequency\": 3550000000, \"highFrequency\": 3700000000},\n            \"channelType\": \"GAA\",\n            \"ruleApplied\": \"FCC_PART_96\",\n            \"maxEirp\": 16\n          }\n        ],\n        \"response\": {\"responseCode\": 0, \"responseMessage\": \"SUCCESS\"}\n      }\n    ]\n  },\n  \"error\": null\n}"
+      },
+      {
+        "title": "Request a grant: 3550–3560 MHz at 10 dBm/MHz",
+        "curl": "curl -s -X POST \"$API/sas/grant\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\n    \"grantRequest\": [\n      {\n        \"cbsdId\": \"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\",\n        \"operationParam\": {\n          \"maxEirp\": 10,\n          \"operationFrequencyRange\": {\"lowFrequency\": 3550000000, \"highFrequency\": 3560000000}\n        }\n      }\n    ]\n  }'",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"transport\": \"internal\",\n  \"method\": \"grant\",\n  \"version\": \"v1.2\",\n  \"httpStatus\": 200,\n  \"durationMs\": 8,\n  \"body\": {\n    \"grantResponse\": [\n      {\n        \"cbsdId\": \"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\",\n        \"grantId\": \"5329943951600446\",\n        \"grantExpireTime\": \"2026-11-03T17:06:27Z\",\n        \"heartbeatInterval\": 60,\n        \"channelType\": \"GAA\",\n        \"response\": {\"responseCode\": 0, \"responseMessage\": \"SUCCESS\"}\n      }\n    ]\n  },\n  \"error\": null\n}"
+      },
+      {
+        "title": "Heartbeat: the grant becomes AUTHORIZED and may transmit until transmitExpireTime",
+        "curl": "curl -s -X POST \"$API/sas/heartbeat\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\n    \"heartbeatRequest\": [\n      {\n        \"cbsdId\": \"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\",\n        \"grantId\": \"5329943951600446\",\n        \"operationState\": \"GRANTED\"\n      }\n    ]\n  }'",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"transport\": \"internal\",\n  \"method\": \"heartbeat\",\n  \"version\": \"v1.2\",\n  \"httpStatus\": 200,\n  \"durationMs\": 6,\n  \"body\": {\n    \"heartbeatResponse\": [\n      {\n        \"cbsdId\": \"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\",\n        \"grantId\": \"5329943951600446\",\n        \"transmitExpireTime\": \"2026-10-27T17:10:27Z\",\n        \"response\": {\"responseCode\": 0, \"responseMessage\": \"SUCCESS\"}\n      }\n    ]\n  },\n  \"error\": null\n}"
+      },
+      {
+        "title": "A Category B radio that sends no location waits at REG_PENDING",
+        "curl": "curl -s -X POST \"$API/sas/registration\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\n    \"registrationRequest\": [\n      {\n        \"userId\": \"lab-user\",\n        \"fccId\": \"TEST-FCC-B\",\n        \"cbsdSerialNumber\": \"SN-B001\",\n        \"cbsdCategory\": \"B\",\n        \"airInterface\": {\"radioTechnology\": \"E_UTRA\"},\n        \"measCapability\": []\n      }\n    ]\n  }'",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"transport\": \"internal\",\n  \"method\": \"registration\",\n  \"version\": \"v1.2\",\n  \"httpStatus\": 200,\n  \"durationMs\": 2,\n  \"body\": {\n    \"registrationResponse\": [\n      {\n        \"response\": {\n          \"responseCode\": 200,\n          \"responseMessage\": \"Missing REG-conditional parameter(s): installationParam.latitude, installationParam.longitude, insta…\",\n          \"responseData\": [\"installationParam.latitude\", \"installationParam.longitude\", \"… 7 more\"]\n        }\n      }\n    ]\n  },\n  \"error\": null\n}",
+        "note": "Preload its location (POST /registry/conditional) and it registers on its next attempt."
+      },
+      {
+        "title": "Relinquish a grant",
+        "curl": "curl -s -X POST \"$API/sas/relinquishment\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\n    \"relinquishmentRequest\": [\n      {\n        \"cbsdId\": \"TEST-FCC/eecf4e3a24d9945c2e75cbebf90763afcd43ef74\",\n        \"grantId\": \"3060262647489416\"\n      }\n    ]\n  }'",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"transport\": \"internal\",\n  \"method\": \"relinquishment\",\n  \"version\": \"v1.2\",\n  \"httpStatus\": 200,\n  \"durationMs\": 4,\n  \"body\": {\n    \"relinquishmentResponse\": [\n      {\n        \"cbsdId\": \"TEST-FCC/eecf4e3a24d9945c2e75cbebf90763afcd43ef74\",\n        \"grantId\": \"3060262647489416\",\n        \"response\": {\"responseCode\": 0, \"responseMessage\": \"SUCCESS\"}\n      }\n    ]\n  },\n  \"error\": null\n}"
+      },
+      {
+        "title": "Deregister",
+        "curl": "curl -s -X POST \"$API/sas/deregistration\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\n    \"deregistrationRequest\": [{\"cbsdId\": \"TEST-FCC/eecf4e3a24d9945c2e75cbebf90763afcd43ef74\"}]\n  }'",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"transport\": \"internal\",\n  \"method\": \"deregistration\",\n  \"version\": \"v1.2\",\n  \"httpStatus\": 200,\n  \"durationMs\": 4,\n  \"body\": {\n    \"deregistrationResponse\": [\n      {\n        \"cbsdId\": \"TEST-FCC/eecf4e3a24d9945c2e75cbebf90763afcd43ef74\",\n        \"response\": {\"responseCode\": 0, \"responseMessage\": \"SUCCESS\"}\n      }\n    ]\n  },\n  \"error\": null\n}"
+      },
+      {
+        "title": "Through the real HTTP listener, where fault rules apply",
+        "curl": "curl -s -X POST \"$API/sas/heartbeat?transport=http\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\n    \"heartbeatRequest\": [\n      {\n        \"cbsdId\": \"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\",\n        \"grantId\": \"5329943951600446\",\n        \"operationState\": \"AUTHORIZED\"\n      }\n    ]\n  }'",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"transport\": \"http\",\n  \"method\": \"heartbeat\",\n  \"version\": \"v1.2\",\n  \"httpStatus\": 200,\n  \"durationMs\": 35,\n  \"body\": {\n    \"heartbeatResponse\": [\n      {\n        \"cbsdId\": \"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\",\n        \"grantId\": \"5329943951600446\",\n        \"transmitExpireTime\": \"2026-10-27T17:10:28Z\",\n        \"response\": {\"responseCode\": 501}\n      }\n    ]\n  },\n  \"error\": null\n}"
+      },
+      {
+        "title": "Register over HTTPS with mutual TLS, presenting a lab device certificate",
+        "curl": "curl -s -X POST \"$API/sas/registration?transport=https&clientCertId=e4a32bba-ac9d-44c0-86a1-f6a5fdc35a75\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\n    \"registrationRequest\": [\n      {\n        \"userId\": \"lab-user\",\n        \"fccId\": \"TEST-FCC\",\n        \"cbsdSerialNumber\": \"SN-0004\",\n        \"cbsdCategory\": \"A\",\n        \"airInterface\": {\"radioTechnology\": \"E_UTRA\"},\n        \"measCapability\": [],\n        \"installationParam\": {\n          \"latitude\": 37.425,\n          \"longitude\": -122.084,\n          \"height\": 5,\n          \"heightType\": \"AGL\",\n          \"indoorDeployment\": true,\n          \"antennaGain\": 5,\n          \"eirpCapability\": 26\n        }\n      }\n    ]\n  }'",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"transport\": \"https\",\n  \"method\": \"registration\",\n  \"version\": \"v1.2\",\n  \"httpStatus\": 200,\n  \"durationMs\": 24,\n  \"body\": {\n    \"registrationResponse\": [\n      {\n        \"cbsdId\": \"TEST-FCC/1c26db59db0506d45d6cd0bc6972fa409a00d3f2\",\n        \"response\": {\"responseCode\": 0, \"responseMessage\": \"SUCCESS\"}\n      }\n    ]\n  },\n  \"error\": null\n}"
+      }
+    ],
+    "getRegistry": [
+      {
+        "title": "Everything in the registry at once",
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/registry\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"fccIds\": [{\"fccId\": \"TEST-FCC\", \"maxEirp\": 47, \"createdAt\": 1793120787857}],\n  \"userIds\": [{\"userId\": \"lab-user\", \"createdAt\": 1793120787858}],\n  \"blacklist\": [],\n  \"conditional\": [\n    {\n      \"fccId\": \"TEST-FCC\",\n      \"serial\": \"SN-0002\",\n      \"data\": {\n        \"fccId\": \"TEST-FCC\",\n        \"cbsdSerialNumber\": \"SN-0002\",\n        \"cbsdCategory\": \"A\",\n        \"airInterface\": {\"radioTechnology\": \"E_UTRA\"},\n        \"installationParam\": \"{…}\",\n        \"measCapability\": []\n      },\n      \"source\": \"cbsd\",\n      \"createdAt\": 1793120788214\n    },\n    {\n      \"fccId\": \"TEST-FCC\",\n      \"serial\": \"SN-0001\",\n      \"data\": {\n        \"fccId\": \"TEST-FCC\",\n        \"cbsdSerialNumber\": \"SN-0001\",\n        \"cbsdCategory\": \"A\",\n        \"airInterface\": {\"radioTechnology\": \"E_UTRA\"},\n        \"installationParam\": \"{…}\",\n        \"measCapability\": []\n      },\n      \"source\": \"cbsd\",\n      \"createdAt\": 1793120787859\n    }\n  ],\n  \"cpiUsers\": []\n}"
+      }
+    ],
+    "listRegistryCandidates": [
+      {
+        "title": "Radios that have registered, and what the registry holds for each",
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/registry/from-cbsds\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"items\": [\n    {\n      \"cbsdId\": \"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\",\n      \"fccId\": \"TEST-FCC\",\n      \"serial\": \"SN-0001\",\n      \"userId\": \"lab-user\",\n      \"state\": \"REGISTERED\",\n      \"inRegistry\": {\"fccId\": true, \"userId\": true, \"registration\": true}\n    },\n    {\n      \"cbsdId\": \"TEST-FCC/eecf4e3a24d9945c2e75cbebf90763afcd43ef74\",\n      \"fccId\": \"TEST-FCC\",\n      \"serial\": \"SN-0002\",\n      \"userId\": \"lab-user\",\n      \"state\": \"UNREGISTERED\",\n      \"inRegistry\": {\"fccId\": true, \"userId\": true, \"registration\": false}\n    }\n  ],\n  \"total\": 2,\n  \"limit\": 500,\n  \"offset\": 0\n}"
+      }
+    ],
+    "addCbsdsToRegistry": [
+      {
+        "title": "Add every radio not yet in the registry",
+        "curl": "curl -s -X POST \"$API/registry/from-cbsds\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{}'",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"results\": [\n    {\n      \"cbsdId\": \"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\",\n      \"fccId\": \"TEST-FCC\",\n      \"serial\": \"SN-0001\",\n      \"userId\": \"lab-user\",\n      \"state\": \"REGISTERED\",\n      \"inRegistry\": {\"fccId\": true, \"userId\": true, \"registration\": true},\n      \"added\": {\"fccId\": false, \"userId\": false, \"registration\": false},\n      \"notes\": [\n        \"The FCC ID is already in the registry\",\n        \"The user ID is already in the registry\",\n        \"Registration data is already preloaded for this device (replace overwrites it)\"\n      ]\n    },\n    {\n      \"cbsdId\": \"TEST-FCC/eecf4e3a24d9945c2e75cbebf90763afcd43ef74\",\n      \"fccId\": \"TEST-FCC\",\n      \"serial\": \"SN-0002\",\n      \"userId\": \"lab-user\",\n      \"state\": \"UNREGISTERED\",\n      \"inRegistry\": {\"fccId\": true, \"userId\": true, \"registration\": true},\n      \"added\": {\"fccId\": false, \"userId\": false, \"registration\": true},\n      \"notes\": [\"The FCC ID is already in the registry\", \"The user ID is already in the registry\"]\n    }\n  ],\n  \"unknown\": []\n}"
+      }
+    ],
+    "listFccIds": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/registry/fcc-ids\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"items\": [\n    {\"fccId\": \"TEST-FCC\", \"maxEirp\": 47, \"createdAt\": 1793120787857},\n    {\"fccId\": \"TEST-FCC-2\", \"maxEirp\": 30, \"createdAt\": 1793120788224}\n  ],\n  \"total\": 2,\n  \"limit\": 500,\n  \"offset\": 0\n}"
+      }
+    ],
+    "addFccId": [
+      {
+        "title": null,
+        "curl": "curl -s -X POST \"$API/registry/fcc-ids\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\"fccId\": \"TEST-FCC-2\", \"maxEirp\": 30}'",
+        "status": 201,
+        "kind": "json",
+        "json": "{\"fccId\": \"TEST-FCC-2\", \"maxEirp\": 30, \"createdAt\": 1793120788224}"
+      }
+    ],
+    "getFccId": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/registry/fcc-ids/TEST-FCC-2\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\"fccId\": \"TEST-FCC-2\", \"maxEirp\": 30, \"createdAt\": 1793120788224}"
+      }
+    ],
+    "deleteFccId": [
+      {
+        "title": null,
+        "curl": "curl -s -X DELETE -H \"Authorization: Bearer $KEY\" \"$API/registry/fcc-ids/TEST-FCC-2\"",
+        "status": 204,
+        "kind": "empty"
+      }
+    ],
+    "listUserIds": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/registry/user-ids\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"items\": [\n    {\"userId\": \"bench-team\", \"createdAt\": 1793120788251},\n    {\"userId\": \"lab-user\", \"createdAt\": 1793120787858}\n  ],\n  \"total\": 2,\n  \"limit\": 500,\n  \"offset\": 0\n}"
+      }
+    ],
+    "addUserId": [
+      {
+        "title": null,
+        "curl": "curl -s -X POST \"$API/registry/user-ids\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\"userId\": \"bench-team\"}'",
+        "status": 201,
+        "kind": "json",
+        "json": "{\"userId\": \"bench-team\", \"createdAt\": 1793120788251}"
+      }
+    ],
+    "getUserId": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/registry/user-ids/bench-team\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\"userId\": \"bench-team\", \"createdAt\": 1793120788251}"
+      }
+    ],
+    "deleteUserId": [
+      {
+        "title": null,
+        "curl": "curl -s -X DELETE -H \"Authorization: Bearer $KEY\" \"$API/registry/user-ids/bench-team\"",
+        "status": 204,
+        "kind": "empty"
+      }
+    ],
+    "listBlacklist": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/registry/blacklist\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"items\": [\n    {\n      \"id\": 1,\n      \"fccId\": \"BAD-FCC\",\n      \"serial\": \"SN-666\",\n      \"reason\": \"Firmware sends malformed grants\",\n      \"createdAt\": 1793120788276\n    }\n  ],\n  \"total\": 1,\n  \"limit\": 500,\n  \"offset\": 0\n}"
+      }
+    ],
+    "addBlacklistEntry": [
+      {
+        "title": "Blacklist one device",
+        "curl": "curl -s -X POST \"$API/registry/blacklist\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\"fccId\": \"BAD-FCC\", \"serial\": \"SN-666\", \"reason\": \"Firmware sends malformed grants\"}'",
+        "status": 201,
+        "kind": "json",
+        "json": "{\n  \"id\": 1,\n  \"fccId\": \"BAD-FCC\",\n  \"serial\": \"SN-666\",\n  \"reason\": \"Firmware sends malformed grants\",\n  \"createdAt\": 1793120788276\n}"
+      }
+    ],
+    "getBlacklistEntry": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/registry/blacklist/1\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"id\": 1,\n  \"fccId\": \"BAD-FCC\",\n  \"serial\": \"SN-666\",\n  \"reason\": \"Firmware sends malformed grants\",\n  \"createdAt\": 1793120788276\n}"
+      }
+    ],
+    "deleteBlacklistEntry": [
+      {
+        "title": null,
+        "curl": "curl -s -X DELETE -H \"Authorization: Bearer $KEY\" \"$API/registry/blacklist/1\"",
+        "status": 204,
+        "kind": "empty"
+      }
+    ],
+    "listConditionalRegistrations": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/registry/conditional\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"items\": [\n    {\n      \"fccId\": \"TEST-FCC-B\",\n      \"serial\": \"SN-B001\",\n      \"data\": {\n        \"fccId\": \"TEST-FCC-B\",\n        \"cbsdSerialNumber\": \"SN-B001\",\n        \"cbsdCategory\": \"B\",\n        \"airInterface\": {\"radioTechnology\": \"E_UTRA\"},\n        \"installationParam\": \"{…}\"\n      },\n      \"source\": \"api\",\n      \"createdAt\": 1793120788301\n    },\n    {\n      \"fccId\": \"TEST-FCC\",\n      \"serial\": \"SN-0002\",\n      \"data\": {\n        \"fccId\": \"TEST-FCC\",\n        \"cbsdSerialNumber\": \"SN-0002\",\n        \"cbsdCategory\": \"A\",\n        \"airInterface\": {\"radioTechnology\": \"E_UTRA\"},\n        \"installationParam\": \"{…}\",\n        \"measCapability\": []\n      },\n      \"source\": \"cbsd\",\n      \"createdAt\": 1793120788214\n    },\n    \"… 1 more\"\n  ],\n  \"total\": 3,\n  \"limit\": 500,\n  \"offset\": 0\n}"
+      }
+    ],
+    "preloadRegistrations": [
+      {
+        "title": "Preload the location of the Category B radio waiting at REG_PENDING",
+        "curl": "curl -s -X POST \"$API/registry/conditional\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\n    \"fccId\": \"TEST-FCC-B\",\n    \"cbsdSerialNumber\": \"SN-B001\",\n    \"cbsdCategory\": \"B\",\n    \"airInterface\": {\"radioTechnology\": \"E_UTRA\"},\n    \"installationParam\": {\n      \"latitude\": 37.4215,\n      \"longitude\": -122.0839,\n      \"height\": 12,\n      \"heightType\": \"AGL\",\n      \"indoorDeployment\": false,\n      \"antennaGain\": 15,\n      \"eirpCapability\": 40,\n      \"antennaAzimuth\": 180,\n      \"antennaDowntilt\": 4,\n      \"antennaBeamwidth\": 65\n    }\n  }'",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"saved\": 1,\n  \"items\": [\n    {\n      \"fccId\": \"TEST-FCC-B\",\n      \"serial\": \"SN-B001\",\n      \"data\": {\n        \"fccId\": \"TEST-FCC-B\",\n        \"cbsdSerialNumber\": \"SN-B001\",\n        \"cbsdCategory\": \"B\",\n        \"airInterface\": {\"radioTechnology\": \"E_UTRA\"},\n        \"installationParam\": {\n          \"latitude\": 37.4215,\n          \"longitude\": -122.0839,\n          \"height\": 12,\n          \"heightType\": \"AGL\",\n          \"indoorDeployment\": false,\n          \"antennaGain\": 15,\n          \"eirpCapability\": 40,\n          \"antennaAzimuth\": 180,\n          \"antennaDowntilt\": 4,\n          \"antennaBeamwidth\": 65\n        }\n      },\n      \"source\": \"api\",\n      \"createdAt\": 1793120788301\n    }\n  ]\n}"
+      }
+    ],
+    "getConditionalRegistration": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/registry/conditional/TEST-FCC-B/SN-B001\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"fccId\": \"TEST-FCC-B\",\n  \"serial\": \"SN-B001\",\n  \"data\": {\n    \"fccId\": \"TEST-FCC-B\",\n    \"cbsdSerialNumber\": \"SN-B001\",\n    \"cbsdCategory\": \"B\",\n    \"airInterface\": {\"radioTechnology\": \"E_UTRA\"},\n    \"installationParam\": {\n      \"latitude\": 37.4215,\n      \"longitude\": -122.0839,\n      \"height\": 12,\n      \"heightType\": \"AGL\",\n      \"indoorDeployment\": false,\n      \"antennaGain\": 15,\n      \"eirpCapability\": 40,\n      \"antennaAzimuth\": 180,\n      \"antennaDowntilt\": 4,\n      \"antennaBeamwidth\": 65\n    }\n  },\n  \"source\": \"api\",\n  \"createdAt\": 1793120788301\n}"
+      }
+    ],
+    "deleteConditionalRegistration": [
+      {
+        "title": null,
+        "curl": "curl -s -X DELETE -H \"Authorization: Bearer $KEY\" \"$API/registry/conditional/TEST-FCC-B/SN-B001\"",
+        "status": 204,
+        "kind": "empty"
+      }
+    ],
+    "listCpiUsers": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/registry/cpi-users\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"items\": [\n    {\n      \"cpiId\": \"CPI-0042\",\n      \"name\": \"Jordan Lee\",\n      \"publicKey\": \"-----BEGIN PUBLIC KEY-----\\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEyTJ+…\\n-----END PUBLIC KEY-----\\n\",\n      \"source\": \"api\",\n      \"createdAt\": 1793120788345\n    }\n  ],\n  \"total\": 1,\n  \"limit\": 500,\n  \"offset\": 0\n}"
+      }
+    ],
+    "addCpiUser": [
+      {
+        "title": "Register a certified professional installer by public key",
+        "curl": "jq -n --rawfile publicKey cpi-0042.pem '{cpiId: \"CPI-0042\", name: \"Jordan Lee\", publicKey: $publicKey}' \\\n  | curl -s -X POST \"$API/registry/cpi-users\" -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' -d @-",
+        "status": 201,
+        "kind": "json",
+        "json": "{\n  \"cpiId\": \"CPI-0042\",\n  \"name\": \"Jordan Lee\",\n  \"publicKey\": \"-----BEGIN PUBLIC KEY-----\\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEyTJ+…\\n-----END PUBLIC KEY-----\\n\",\n  \"source\": \"api\",\n  \"createdAt\": 1793120788345\n}",
+        "note": "`jq` builds the body from the PEM file: `{\"cpiId\": \"CPI-0042\", \"name\": \"Jordan Lee\", \"publicKey\": \"-----BEGIN PUBLIC KEY-----\\n…\"}`."
+      }
+    ],
+    "getCpiUser": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/registry/cpi-users/CPI-0042\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"cpiId\": \"CPI-0042\",\n  \"name\": \"Jordan Lee\",\n  \"publicKey\": \"-----BEGIN PUBLIC KEY-----\\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEyTJ+…\\n-----END PUBLIC KEY-----\\n\",\n  \"source\": \"api\",\n  \"createdAt\": 1793120788345\n}"
+      }
+    ],
+    "deleteCpiUser": [
+      {
+        "title": null,
+        "curl": "curl -s -X DELETE -H \"Authorization: Bearer $KEY\" \"$API/registry/cpi-users/CPI-0042\"",
+        "status": 204,
+        "kind": "empty"
+      }
+    ],
+    "getSpectrum": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/spectrum\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"band\": {\"low\": 3550000000, \"high\": 3700000000},\n  \"gaaRanges\": [{\"low\": 3550000000, \"high\": 3700000000}],\n  \"protections\": [],\n  \"ppas\": [],\n  \"grants\": [\n    {\n      \"grantId\": \"5329943951600446\",\n      \"cbsdId\": \"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\",\n      \"state\": \"AUTHORIZED\",\n      \"suspended\": false,\n      \"low\": 3550000000,\n      \"high\": 3560000000,\n      \"maxEirp\": 10,\n      \"channelType\": \"GAA\",\n      \"lat\": 37.425,\n      \"lon\": -122.084\n    }\n  ],\n  \"cbsds\": [\n    {\n      \"cbsdId\": \"TEST-FCC-B/1a22eeb4baa2cd9a2aa1bd242c366c403f5a9770\",\n      \"fccId\": \"TEST-FCC-B\",\n      \"serial\": \"SN-B001\",\n      \"category\": \"B\",\n      \"lat\": 37.4215,\n      \"lon\": -122.0839,\n      \"indoor\": false\n    },\n    \"… 1 more\"\n  ],\n  \"incumbents\": {\n    \"fss\": [],\n    \"wisp\": [],\n    \"pal\": [],\n    \"zone\": [],\n    \"exclusion_zone\": [],\n    \"peer_sas\": [],\n    \"esc_sensor\": [],\n    \"sas_admin\": [],\n    \"fad_cbsd\": [],\n    \"database_url\": []\n  }\n}"
+      }
+    ],
+    "listProtections": [
+      {
+        "title": "Active administrator protections",
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/protections?kind=ADMIN&active=true\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"items\": [\n    {\n      \"id\": \"ui:e9d164f3-58be-45da-be6b-c4303f57fa40\",\n      \"name\": \"Radar test block\",\n      \"kind\": \"ADMIN\",\n      \"source\": \"ui\",\n      \"low\": 3550000000,\n      \"high\": 3560000000,\n      \"active\": true,\n      \"channels\": null,\n      \"action\": \"suspend\",\n      \"geometry\": null,\n      \"latitude\": null,\n      \"longitude\": null,\n      \"radiusKm\": null,\n      \"neighborhood\": null,\n      \"notes\": null,\n      \"updatedAt\": 1793120788392\n    }\n  ],\n  \"total\": 1,\n  \"limit\": 500,\n  \"offset\": 0\n}"
+      }
+    ],
+    "createProtection": [
+      {
+        "title": "Block 3550–3560 MHz: grants inside it are suspended",
+        "curl": "curl -s -X POST \"$API/protections\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\n    \"name\": \"Radar test block\",\n    \"low\": 3550000000,\n    \"high\": 3560000000,\n    \"active\": true,\n    \"action\": \"suspend\"\n  }'",
+        "status": 201,
+        "kind": "json",
+        "json": "{\n  \"id\": \"ui:e9d164f3-58be-45da-be6b-c4303f57fa40\",\n  \"name\": \"Radar test block\",\n  \"kind\": \"ADMIN\",\n  \"source\": \"ui\",\n  \"low\": 3550000000,\n  \"high\": 3560000000,\n  \"active\": true,\n  \"channels\": null,\n  \"action\": \"suspend\",\n  \"geometry\": null,\n  \"latitude\": null,\n  \"longitude\": null,\n  \"radiusKm\": null,\n  \"neighborhood\": null,\n  \"notes\": null,\n  \"updatedAt\": 1793120788392\n}"
+      }
+    ],
+    "getProtection": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/protections/ui%3Ae9d164f3-58be-45da-be6b-c4303f57fa40\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"id\": \"ui:e9d164f3-58be-45da-be6b-c4303f57fa40\",\n  \"name\": \"Radar test block\",\n  \"kind\": \"ADMIN\",\n  \"source\": \"ui\",\n  \"low\": 3550000000,\n  \"high\": 3560000000,\n  \"active\": true,\n  \"channels\": null,\n  \"action\": \"suspend\",\n  \"geometry\": null,\n  \"latitude\": null,\n  \"longitude\": null,\n  \"radiusKm\": null,\n  \"neighborhood\": null,\n  \"notes\": null,\n  \"updatedAt\": 1793120788392\n}"
+      }
+    ],
+    "putProtection": [
+      {
+        "title": "Create or replace a protection under your own id: an ESC sensor neighbourhood",
+        "curl": "curl -s -X PUT \"$API/protections/esc-norfolk\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\n    \"name\": \"ESC sensor Norfolk\",\n    \"kind\": \"ESC\",\n    \"low\": 3600000000,\n    \"high\": 3650000000,\n    \"latitude\": 36.9,\n    \"longitude\": -76,\n    \"radiusKm\": 40\n  }'",
+        "status": 201,
+        "kind": "json",
+        "json": "{\n  \"id\": \"esc-norfolk\",\n  \"name\": \"ESC sensor Norfolk\",\n  \"kind\": \"ESC\",\n  \"source\": \"ui\",\n  \"low\": 3600000000,\n  \"high\": 3650000000,\n  \"active\": false,\n  \"channels\": null,\n  \"action\": \"suspend\",\n  \"geometry\": null,\n  \"latitude\": 36.9,\n  \"longitude\": -76,\n  \"radiusKm\": 40,\n  \"neighborhood\": null,\n  \"notes\": null,\n  \"updatedAt\": 1793120788429\n}"
+      }
+    ],
+    "deleteProtection": [
+      {
+        "title": null,
+        "curl": "curl -s -X DELETE -H \"Authorization: Bearer $KEY\" \"$API/protections/ui%3Ae9d164f3-58be-45da-be6b-c4303f57fa40\"",
+        "status": 204,
+        "kind": "empty"
+      }
+    ],
+    "activateProtection": [
+      {
+        "title": "Activate it on 3555–3560 MHz only",
+        "curl": "curl -s -X POST \"$API/protections/ui%3Ae9d164f3-58be-45da-be6b-c4303f57fa40/activate\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\"channels\": [[3555000000, 3560000000]]}'",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"id\": \"ui:e9d164f3-58be-45da-be6b-c4303f57fa40\",\n  \"name\": \"Radar test block\",\n  \"kind\": \"ADMIN\",\n  \"source\": \"ui\",\n  \"low\": 3550000000,\n  \"high\": 3560000000,\n  \"active\": true,\n  \"channels\": [[3555000000, 3560000000]],\n  \"action\": \"suspend\",\n  \"geometry\": null,\n  \"latitude\": null,\n  \"longitude\": null,\n  \"radiusKm\": null,\n  \"neighborhood\": null,\n  \"notes\": null,\n  \"updatedAt\": 1793120788420\n}"
+      }
+    ],
+    "deactivateProtection": [
+      {
+        "title": null,
+        "curl": "curl -s -X POST \"$API/protections/ui%3Ae9d164f3-58be-45da-be6b-c4303f57fa40/deactivate\" \\\n  -H \"Authorization: Bearer $KEY\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"id\": \"ui:e9d164f3-58be-45da-be6b-c4303f57fa40\",\n  \"name\": \"Radar test block\",\n  \"kind\": \"ADMIN\",\n  \"source\": \"ui\",\n  \"low\": 3550000000,\n  \"high\": 3560000000,\n  \"active\": false,\n  \"channels\": null,\n  \"action\": \"suspend\",\n  \"geometry\": null,\n  \"latitude\": null,\n  \"longitude\": null,\n  \"radiusKm\": null,\n  \"neighborhood\": null,\n  \"notes\": null,\n  \"updatedAt\": 1793120788411\n}"
+      }
+    ],
+    "listDpas": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/dpas?limit=2\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"items\": [\n    {\n      \"id\": \"dpa:Alameda\",\n      \"name\": \"Alameda\",\n      \"kind\": \"DPA\",\n      \"source\": \"ntia-e-dpa\",\n      \"low\": 3500000000,\n      \"high\": 3650000000,\n      \"active\": false,\n      \"channels\": null,\n      \"action\": \"suspend\",\n      \"geometry\": \"{…}\",\n      \"latitude\": null,\n      \"longitude\": null,\n      \"radiusKm\": null,\n      \"neighborhood\": \"{…}\",\n      \"notes\": \"NTIA ESC DPA (3500-3650 MHz)\",\n      \"updatedAt\": 1793120788481\n    },\n    {\n      \"id\": \"dpa:Alaska1\",\n      \"name\": \"Alaska1\",\n      \"kind\": \"DPA\",\n      \"source\": \"ntia-e-dpa\",\n      \"low\": 3550000000,\n      \"high\": 3650000000,\n      \"active\": false,\n      \"channels\": null,\n      \"action\": \"suspend\",\n      \"geometry\": \"{…}\",\n      \"latitude\": null,\n      \"longitude\": null,\n      \"radiusKm\": null,\n      \"neighborhood\": \"{…}\",\n      \"notes\": \"NTIA ESC DPA (3550-3650 MHz)\",\n      \"updatedAt\": 1793120788481\n    }\n  ],\n  \"total\": 93,\n  \"limit\": 2,\n  \"offset\": 0,\n  \"files\": [\"E-DPAs.kml\", \"P-DPAs.kml\"]\n}"
+      }
+    ],
+    "clearDpas": [
+      {
+        "title": "Unload every DPA",
+        "curl": "curl -s -X DELETE -H \"Authorization: Bearer $KEY\" \"$API/dpas\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\"deleted\": 93}"
+      }
+    ],
+    "loadDpas": [
+      {
+        "title": "Load the NTIA east-coast DPAs",
+        "curl": "curl -s -X POST \"$API/dpas/load\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\"file\": \"E-DPAs.kml\"}'",
+        "status": 200,
+        "kind": "json",
+        "json": "{\"loaded\": 93}"
+      }
+    ],
+    "activateAllDpas": [
+      {
+        "title": null,
+        "curl": "curl -s -X POST -H \"Authorization: Bearer $KEY\" \"$API/dpas/activate-all\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\"active\": 93}"
+      }
+    ],
+    "deactivateAllDpas": [
+      {
+        "title": null,
+        "curl": "curl -s -X POST -H \"Authorization: Bearer $KEY\" \"$API/dpas/deactivate-all\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\"active\": 0}"
+      }
+    ],
+    "activateDpaChannel": [
+      {
+        "title": "Activate a DPA on one channel",
+        "curl": "curl -s -X POST \"$API/dpas/Alameda/channels/activate\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\"lowFrequency\": 3550000000, \"highFrequency\": 3560000000}'",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"id\": \"dpa:Alameda\",\n  \"name\": \"Alameda\",\n  \"kind\": \"DPA\",\n  \"source\": \"ntia-e-dpa\",\n  \"low\": 3500000000,\n  \"high\": 3650000000,\n  \"active\": true,\n  \"channels\": [[3550000000, 3560000000]],\n  \"action\": \"suspend\",\n  \"geometry\": {\n    \"type\": \"MultiPolygon\",\n    \"coordinates\": [\n      [\n        [\n          [-122.291778430115, 37.7675355761059],\n          [-122.291407305729, 37.7695817473655],\n          \"… 10 more\"\n        ]\n      ]\n    ]\n  },\n  \"latitude\": null,\n  \"longitude\": null,\n  \"radiusKm\": null,\n  \"neighborhood\": {\n    \"catBNeighborhoodDistanceKm\": 80,\n    \"catB_6m_NeighborhoodDistanceKm\": 80,\n    \"catA_Indoor_NeighborhoodDistanceKm\": 78,\n    \"catA_Indoor_6m_NeighborhoodDistanceKm\": 10,\n    \"catA_Outdoor_NeighborhoodDistanceKm\": 80,\n    \"catA_Outdoor_6m_NeighborhoodDistanceKm\": 80,\n    \"catBOOBNeighborhoodDistanceKm\": 0,\n    \"catAOOBNeighborhoodDistanceKm\": 0\n  },\n  \"notes\": \"NTIA ESC DPA (3500-3650 MHz)\",\n  \"updatedAt\": 1793120788954\n}"
+      }
+    ],
+    "deactivateDpaChannel": [
+      {
+        "title": null,
+        "curl": "curl -s -X POST \"$API/dpas/Alameda/channels/deactivate\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\"lowFrequency\": 3550000000, \"highFrequency\": 3560000000}'",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"id\": \"dpa:Alameda\",\n  \"name\": \"Alameda\",\n  \"kind\": \"DPA\",\n  \"source\": \"ntia-e-dpa\",\n  \"low\": 3500000000,\n  \"high\": 3650000000,\n  \"active\": false,\n  \"channels\": [],\n  \"action\": \"suspend\",\n  \"geometry\": {\n    \"type\": \"MultiPolygon\",\n    \"coordinates\": [\n      [\n        [\n          [-122.291778430115, 37.7675355761059],\n          [-122.291407305729, 37.7695817473655],\n          \"… 10 more\"\n        ]\n      ]\n    ]\n  },\n  \"latitude\": null,\n  \"longitude\": null,\n  \"radiusKm\": null,\n  \"neighborhood\": {\n    \"catBNeighborhoodDistanceKm\": 80,\n    \"catB_6m_NeighborhoodDistanceKm\": 80,\n    \"catA_Indoor_NeighborhoodDistanceKm\": 78,\n    \"catA_Indoor_6m_NeighborhoodDistanceKm\": 10,\n    \"catA_Outdoor_NeighborhoodDistanceKm\": 80,\n    \"catA_Outdoor_6m_NeighborhoodDistanceKm\": 80,\n    \"catBOOBNeighborhoodDistanceKm\": 0,\n    \"catAOOBNeighborhoodDistanceKm\": 0\n  },\n  \"notes\": \"NTIA ESC DPA (3500-3650 MHz)\",\n  \"updatedAt\": 1793120788964\n}"
+      }
+    ],
+    "listPpas": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/ppas\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"items\": [\n    {\n      \"id\": \"zone/ppa/ui/d0ebe59d-768b-42f9-a005-c9a9d7c30e3d\",\n      \"name\": \"Lab PPA\",\n      \"channels\": [\n        {\n          \"low\": 3550000000,\n          \"high\": 3560000000,\n          \"palId\": \"pal/lab/1\",\n          \"licenseExpiration\": 2051222400000\n        }\n      ],\n      \"members\": [\"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\"],\n      \"geometry\": null,\n      \"expiration\": null,\n      \"source\": \"ui\"\n    }\n  ],\n  \"total\": 1,\n  \"limit\": 500,\n  \"offset\": 0\n}"
+      }
+    ],
+    "createPpa": [
+      {
+        "title": "A PAL protection area around SN-0001",
+        "curl": "curl -s -X POST \"$API/ppas\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\n    \"name\": \"Lab PPA\",\n    \"channels\": [\n      {\n        \"low\": 3550000000,\n        \"high\": 3560000000,\n        \"palId\": \"pal/lab/1\",\n        \"licenseExpiration\": \"2035-01-01T00:00:00Z\"\n      }\n    ],\n    \"members\": [\"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\"]\n  }'",
+        "status": 201,
+        "kind": "json",
+        "json": "{\n  \"id\": \"zone/ppa/ui/d0ebe59d-768b-42f9-a005-c9a9d7c30e3d\",\n  \"name\": \"Lab PPA\",\n  \"channels\": [\n    {\n      \"low\": 3550000000,\n      \"high\": 3560000000,\n      \"palId\": \"pal/lab/1\",\n      \"licenseExpiration\": 2051222400000\n    }\n  ],\n  \"members\": [\"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\"],\n  \"geometry\": null,\n  \"expiration\": null,\n  \"source\": \"ui\"\n}"
+      }
+    ],
+    "createPpaFromPal": [
+      {
+        "title": "A PPA for the PAL, with SN-0001 as its cluster",
+        "curl": "curl -s -X POST \"$API/ppas/from-pal\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\n    \"cbsdIds\": [\"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\"],\n    \"palIds\": [\"pal/lab/1\"]\n  }'",
+        "status": 201,
+        "kind": "json",
+        "json": "{\n  \"id\": \"zone/ppa/lab/pal/lab/1/c26f00a4a2724c649551100690eb2867\",\n  \"name\": \"PPA pal/lab/1\",\n  \"channels\": [\n    {\n      \"low\": 3550000000,\n      \"high\": 3560000000,\n      \"palId\": \"pal/lab/1\",\n      \"licenseExpiration\": 2051222400000\n    }\n  ],\n  \"members\": [\"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\"],\n  \"geometry\": {\n    \"type\": \"FeatureCollection\",\n    \"features\": [\n      {\n        \"type\": \"Feature\",\n        \"properties\": {},\n        \"geometry\": {\n          \"type\": \"Polygon\",\n          \"coordinates\": [\n            [\n              [-122.084, 37.497349738636565],\n              [-122.06634571093794, 37.495959558695766],\n              \"… 31 more\"\n            ]\n          ]\n        }\n      }\n    ]\n  },\n  \"expiration\": 1824656789000,\n  \"source\": \"harness\"\n}"
+      }
+    ],
+    "getPpa": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/ppas/zone%2Fppa%2Fui%2Fd0ebe59d-768b-42f9-a005-c9a9d7c30e3d\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"id\": \"zone/ppa/ui/d0ebe59d-768b-42f9-a005-c9a9d7c30e3d\",\n  \"name\": \"Lab PPA\",\n  \"channels\": [\n    {\n      \"low\": 3550000000,\n      \"high\": 3560000000,\n      \"palId\": \"pal/lab/1\",\n      \"licenseExpiration\": 2051222400000\n    }\n  ],\n  \"members\": [\"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\"],\n  \"geometry\": null,\n  \"expiration\": null,\n  \"source\": \"ui\"\n}"
+      }
+    ],
+    "putPpa": [
+      {
+        "title": "Replace it (here: rename)",
+        "curl": "curl -s -X PUT \"$API/ppas/zone%2Fppa%2Fui%2Fd0ebe59d-768b-42f9-a005-c9a9d7c30e3d\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\n    \"name\": \"Lab PPA (bench 3)\",\n    \"channels\": [\n      {\n        \"low\": 3550000000,\n        \"high\": 3560000000,\n        \"palId\": \"pal/lab/1\",\n        \"licenseExpiration\": \"2035-01-01T00:00:00Z\"\n      }\n    ],\n    \"members\": [\"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\"]\n  }'",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"id\": \"zone/ppa/ui/d0ebe59d-768b-42f9-a005-c9a9d7c30e3d\",\n  \"name\": \"Lab PPA (bench 3)\",\n  \"channels\": [\n    {\n      \"low\": 3550000000,\n      \"high\": 3560000000,\n      \"palId\": \"pal/lab/1\",\n      \"licenseExpiration\": 2051222400000\n    }\n  ],\n  \"members\": [\"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\"],\n  \"geometry\": null,\n  \"expiration\": null,\n  \"source\": \"ui\"\n}"
+      }
+    ],
+    "deletePpa": [
+      {
+        "title": null,
+        "curl": "curl -s -X DELETE \"$API/ppas/zone%2Fppa%2Fui%2Fd0ebe59d-768b-42f9-a005-c9a9d7c30e3d\" \\\n  -H \"Authorization: Bearer $KEY\"",
+        "status": 204,
+        "kind": "empty"
+      }
+    ],
+    "listIncumbents": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/incumbents\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"items\": [\n    {\n      \"kind\": \"fss\",\n      \"id\": \"fss/lab/1\",\n      \"data\": {\n        \"record\": {\n          \"id\": \"fss/lab/1\",\n          \"deploymentParam\": [\n            {\n              \"installationParam\": {\"latitude\": 39.1, \"longitude\": -98.6},\n              \"operationParam\": {\n                \"operationFrequencyRange\": {\"lowFrequency\": 3600000000, \"highFrequency\": 4200000000}\n              }\n            }\n          ]\n        },\n        \"ttc\": false\n      },\n      \"createdAt\": 1793120789027\n    },\n    {\n      \"kind\": \"pal\",\n      \"id\": \"pal/lab/1\",\n      \"data\": {\n        \"palId\": \"pal/lab/1\",\n        \"userId\": \"lab-user\",\n        \"channelAssignment\": {\"primaryAssignment\": {\"lowFrequency\": 3550000000, \"highFrequency\": 3560000000}},\n        \"license\": {\"licenseExpiration\": \"2035-01-01T00:00:00Z\"}\n      },\n      \"createdAt\": 1793120789039\n    }\n  ],\n  \"total\": 2,\n  \"limit\": 500,\n  \"offset\": 0\n}"
+      }
+    ],
+    "injectIncumbent": [
+      {
+        "title": "An FSS earth station (adds its GWBL exclusion as a protection)",
+        "curl": "curl -s -X POST \"$API/incumbents/fss\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\n    \"record\": {\n      \"id\": \"fss/lab/1\",\n      \"deploymentParam\": [\n        {\n          \"installationParam\": {\"latitude\": 39.1, \"longitude\": -98.6},\n          \"operationParam\": {\n            \"operationFrequencyRange\": {\"lowFrequency\": 3600000000, \"highFrequency\": 4200000000}\n          }\n        }\n      ]\n    },\n    \"ttc\": false\n  }'",
+        "status": 201,
+        "kind": "json",
+        "json": "{\n  \"kind\": \"fss\",\n  \"id\": \"fss/lab/1\",\n  \"data\": {\n    \"record\": {\n      \"id\": \"fss/lab/1\",\n      \"deploymentParam\": [\n        {\n          \"installationParam\": {\"latitude\": 39.1, \"longitude\": -98.6},\n          \"operationParam\": {\n            \"operationFrequencyRange\": {\"lowFrequency\": 3600000000, \"highFrequency\": 4200000000}\n          }\n        }\n      ]\n    },\n    \"ttc\": false\n  },\n  \"createdAt\": 1793120789027\n}"
+      },
+      {
+        "title": "A PAL record",
+        "curl": "curl -s -X POST \"$API/incumbents/pal\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\n    \"palId\": \"pal/lab/1\",\n    \"userId\": \"lab-user\",\n    \"channelAssignment\": {\"primaryAssignment\": {\"lowFrequency\": 3550000000, \"highFrequency\": 3560000000}},\n    \"license\": {\"licenseExpiration\": \"2035-01-01T00:00:00Z\"}\n  }'",
+        "status": 201,
+        "kind": "json",
+        "json": "{\n  \"kind\": \"pal\",\n  \"id\": \"pal/lab/1\",\n  \"data\": {\n    \"palId\": \"pal/lab/1\",\n    \"userId\": \"lab-user\",\n    \"channelAssignment\": {\"primaryAssignment\": {\"lowFrequency\": 3550000000, \"highFrequency\": 3560000000}},\n    \"license\": {\"licenseExpiration\": \"2035-01-01T00:00:00Z\"}\n  },\n  \"createdAt\": 1793120789039\n}"
+      }
+    ],
+    "getIncumbent": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/incumbents/fss/fss%2Flab%2F1\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"kind\": \"fss\",\n  \"id\": \"fss/lab/1\",\n  \"data\": {\n    \"record\": {\n      \"id\": \"fss/lab/1\",\n      \"deploymentParam\": [\n        {\n          \"installationParam\": {\"latitude\": 39.1, \"longitude\": -98.6},\n          \"operationParam\": {\n            \"operationFrequencyRange\": {\"lowFrequency\": 3600000000, \"highFrequency\": 4200000000}\n          }\n        }\n      ]\n    },\n    \"ttc\": false\n  },\n  \"createdAt\": 1793120789027\n}"
+      }
+    ],
+    "deleteIncumbent": [
+      {
+        "title": null,
+        "curl": "curl -s -X DELETE -H \"Authorization: Bearer $KEY\" \"$API/incumbents/fss/fss%2Flab%2F1\"",
+        "status": 204,
+        "kind": "empty"
+      }
+    ],
+    "listFaults": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/faults\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"items\": [\n    {\n      \"id\": 1,\n      \"enabled\": true,\n      \"name\": \"HB 501 once\",\n      \"method\": \"heartbeat\",\n      \"matchCbsd\": \"SN-0001\",\n      \"action\": \"response_code\",\n      \"responseCode\": 501,\n      \"responseData\": null,\n      \"responseMessage\": null,\n      \"httpStatus\": null,\n      \"delayMs\": null,\n      \"remaining\": 0,\n      \"hits\": 1,\n      \"createdAt\": 1793120788009\n    }\n  ],\n  \"total\": 1,\n  \"limit\": 500,\n  \"offset\": 0\n}"
+      }
+    ],
+    "createFault": [
+      {
+        "title": "Answer the next heartbeat from SN-0001 with 501",
+        "curl": "curl -s -X POST \"$API/faults\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\n    \"name\": \"HB 501 once\",\n    \"method\": \"heartbeat\",\n    \"action\": \"response_code\",\n    \"responseCode\": 501,\n    \"matchCbsd\": \"SN-0001\",\n    \"remaining\": 1\n  }'",
+        "status": 201,
+        "kind": "json",
+        "json": "{\n  \"id\": 1,\n  \"enabled\": true,\n  \"name\": \"HB 501 once\",\n  \"method\": \"heartbeat\",\n  \"matchCbsd\": \"SN-0001\",\n  \"action\": \"response_code\",\n  \"responseCode\": 501,\n  \"responseData\": null,\n  \"responseMessage\": null,\n  \"httpStatus\": null,\n  \"delayMs\": null,\n  \"remaining\": 1,\n  \"hits\": 0,\n  \"createdAt\": 1793120788009\n}"
+      }
+    ],
+    "deleteAllFaults": [
+      {
+        "title": null,
+        "curl": "curl -s -X DELETE -H \"Authorization: Bearer $KEY\" \"$API/faults\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\"deleted\": 1}"
+      }
+    ],
+    "getFault": [
+      {
+        "title": "The rule has fired once and is used up",
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/faults/1\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"id\": 1,\n  \"enabled\": true,\n  \"name\": \"HB 501 once\",\n  \"method\": \"heartbeat\",\n  \"matchCbsd\": \"SN-0001\",\n  \"action\": \"response_code\",\n  \"responseCode\": 501,\n  \"responseData\": null,\n  \"responseMessage\": null,\n  \"httpStatus\": null,\n  \"delayMs\": null,\n  \"remaining\": 0,\n  \"hits\": 1,\n  \"createdAt\": 1793120788009\n}"
+      }
+    ],
+    "replaceFault": [
+      {
+        "title": "Replace the rule: delay every grant response by 2 s",
+        "curl": "curl -s -X PUT \"$API/faults/1\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\"name\": \"Slow grants\", \"method\": \"grant\", \"action\": \"delay\", \"delayMs\": 2000}'",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"id\": 1,\n  \"enabled\": true,\n  \"name\": \"Slow grants\",\n  \"method\": \"grant\",\n  \"matchCbsd\": null,\n  \"action\": \"delay\",\n  \"responseCode\": null,\n  \"responseData\": null,\n  \"responseMessage\": null,\n  \"httpStatus\": null,\n  \"delayMs\": 2000,\n  \"remaining\": null,\n  \"hits\": 1,\n  \"createdAt\": 1793120788009\n}"
+      }
+    ],
+    "updateFault": [
+      {
+        "title": "Two more times",
+        "curl": "curl -s -X PATCH \"$API/faults/1\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\"remaining\": 2}'",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"id\": 1,\n  \"enabled\": true,\n  \"name\": \"HB 501 once\",\n  \"method\": \"heartbeat\",\n  \"matchCbsd\": \"SN-0001\",\n  \"action\": \"response_code\",\n  \"responseCode\": 501,\n  \"responseData\": null,\n  \"responseMessage\": null,\n  \"httpStatus\": null,\n  \"delayMs\": null,\n  \"remaining\": 2,\n  \"hits\": 1,\n  \"createdAt\": 1793120788009\n}"
+      }
+    ],
+    "deleteFault": [
+      {
+        "title": null,
+        "curl": "curl -s -X DELETE -H \"Authorization: Bearer $KEY\" \"$API/faults/1\"",
+        "status": 204,
+        "kind": "empty"
+      }
+    ],
+    "listMessages": [
+      {
+        "title": "The last two heartbeats",
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/messages?method=heartbeat&limit=2\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"items\": [\n    {\n      \"id\": 14,\n      \"ts\": 1793120788035,\n      \"transport\": \"http\",\n      \"remoteAddr\": \"127.0.0.1\",\n      \"path\": \"/v1.2/heartbeat\",\n      \"method\": \"heartbeat\",\n      \"version\": \"v1.2\",\n      \"httpStatus\": 200,\n      \"durationMs\": 10,\n      \"cbsdIds\": [\"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\"],\n      \"codes\": [501],\n      \"certSubject\": null,\n      \"error\": null\n    },\n    {\n      \"id\": 5,\n      \"ts\": 1793120787704,\n      \"transport\": \"internal\",\n      \"remoteAddr\": \"api\",\n      \"path\": \"/v1.2/heartbeat\",\n      \"method\": \"heartbeat\",\n      \"version\": \"v1.2\",\n      \"httpStatus\": 200,\n      \"durationMs\": 2,\n      \"cbsdIds\": [\"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\"],\n      \"codes\": [0],\n      \"certSubject\": null,\n      \"error\": null\n    }\n  ],\n  \"limit\": 2,\n  \"order\": \"desc\",\n  \"next\": 5\n}"
+      }
+    ],
+    "clearMessages": [
+      {
+        "title": "Empty the wire log",
+        "curl": "curl -s -X DELETE -H \"Authorization: Bearer $KEY\" \"$API/messages\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\"deleted\": 18}"
+      }
+    ],
+    "exportMessages": [
+      {
+        "title": "Export as NDJSON, one exchange per line",
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/messages/export?method=grant&limit=2\"",
+        "status": 200,
+        "kind": "text",
+        "contentType": "application/x-ndjson",
+        "text": "{\"id\":8,\"ts\":1793120787733,\"transport\":\"internal\",\"remoteAddr\":\"api\",\"path\":\"/v1.2/grant\",\"method\":\"grant\",\"version\":\"v1…\n{\"id\":13,\"ts\":1793120787980,\"transport\":\"internal\",\"remoteAddr\":\"api\",\"path\":\"/v1.2/grant\",\"method\":\"grant\",\"version\":\"v…"
+      }
+    ],
+    "getMessage": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/messages/14\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"id\": 14,\n  \"ts\": 1793120788035,\n  \"transport\": \"http\",\n  \"remoteAddr\": \"127.0.0.1\",\n  \"path\": \"/v1.2/heartbeat\",\n  \"method\": \"heartbeat\",\n  \"version\": \"v1.2\",\n  \"httpStatus\": 200,\n  \"durationMs\": 10,\n  \"cbsdIds\": [\"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\"],\n  \"codes\": [501],\n  \"certSubject\": null,\n  \"error\": null,\n  \"request\": {\n    \"heartbeatRequest\": [\n      {\n        \"cbsdId\": \"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\",\n        \"grantId\": \"5329943951600446\",\n        \"operationState\": \"AUTHORIZED\"\n      }\n    ]\n  },\n  \"response\": {\n    \"heartbeatResponse\": [\n      {\n        \"cbsdId\": \"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\",\n        \"grantId\": \"5329943951600446\",\n        \"transmitExpireTime\": \"2026-10-27T17:10:28Z\",\n        \"response\": {\"responseCode\": 501}\n      }\n    ]\n  }\n}"
+      }
+    ],
+    "deleteMessage": [
+      {
+        "title": null,
+        "curl": "curl -s -X DELETE -H \"Authorization: Bearer $KEY\" \"$API/messages/5\"",
+        "status": 204,
+        "kind": "empty"
+      }
+    ],
+    "listEvents": [
+      {
+        "title": "Warnings",
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/events?level=warn&limit=2\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"items\": [\n    {\n      \"id\": 46,\n      \"ts\": 1793120788099,\n      \"level\": \"warn\",\n      \"category\": \"fault\",\n      \"message\": \"Fault rule \\\"http_status\\\" created\",\n      \"cbsdId\": null,\n      \"grantId\": null\n    },\n    {\n      \"id\": 45,\n      \"ts\": 1793120788044,\n      \"level\": \"warn\",\n      \"category\": \"fault\",\n      \"message\": \"Fault injected on heartbeat response #1: responseCode 501\",\n      \"cbsdId\": \"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\",\n      \"grantId\": null\n    }\n  ],\n  \"limit\": 2,\n  \"order\": \"desc\",\n  \"next\": 45\n}"
+      }
+    ],
+    "clearEvents": [
+      {
+        "title": "Empty the event log",
+        "curl": "curl -s -X DELETE -H \"Authorization: Bearer $KEY\" \"$API/events\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\"deleted\": 98}"
+      }
+    ],
+    "exportEvents": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/events/export?category=admin&limit=3\"",
+        "status": 200,
+        "kind": "text",
+        "contentType": "application/x-ndjson",
+        "text": "{\"id\":40,\"ts\":1793120787963,\"level\":\"warn\",\"category\":\"admin\",\"message\":\"Grant 5329943951600446 suspended by administrat…\n{\"id\":41,\"ts\":1793120787972,\"level\":\"warn\",\"category\":\"admin\",\"message\":\"Grant 5329943951600446 resumed by administrator…\n{\"id\":43,\"ts\":1793120787993,\"level\":\"warn\",\"category\":\"admin\",\"message\":\"Grant 7338392050789261 terminated by administra…"
+      }
+    ],
+    "getEvent": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/events/46\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"id\": 46,\n  \"ts\": 1793120788099,\n  \"level\": \"warn\",\n  \"category\": \"fault\",\n  \"message\": \"Fault rule \\\"http_status\\\" created\",\n  \"cbsdId\": null,\n  \"grantId\": null\n}"
+      }
+    ],
+    "streamEvents": [
+      {
+        "title": "Follow exchanges and events live (Server-Sent Events)",
+        "curl": "curl -sN -H \"Authorization: Bearer $KEY\" \"$API/stream?types=event,message\"",
+        "status": 200,
+        "kind": "text",
+        "contentType": "text/event-stream",
+        "text": "retry: 3000\nevent: hello\ndata: {\"requestId\": \"8c28fded-b8bf-4603-a256-8709bb465140\", \"types\": [\"event\", \"message\"], \"serverTime\": 1793120788161}\n\nevent: message\ndata: {\"id\": 15, \"ts\": 1793120788169, \"transport\": \"internal\", \"remoteAddr\": \"api\", \"path\": \"/v1.2/heartbeat\", \"method\": \"heartbeat\", \"version\": \"v1.2\", \"httpStatus\": 200, \"durationMs\": 3, \"cbsdIds\": [\"TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c\"], \"codes\": [0], \"certSubject\": null, \"error\": null}\n\nevent: event\ndata: {\"id\": 48, \"ts\": 1793120788182, \"level\": \"info\", \"category\": \"admin\", \"message\": \"Measurement report triggers: registration=false, heartbeat=false\", \"cbsdId\": null, \"grantId\": null}",
+        "note": "Each `message` is a wire-log entry and each `event` an event-log entry, the same objects GET /messages and GET /events return (cut short here). A comment line (`: ping`) is sent every 15 s to keep the connection open."
+      }
+    ],
+    "getOperationsState": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/operations/state\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"daily\": {\n    \"completed\": true,\n    \"running\": false,\n    \"lastStarted\": null,\n    \"lastCompleted\": null,\n    \"log\": []\n  },\n  \"ppaStatus\": {\"completed\": true, \"withError\": false},\n  \"flags\": {\"ntiaExclusionZones\": false, \"scheduledDailyActivities\": false, \"escConnected\": true},\n  \"measurementTriggers\": {\"measInRegistration\": false, \"measInHeartbeat\": false}\n}"
+      }
+    ],
+    "getDailyActivities": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/operations/daily-activities\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"completed\": true,\n  \"running\": false,\n  \"lastStarted\": 1793120789136,\n  \"lastCompleted\": 1793120789140,\n  \"log\": [\"0 grant(s) terminated\"],\n  \"scheduled\": false\n}"
+      }
+    ],
+    "runDailyActivities": [
+      {
+        "title": "Run the daily activities now and wait for them",
+        "curl": "curl -s -X POST -H \"Authorization: Bearer $KEY\" \"$API/operations/daily-activities\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"completed\": true,\n  \"running\": false,\n  \"lastStarted\": 1793120789136,\n  \"lastCompleted\": 1793120789140,\n  \"log\": [\"0 grant(s) terminated\"],\n  \"scheduled\": false\n}"
+      }
+    ],
+    "scheduleDailyActivities": [
+      {
+        "title": null,
+        "curl": "curl -s -X POST -H \"Authorization: Bearer $KEY\" \"$API/operations/daily-activities/schedule\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"completed\": true,\n  \"running\": false,\n  \"lastStarted\": 1793120789136,\n  \"lastCompleted\": 1793120789140,\n  \"log\": [\"0 grant(s) terminated\"],\n  \"scheduled\": true\n}"
+      }
+    ],
+    "getMeasurementTriggers": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/operations/measurement-triggers\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\"measInRegistration\": true, \"measInHeartbeat\": false}"
+      }
+    ],
+    "setMeasurementTriggers": [
+      {
+        "title": "Ask radios for measurement reports in registration responses",
+        "curl": "curl -s -X PUT \"$API/operations/measurement-triggers\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\"measInRegistration\": true}'",
+        "status": 200,
+        "kind": "json",
+        "json": "{\"measInRegistration\": true, \"measInHeartbeat\": false}"
+      }
+    ],
+    "setOperationFlags": [
+      {
+        "title": "Simulate the ESC network going down",
+        "curl": "curl -s -X PATCH \"$API/operations/flags\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\"escConnected\": false}'",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"daily\": {\n    \"completed\": true,\n    \"running\": false,\n    \"lastStarted\": 1793120789136,\n    \"lastCompleted\": 1793120789140,\n    \"log\": [\"0 grant(s) terminated\"]\n  },\n  \"ppaStatus\": {\"completed\": true, \"withError\": false},\n  \"flags\": {\"ntiaExclusionZones\": false, \"scheduledDailyActivities\": true, \"escConnected\": false},\n  \"measurementTriggers\": {\"measInRegistration\": false, \"measInHeartbeat\": false}\n}"
+      }
+    ],
+    "resetSasState": [
+      {
+        "title": "Reset the SAS like the harness does: CBSDs, grants, registry, incumbents, PPAs and protections",
+        "curl": "curl -s -X POST \"$API/operations/reset\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\"confirm\": \"RESET\", \"clearLogs\": false}'",
+        "status": 200,
+        "kind": "json",
+        "json": "{\"reset\": true, \"logsCleared\": false}"
+      }
+    ],
+    "getListeners": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/listeners\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"http\": {\"enabled\": true, \"listening\": true, \"port\": 8000, \"error\": null},\n  \"https\": {\n    \"enabled\": true,\n    \"listening\": true,\n    \"port\": 8443,\n    \"error\": null,\n    \"clientAuth\": \"optional\",\n    \"serverCerts\": [\"SAS server RSA (auto) (rsa2048)\", \"SAS server ECDSA (auto) (ec256)\"],\n    \"trustAnchors\": 5,\n    \"ciphers\": \"AES128-GCM-SHA256:AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256\",\n    \"protocols\": \"TLSv1.2\"\n  }\n}"
+      }
+    ],
+    "restartListeners": [
+      {
+        "title": null,
+        "curl": "curl -s -X POST -H \"Authorization: Bearer $KEY\" \"$API/listeners/restart\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"http\": {\"enabled\": true, \"listening\": true, \"port\": 8000, \"error\": null},\n  \"https\": {\n    \"enabled\": true,\n    \"listening\": true,\n    \"port\": 8443,\n    \"error\": null,\n    \"clientAuth\": \"optional\",\n    \"serverCerts\": [\"SAS server RSA (auto) (rsa2048)\", \"SAS server ECDSA (auto) (ec256)\"],\n    \"trustAnchors\": 5,\n    \"ciphers\": \"AES128-GCM-SHA256:AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256\",\n    \"protocols\": \"TLSv1.2\"\n  }\n}"
+      }
+    ],
+    "reloadTls": [
+      {
+        "title": "Reload certificates and CRLs into the HTTPS listener",
+        "curl": "curl -s -X POST -H \"Authorization: Bearer $KEY\" \"$API/listeners/reload-tls\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"http\": {\"enabled\": true, \"listening\": true, \"port\": 8000, \"error\": null},\n  \"https\": {\n    \"enabled\": true,\n    \"listening\": true,\n    \"port\": 8443,\n    \"error\": null,\n    \"clientAuth\": \"optional\",\n    \"serverCerts\": [\"SAS server RSA (auto) (rsa2048)\", \"SAS server ECDSA (auto) (ec256)\"],\n    \"trustAnchors\": 5,\n    \"ciphers\": \"AES128-GCM-SHA256:AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256\",\n    \"protocols\": \"TLSv1.2\"\n  }\n}"
+      }
+    ],
+    "listHarnessMethods": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/harness/methods\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"listenerAdminEnabled\": true,\n  \"methods\": [\n    {\n      \"method\": \"reset\",\n      \"description\": \"Reset the SAS state (like POST /operations/reset without clearing logs).\"\n    },\n    {\n      \"method\": \"injectdata/fcc_id\",\n      \"description\": \"{\\\"fccId\\\", \\\"fccMaxEirp\\\"}: add an FCC ID.\"\n    },\n    {\"method\": \"injectdata/user_id\", \"description\": \"{\\\"userId\\\"}: add a user ID.\"},\n    \"… 33 more\"\n  ]\n}"
+      }
+    ],
+    "callHarnessMethod": [
+      {
+        "title": "Inject an FCC ID, as the harness does",
+        "curl": "curl -s -X POST \"$API/harness/injectdata/fcc_id\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\"fccId\": \"HARN-FCC\", \"fccMaxEirp\": 30}'",
+        "status": 200,
+        "kind": "json",
+        "json": "{\"method\": \"injectdata/fcc_id\", \"result\": null}"
+      },
+      {
+        "title": "Ask whether the daily activities have finished",
+        "curl": "curl -s -X POST -H \"Authorization: Bearer $KEY\" \"$API/harness/get_daily_activities_status\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\"method\": \"get_daily_activities_status\", \"result\": {\"completed\": true}}"
+      }
+    ],
+    "getHarnessConfig": [
+      {
+        "title": "A sas.cfg for the WInnForum harness",
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/harness/sas.cfg?host=sas.lab.example\"",
+        "status": 200,
+        "kind": "text",
+        "contentType": "text/plain",
+        "text": "[SasConfig]\nAdminApiBaseUrl: sas.lab.example:8443\nCbsdSasRsaBaseUrl: sas.lab.example:8443\nCbsdSasEcBaseUrl: sas.lab.example:8443\nSasSasRsaBaseUrl: sas.lab.example:8443\nSasSasEcBaseUrl: sas.lab.example:8443\nCbsdSasVersion: v1.2\nSasSasVersion: v1.3\nAdminId: sas_admin_id\nMaximumBatchSize: 100"
+      }
+    ],
+    "listCerts": [
+      {
+        "title": "The intermediate CAs",
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/certs?kind=sub_ca\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"items\": [\n    {\n      \"id\": \"52646b5c-ad10-4995-b55c-9964024838dd\",\n      \"kind\": \"sub_ca\",\n      \"role\": \"sas\",\n      \"name\": \"SASBench SAS CA\",\n      \"parentId\": \"20257d9a-4804-4362-8f46-53d202a5bea1\",\n      \"subject\": \"O=SASBench, OU=Lab PKI, CN=SASBench SAS CA\",\n      \"issuer\": \"O=SASBench, OU=Lab PKI, CN=SASBench Root CA\",\n      \"serial\": \"1D2DF5C23F643C71B56138AB59265072\",\n      \"notBefore\": 1793120780000,\n      \"notAfter\": 2266160780000,\n      \"fingerprint\": \"38:81:60:BA:37:83:18:E5:C3:94:E2:3A:58:F6:A8:20:33:01:44:35:21:93:E5:32:AF:9E:3F:F7:3E:16:E9:6D\",\n      \"keyType\": \"rsa4096\",\n      \"hasKey\": true,\n      \"isCa\": true,\n      \"meta\": {},\n      \"revokedAt\": null,\n      \"createdAt\": 1793120780898,\n      \"details\": \"{…}\",\n      \"usage\": {\"serverCertificate\": false, \"trustedClientCa\": false}\n    },\n    {\n      \"id\": \"b479ab3a-21c1-4075-860d-959ad37ef9ac\",\n      \"kind\": \"sub_ca\",\n      \"role\": \"cbsd\",\n      \"name\": \"SASBench CBSD CA\",\n      \"parentId\": \"20257d9a-4804-4362-8f46-53d202a5bea1\",\n      \"subject\": \"O=SASBench, OU=Lab PKI, CN=SASBench CBSD CA\",\n      \"issuer\": \"O=SASBench, OU=Lab PKI, CN=SASBench Root CA\",\n      \"serial\": \"4350045C7936AEBDA1089FE066C5847F\",\n      \"notBefore\": 1793120781000,\n      \"notAfter\": 2266160781000,\n      \"fingerprint\": \"CD:6E:17:3C:D4:0B:E4:B2:F0:B9:95:C0:CB:E2:46:DA:8F:E7:C3:B0:38:1F:E0:4B:8F:97:A7:B5:38:1D:16:D2\",\n      \"keyType\": \"rsa4096\",\n      \"hasKey\": true,\n      \"isCa\": true,\n      \"meta\": {},\n      \"revokedAt\": null,\n      \"createdAt\": 1793120781378,\n      \"details\": \"{…}\",\n      \"usage\": {\"serverCertificate\": false, \"trustedClientCa\": false}\n    },\n    \"… 2 more\"\n  ],\n  \"total\": 4,\n  \"limit\": 500,\n  \"offset\": 0\n}"
+      }
+    ],
+    "getCert": [
+      {
+        "title": "The CBSD CA",
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/certs/b479ab3a-21c1-4075-860d-959ad37ef9ac\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"id\": \"b479ab3a-21c1-4075-860d-959ad37ef9ac\",\n  \"kind\": \"sub_ca\",\n  \"role\": \"cbsd\",\n  \"name\": \"SASBench CBSD CA\",\n  \"parentId\": \"20257d9a-4804-4362-8f46-53d202a5bea1\",\n  \"subject\": \"O=SASBench, OU=Lab PKI, CN=SASBench CBSD CA\",\n  \"issuer\": \"O=SASBench, OU=Lab PKI, CN=SASBench Root CA\",\n  \"serial\": \"4350045C7936AEBDA1089FE066C5847F\",\n  \"notBefore\": 1793120781000,\n  \"notAfter\": 2266160781000,\n  \"fingerprint\": \"CD:6E:17:3C:D4:0B:E4:B2:F0:B9:95:C0:CB:E2:46:DA:8F:E7:C3:B0:38:1F:E0:4B:8F:97:A7:B5:38:1D:16:D2\",\n  \"keyType\": \"rsa4096\",\n  \"hasKey\": true,\n  \"isCa\": true,\n  \"meta\": {},\n  \"revokedAt\": null,\n  \"createdAt\": 1793120781378,\n  \"details\": {\n    \"subject\": \"O=SASBench, OU=Lab PKI, CN=SASBench CBSD CA\",\n    \"issuer\": \"O=SASBench, OU=Lab PKI, CN=SASBench Root CA\",\n    \"commonName\": \"SASBench CBSD CA\",\n    \"serial\": \"4350045C7936AEBDA1089FE066C5847F\",\n    \"notBefore\": 1793120781000,\n    \"notAfter\": 2266160781000,\n    \"fingerprint256\": \"CD:6E:17:3C:D4:0B:E4:B2:F0:B9:95:C0:CB:E2:46:DA:8F:E7:C3:B0:38:1F:E0:4B:8F:97:A7:B5:38:1D:16:D2\",\n    \"keyType\": \"RSA 4096\",\n    \"isCa\": true,\n    \"selfSigned\": false,\n    \"subjectAltName\": null,\n    \"roles\": [\"CA\", \"CBSD\"],\n    \"policies\": [\"1.3.6.1.4.1.46609.1.1.5\", \"1.3.6.1.4.1.46609.1.1.3\"],\n    \"fccId\": null,\n    \"cbsdSerial\": null,\n    \"cpiId\": null,\n    \"frn\": null\n  },\n  \"usage\": {\"serverCertificate\": false, \"trustedClientCa\": false},\n  \"pem\": \"-----BEGIN CERTIFICATE-----\\nMIIFmzCCA4OgAwIBAgIQQ1AEXHk2rr2hCJ/gZsWE…\\n-----END CERTIFICATE-----\\n\",\n  \"chain\": [\n    {\n      \"id\": \"20257d9a-4804-4362-8f46-53d202a5bea1\",\n      \"name\": \"SASBench Root CA\",\n      \"kind\": \"root\"\n    }\n  ],\n  \"children\": []\n}"
+      }
+    ],
+    "updateCert": [
+      {
+        "title": "Rename",
+        "curl": "curl -s -X PATCH \"$API/certs/25ab0e24-e4ca-418f-bbbf-5b3fce333e89\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\"name\": \"Bench 3 root\"}'",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"id\": \"25ab0e24-e4ca-418f-bbbf-5b3fce333e89\",\n  \"kind\": \"root\",\n  \"role\": \"ca\",\n  \"name\": \"Bench 3 root\",\n  \"parentId\": null,\n  \"subject\": \"C=US, O=Example Lab, CN=Bench 3 Root CA\",\n  \"issuer\": \"C=US, O=Example Lab, CN=Bench 3 Root CA\",\n  \"serial\": \"6450320508A3A1971E54FF9A4A5C06C4\",\n  \"notBefore\": 1793120793000,\n  \"notAfter\": 2108480793000,\n  \"fingerprint\": \"20:2A:3B:5A:FA:63:94:C7:97:72:52:91:00:EB:31:A6:78:0F:EA:C3:D7:41:2B:09:5A:E0:DC:4D:53:32:25:2C\",\n  \"keyType\": \"ec256\",\n  \"hasKey\": true,\n  \"isCa\": true,\n  \"meta\": {},\n  \"revokedAt\": null,\n  \"createdAt\": 1793120793777,\n  \"details\": \"{…}\",\n  \"usage\": {\"serverCertificate\": false, \"trustedClientCa\": false},\n  \"pem\": \"-----BEGIN CERTIFICATE-----\\nMIIB9DCCAZugAwIBAgIQZFAyBQijoZceVP+aSlwG…\\n-----END CERTIFICATE-----\\n\",\n  \"chain\": [],\n  \"children\": \"[…]\"\n}"
+      }
+    ],
+    "deleteCert": [
+      {
+        "title": null,
+        "curl": "curl -s -X DELETE -H \"Authorization: Bearer $KEY\" \"$API/certs/7d93729d-efbf-4da4-9a5f-711d4e199c2d\"",
+        "status": 204,
+        "kind": "empty"
+      }
+    ],
+    "createRootCa": [
+      {
+        "title": "A second root CA",
+        "curl": "curl -s -X POST \"$API/certs/root\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\"CN\": \"Bench 3 Root CA\", \"O\": \"Example Lab\", \"C\": \"US\", \"keyType\": \"ec256\", \"days\": 3650}'",
+        "status": 201,
+        "kind": "json",
+        "json": "{\n  \"id\": \"25ab0e24-e4ca-418f-bbbf-5b3fce333e89\",\n  \"kind\": \"root\",\n  \"role\": \"ca\",\n  \"name\": \"Bench 3 Root CA\",\n  \"parentId\": null,\n  \"subject\": \"C=US, O=Example Lab, CN=Bench 3 Root CA\",\n  \"issuer\": \"C=US, O=Example Lab, CN=Bench 3 Root CA\",\n  \"serial\": \"6450320508A3A1971E54FF9A4A5C06C4\",\n  \"notBefore\": 1793120793000,\n  \"notAfter\": 2108480793000,\n  \"fingerprint\": \"20:2A:3B:5A:FA:63:94:C7:97:72:52:91:00:EB:31:A6:78:0F:EA:C3:D7:41:2B:09:5A:E0:DC:4D:53:32:25:2C\",\n  \"keyType\": \"ec256\",\n  \"hasKey\": true,\n  \"isCa\": true,\n  \"meta\": {},\n  \"revokedAt\": null,\n  \"createdAt\": 1793120793777,\n  \"details\": \"{…}\",\n  \"usage\": {\"serverCertificate\": false, \"trustedClientCa\": false},\n  \"pem\": \"-----BEGIN CERTIFICATE-----\\nMIIB9DCCAZugAwIBAgIQZFAyBQijoZceVP+aSlwG…\\n-----END CERTIFICATE-----\\n\",\n  \"chain\": [],\n  \"children\": []\n}"
+      }
+    ],
+    "createSubCa": [
+      {
+        "title": "A CBSD CA under it",
+        "curl": "curl -s -X POST \"$API/certs/sub-ca\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\n    \"parentId\": \"25ab0e24-e4ca-418f-bbbf-5b3fce333e89\",\n    \"role\": \"cbsd\",\n    \"CN\": \"Bench 3 CBSD CA\",\n    \"keyType\": \"ec256\"\n  }'",
+        "status": 201,
+        "kind": "json",
+        "json": "{\n  \"id\": \"3185dfcc-e4f5-407b-9c28-f66842aaf4d9\",\n  \"kind\": \"sub_ca\",\n  \"role\": \"cbsd\",\n  \"name\": \"Bench 3 CBSD CA\",\n  \"parentId\": \"25ab0e24-e4ca-418f-bbbf-5b3fce333e89\",\n  \"subject\": \"CN=Bench 3 CBSD CA\",\n  \"issuer\": \"C=US, O=Example Lab, CN=Bench 3 Root CA\",\n  \"serial\": \"2716EAA599654B04C5F173DD82D0FC9A\",\n  \"notBefore\": 1793120793000,\n  \"notAfter\": 2266160793000,\n  \"fingerprint\": \"27:E1:2E:95:09:1D:A4:1A:F9:42:BA:A8:46:F8:E5:2D:DB:6A:A5:8B:F7:0A:48:D0:DC:9E:18:79:F4:98:9A:04\",\n  \"keyType\": \"ec256\",\n  \"hasKey\": true,\n  \"isCa\": true,\n  \"meta\": {},\n  \"revokedAt\": null,\n  \"createdAt\": 1793120793998,\n  \"details\": \"{…}\",\n  \"usage\": {\"serverCertificate\": false, \"trustedClientCa\": false},\n  \"pem\": \"-----BEGIN CERTIFICATE-----\\nMIIB5TCCAYygAwIBAgIQJxbqpZllSwTF8XPdgtD8…\\n-----END CERTIFICATE-----\\n\",\n  \"chain\": \"[…]\",\n  \"children\": []\n}"
+      }
+    ],
+    "issueServerCert": [
+      {
+        "title": "A SAS server certificate for another name",
+        "curl": "curl -s -X POST \"$API/certs/server\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\n    \"parentId\": \"52646b5c-ad10-4995-b55c-9964024838dd\",\n    \"CN\": \"sas2.lab.example\",\n    \"sans\": [\"sas2.lab.example\", \"192.0.2.20\"]\n  }'",
+        "status": 201,
+        "kind": "json",
+        "json": "{\n  \"id\": \"66131d72-5e81-47bf-8d83-e825141db726\",\n  \"kind\": \"server\",\n  \"role\": \"sas\",\n  \"name\": \"sas2.lab.example\",\n  \"parentId\": \"52646b5c-ad10-4995-b55c-9964024838dd\",\n  \"subject\": \"CN=sas2.lab.example\",\n  \"issuer\": \"O=SASBench, OU=Lab PKI, CN=SASBench SAS CA\",\n  \"serial\": \"5983F90A300C495C8D2C22B75F67E2B4\",\n  \"notBefore\": 1793120793000,\n  \"notAfter\": 1864400793000,\n  \"fingerprint\": \"C4:27:5D:E0:E7:20:09:66:42:BF:16:5E:6D:B2:6C:39:74:89:01:AD:69:D1:CD:A7:B3:4E:24:57:4F:07:2A:7E\",\n  \"keyType\": \"rsa2048\",\n  \"hasKey\": true,\n  \"isCa\": false,\n  \"meta\": {\"sans\": [\"sas2.lab.example\", \"192.0.2.20\"], \"frn\": null},\n  \"revokedAt\": null,\n  \"createdAt\": 1793120793668,\n  \"details\": \"{…}\",\n  \"usage\": {\"serverCertificate\": false, \"trustedClientCa\": false},\n  \"pem\": \"-----BEGIN CERTIFICATE-----\\nMIIEnzCCAoegAwIBAgIQWYP5CjAMSVyNLCK3X2fi…\\n-----END CERTIFICATE-----\\n\",\n  \"chain\": \"[…]\",\n  \"children\": []\n}"
+      }
+    ],
+    "issueCbsdCert": [
+      {
+        "title": "A device certificate for TEST-FCC / SN-0001",
+        "curl": "curl -s -X POST \"$API/certs/cbsd\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\n    \"parentId\": \"b479ab3a-21c1-4075-860d-959ad37ef9ac\",\n    \"fccId\": \"TEST-FCC\",\n    \"serial\": \"SN-0001\"\n  }'",
+        "status": 201,
+        "kind": "json",
+        "json": "{\n  \"id\": \"53e9ba60-a340-4bae-8cad-625e1297e732\",\n  \"kind\": \"cbsd\",\n  \"role\": \"cbsd\",\n  \"name\": \"TEST-FCC / SN-0001\",\n  \"parentId\": \"b479ab3a-21c1-4075-860d-959ad37ef9ac\",\n  \"subject\": \"CN=TEST-FCC:SN-0001\",\n  \"issuer\": \"O=SASBench, OU=Lab PKI, CN=SASBench CBSD CA\",\n  \"serial\": \"315A52E47D6871F96242A36DAAAC1492\",\n  \"notBefore\": 1793120789000,\n  \"notAfter\": 2108480789000,\n  \"fingerprint\": \"24:8F:1C:86:E4:5F:F0:11:22:7D:5B:48:BA:D6:4C:1C:D0:3A:E2:1E:DF:5E:8C:1D:6B:8A:4E:72:04:7B:54:B9\",\n  \"keyType\": \"rsa2048\",\n  \"hasKey\": true,\n  \"isCa\": false,\n  \"meta\": {\"fccId\": \"TEST-FCC\", \"serial\": \"SN-0001\"},\n  \"revokedAt\": null,\n  \"createdAt\": 1793120789860,\n  \"details\": {\n    \"subject\": \"CN=TEST-FCC:SN-0001\",\n    \"issuer\": \"O=SASBench, OU=Lab PKI, CN=SASBench CBSD CA\",\n    \"commonName\": \"TEST-FCC:SN-0001\",\n    \"serial\": \"315A52E47D6871F96242A36DAAAC1492\",\n    \"notBefore\": 1793120789000,\n    \"notAfter\": 2108480789000,\n    \"fingerprint256\": \"24:8F:1C:86:E4:5F:F0:11:22:7D:5B:48:BA:D6:4C:1C:D0:3A:E2:1E:DF:5E:8C:1D:6B:8A:4E:72:04:7B:54:B9\",\n    \"keyType\": \"RSA 2048\",\n    \"isCa\": false,\n    \"selfSigned\": false,\n    \"subjectAltName\": \"othername:<unsupported>, othername:<unsupported>\",\n    \"roles\": [\"CBSD\"],\n    \"policies\": [\"1.3.6.1.4.1.46609.1.1.3\"],\n    \"fccId\": \"TEST-FCC\",\n    \"cbsdSerial\": \"SN-0001\",\n    \"cpiId\": null,\n    \"frn\": null\n  },\n  \"usage\": {\"serverCertificate\": false, \"trustedClientCa\": false},\n  \"pem\": \"-----BEGIN CERTIFICATE-----\\nMIIEsTCCApmgAwIBAgIQMVpS5H1ocfliQqNtqqwU…\\n-----END CERTIFICATE-----\\n\",\n  \"chain\": [\"{…}\", \"{…}\"],\n  \"children\": []\n}"
+      }
+    ],
+    "issueCbsdCertBatch": [
+      {
+        "title": "Certificates for three radios at once (a zip of bundles)",
+        "curl": "curl -s -X POST \"$API/certs/cbsd-batch\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\n    \"parentId\": \"b479ab3a-21c1-4075-860d-959ad37ef9ac\",\n    \"devices\": [\n      {\"fccId\": \"TEST-FCC\", \"serial\": \"SN-0101\"},\n      {\"fccId\": \"TEST-FCC\", \"serial\": \"SN-0102\"},\n      {\"fccId\": \"TEST-FCC\", \"serial\": \"SN-0103\"}\n    ]\n  }'",
+        "status": 200,
+        "kind": "file",
+        "contentType": "application/zip",
+        "bytes": 133101,
+        "file": "bundles.zip"
+      }
+    ],
+    "issueDomainProxyCert": [
+      {
+        "title": null,
+        "curl": "curl -s -X POST \"$API/certs/domain-proxy\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\n    \"parentId\": \"580af9be-0c63-4d94-bbf8-c34e04209bfc\",\n    \"CN\": \"Lab Domain Proxy\",\n    \"frn\": \"0123456789\"\n  }'",
+        "status": 201,
+        "kind": "json",
+        "json": "{\n  \"id\": \"ffd3aad2-96e1-4c68-99dd-4bf2e940bbcc\",\n  \"kind\": \"domain_proxy\",\n  \"role\": \"operator\",\n  \"name\": \"Lab Domain Proxy\",\n  \"parentId\": \"580af9be-0c63-4d94-bbf8-c34e04209bfc\",\n  \"subject\": \"CN=Lab Domain Proxy\",\n  \"issuer\": \"O=SASBench, OU=Lab PKI, CN=SASBench Domain Proxy CA\",\n  \"serial\": \"6AAA7C53F0807792B6F671BADBA6C1E8\",\n  \"notBefore\": 1793120792000,\n  \"notAfter\": 1950800792000,\n  \"fingerprint\": \"20:30:30:5B:73:E2:E6:D8:CB:2B:87:8B:49:C6:BD:A3:17:F3:49:64:E2:5B:EC:1F:15:07:7C:C2:DE:3B:3D:D5\",\n  \"keyType\": \"rsa2048\",\n  \"hasKey\": true,\n  \"isCa\": false,\n  \"meta\": {\"frn\": \"0123456789\"},\n  \"revokedAt\": null,\n  \"createdAt\": 1793120792890,\n  \"details\": \"{…}\",\n  \"usage\": {\"serverCertificate\": false, \"trustedClientCa\": false},\n  \"pem\": \"-----BEGIN CERTIFICATE-----\\nMIIEojCCAoqgAwIBAgIQaqp8U/CAd5K29nG626bB…\\n-----END CERTIFICATE-----\\n\",\n  \"chain\": \"[…]\",\n  \"children\": []\n}"
+      }
+    ],
+    "issueInstallerCert": [
+      {
+        "title": "A CPI certificate (also registers the CPI)",
+        "curl": "curl -s -X POST \"$API/certs/installer\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\n    \"parentId\": \"e3251704-54c5-496e-8d9c-129bc7a248bd\",\n    \"cpiId\": \"CPI-0007\",\n    \"cpiName\": \"Sam Rivera\"\n  }'",
+        "status": 201,
+        "kind": "json",
+        "json": "{\n  \"id\": \"d89318b7-8887-4128-bb4f-7bfe66d3187a\",\n  \"kind\": \"installer\",\n  \"role\": \"installer\",\n  \"name\": \"CPI Sam Rivera (CPI-0007)\",\n  \"parentId\": \"e3251704-54c5-496e-8d9c-129bc7a248bd\",\n  \"subject\": \"O=SASBench CPI, CN=Sam Rivera\",\n  \"issuer\": \"O=SASBench, OU=Lab PKI, CN=SASBench Installer CA\",\n  \"serial\": \"18ED308FBD9DFF4C90FFE1663208B400\",\n  \"notBefore\": 1793120793000,\n  \"notAfter\": 1950800793000,\n  \"fingerprint\": \"42:31:50:24:DD:6C:82:C6:80:F9:6F:0F:84:82:CB:67:E5:83:6B:93:4D:4B:7D:3D:F4:34:F3:33:DB:10:16:D3\",\n  \"keyType\": \"rsa2048\",\n  \"hasKey\": true,\n  \"isCa\": false,\n  \"meta\": {\"cpiId\": \"CPI-0007\", \"cpiName\": \"Sam Rivera\"},\n  \"revokedAt\": null,\n  \"createdAt\": 1793120793203,\n  \"details\": \"{…}\",\n  \"usage\": {\"serverCertificate\": false, \"trustedClientCa\": false},\n  \"pem\": \"-----BEGIN CERTIFICATE-----\\nMIIEmTCCAoGgAwIBAgIQGO0wj72d/0yQ/+FmMgi0…\\n-----END CERTIFICATE-----\\n\",\n  \"chain\": \"[…]\",\n  \"children\": []\n}"
+      }
+    ],
+    "importCerts": [
+      {
+        "title": "Import a CA certificate (PEM; add keyPem to import its key too)",
+        "curl": "jq -n --rawfile pem partner-root-ca.pem '{pem: $pem, name: \"Partner Root CA\"}' \\\n  | curl -s -X POST \"$API/certs/import\" -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' -d @-",
+        "status": 201,
+        "kind": "json",
+        "json": "{\n  \"items\": [\n    {\n      \"id\": \"7d93729d-efbf-4da4-9a5f-711d4e199c2d\",\n      \"kind\": \"trusted\",\n      \"role\": \"ca\",\n      \"name\": \"Partner Root CA\",\n      \"parentId\": null,\n      \"subject\": \"O=Partner Lab, CN=Partner Root CA\",\n      \"issuer\": \"O=Partner Lab, CN=Partner Root CA\",\n      \"serial\": \"77C14AEA48B75AB1FCC601F978AC40A8\",\n      \"notBefore\": 1793120794000,\n      \"notAfter\": 2108480794000,\n      \"fingerprint\": \"32:8D:7F:17:A7:66:B0:3E:F8:A8:7E:6A:E3:A8:19:98:20:23:33:2A:79:E7:7E:13:2D:27:C4:FD:5A:D4:55:EB\",\n      \"keyType\": \"EC prime256v1\",\n      \"hasKey\": false,\n      \"isCa\": true,\n      \"meta\": {\"imported\": true},\n      \"revokedAt\": null,\n      \"createdAt\": 1793120794214,\n      \"details\": \"{…}\",\n      \"usage\": {\"serverCertificate\": false, \"trustedClientCa\": false}\n    }\n  ]\n}",
+        "note": "`jq` builds the body from the PEM file: `{\"pem\": \"-----BEGIN CERTIFICATE-----\\n…\", \"name\": \"Partner Root CA\"}`."
+      }
+    ],
+    "importPkcs12": [
+      {
+        "title": "Import a PKCS#12 file",
+        "curl": "jq -n --arg data \"$(base64 -w0 device.p12)\" '{data: $data, password: \"cbrs\", name: \"SN-0001 from p12\"}' \\\n  | curl -s -X POST \"$API/certs/import-p12\" -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' -d @-",
+        "status": 201,
+        "kind": "json",
+        "json": "{\n  \"items\": [\n    {\n      \"id\": \"53e9ba60-a340-4bae-8cad-625e1297e732\",\n      \"kind\": \"cbsd\",\n      \"role\": \"cbsd\",\n      \"name\": \"TEST-FCC / SN-0001\",\n      \"parentId\": \"b479ab3a-21c1-4075-860d-959ad37ef9ac\",\n      \"subject\": \"CN=TEST-FCC:SN-0001\",\n      \"issuer\": \"O=SASBench, OU=Lab PKI, CN=SASBench CBSD CA\",\n      \"serial\": \"315A52E47D6871F96242A36DAAAC1492\",\n      \"notBefore\": 1793120789000,\n      \"notAfter\": 2108480789000,\n      \"fingerprint\": \"24:8F:1C:86:E4:5F:F0:11:22:7D:5B:48:BA:D6:4C:1C:D0:3A:E2:1E:DF:5E:8C:1D:6B:8A:4E:72:04:7B:54:B9\",\n      \"keyType\": \"rsa2048\",\n      \"hasKey\": true,\n      \"isCa\": false,\n      \"meta\": {\"fccId\": \"TEST-FCC\", \"serial\": \"SN-0001\"},\n      \"revokedAt\": null,\n      \"createdAt\": 1793120789860,\n      \"details\": \"{…}\",\n      \"usage\": {\"serverCertificate\": false, \"trustedClientCa\": false}\n    },\n    \"… 2 more\"\n  ]\n}",
+        "note": "The file goes in `data` as base64: `{\"data\": \"MIIK…\", \"password\": \"cbrs\", \"name\": \"SN-0001 from p12\"}`."
+      }
+    ],
+    "revokeCert": [
+      {
+        "title": null,
+        "curl": "curl -s -X POST -H \"Authorization: Bearer $KEY\" \"$API/certs/c074e922-4348-4f9e-906a-348a63f1a129/revoke\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"id\": \"c074e922-4348-4f9e-906a-348a63f1a129\",\n  \"kind\": \"cbsd\",\n  \"role\": \"cbsd\",\n  \"name\": \"TEST-FCC / SN-0666\",\n  \"parentId\": \"b479ab3a-21c1-4075-860d-959ad37ef9ac\",\n  \"subject\": \"CN=TEST-FCC:SN-0666\",\n  \"issuer\": \"O=SASBench, OU=Lab PKI, CN=SASBench CBSD CA\",\n  \"serial\": \"74E4D98C6E804BE4376951D794938728\",\n  \"notBefore\": 1793120795000,\n  \"notAfter\": 2108480795000,\n  \"fingerprint\": \"D9:83:71:58:A6:7C:36:56:51:95:25:B4:85:40:30:70:DC:36:44:7F:94:4E:2B:D8:96:A3:3B:FB:80:4C:36:D9\",\n  \"keyType\": \"rsa2048\",\n  \"hasKey\": true,\n  \"isCa\": false,\n  \"meta\": {\"fccId\": \"TEST-FCC\", \"serial\": \"SN-0666\"},\n  \"revokedAt\": 1793120795244,\n  \"createdAt\": 1793120795216,\n  \"details\": \"{…}\",\n  \"usage\": {\"serverCertificate\": false, \"trustedClientCa\": false},\n  \"pem\": \"-----BEGIN CERTIFICATE-----\\nMIIEsTCCApmgAwIBAgIQdOTZjG6AS+Q3aVHXlJOH…\\n-----END CERTIFICATE-----\\n\",\n  \"chain\": \"[…]\",\n  \"children\": []\n}"
+      }
+    ],
+    "unrevokeCert": [
+      {
+        "title": null,
+        "curl": "curl -s -X POST -H \"Authorization: Bearer $KEY\" \"$API/certs/c074e922-4348-4f9e-906a-348a63f1a129/unrevoke\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"id\": \"c074e922-4348-4f9e-906a-348a63f1a129\",\n  \"kind\": \"cbsd\",\n  \"role\": \"cbsd\",\n  \"name\": \"TEST-FCC / SN-0666\",\n  \"parentId\": \"b479ab3a-21c1-4075-860d-959ad37ef9ac\",\n  \"subject\": \"CN=TEST-FCC:SN-0666\",\n  \"issuer\": \"O=SASBench, OU=Lab PKI, CN=SASBench CBSD CA\",\n  \"serial\": \"74E4D98C6E804BE4376951D794938728\",\n  \"notBefore\": 1793120795000,\n  \"notAfter\": 2108480795000,\n  \"fingerprint\": \"D9:83:71:58:A6:7C:36:56:51:95:25:B4:85:40:30:70:DC:36:44:7F:94:4E:2B:D8:96:A3:3B:FB:80:4C:36:D9\",\n  \"keyType\": \"rsa2048\",\n  \"hasKey\": true,\n  \"isCa\": false,\n  \"meta\": {\"fccId\": \"TEST-FCC\", \"serial\": \"SN-0666\"},\n  \"revokedAt\": null,\n  \"createdAt\": 1793120795216,\n  \"details\": \"{…}\",\n  \"usage\": {\"serverCertificate\": false, \"trustedClientCa\": false},\n  \"pem\": \"-----BEGIN CERTIFICATE-----\\nMIIEsTCCApmgAwIBAgIQdOTZjG6AS+Q3aVHXlJOH…\\n-----END CERTIFICATE-----\\n\",\n  \"chain\": \"[…]\",\n  \"children\": []\n}"
+      }
+    ],
+    "downloadCert": [
+      {
+        "title": "The radio bundle: certificate, key, chains, PKCS#12 and the SAS root CA in one zip",
+        "curl": "curl -s \"$API/certs/53e9ba60-a340-4bae-8cad-625e1297e732/download?format=bundle&password=cbrs\" \\\n  -H \"Authorization: Bearer $KEY\" -o radio-bundle.zip",
+        "status": 200,
+        "kind": "file",
+        "contentType": "application/zip",
+        "bytes": 48435,
+        "file": "radio-bundle.zip"
+      },
+      {
+        "title": "Just the certificate, PEM",
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/certs/53e9ba60-a340-4bae-8cad-625e1297e732/download?format=pem\"",
+        "status": 200,
+        "kind": "text",
+        "contentType": "application/x-pem-file",
+        "text": "-----BEGIN CERTIFICATE-----\nMIIEsTCCApmgAwIBAgIQMVpS5H1ocfliQqNtqqwU…\n-----END CERTIFICATE-----"
+      }
+    ],
+    "getTls": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/tls\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"serverCertIds\": [\"854a3c37-4fdf-4759-b1cb-3a02c07bdab3\", \"d2ce1631-5c73-453a-b8ae-c725c46e0921\"],\n  \"trustedClientCaIds\": [],\n  \"serverCerts\": [\n    {\n      \"id\": \"854a3c37-4fdf-4759-b1cb-3a02c07bdab3\",\n      \"name\": \"SAS server RSA (auto)\",\n      \"kind\": \"server\",\n      \"subject\": \"O=SASBench, CN=sas.lab.example\",\n      \"notAfter\": 1864400784000,\n      \"revoked\": false\n    },\n    {\n      \"id\": \"d2ce1631-5c73-453a-b8ae-c725c46e0921\",\n      \"name\": \"SAS server ECDSA (auto)\",\n      \"kind\": \"server\",\n      \"subject\": \"O=SASBench, CN=sas.lab.example\",\n      \"notAfter\": 1864400785000,\n      \"revoked\": false\n    }\n  ],\n  \"trustedClientCas\": [],\n  \"clientAuth\": \"optional\",\n  \"minVersion\": \"TLSv1.2\",\n  \"maxVersion\": \"TLSv1.2\",\n  \"cipherPolicy\": \"winnforum\",\n  \"checkCrl\": true,\n  \"listener\": {\n    \"enabled\": true,\n    \"listening\": true,\n    \"port\": 8443,\n    \"error\": null,\n    \"clientAuth\": \"optional\",\n    \"serverCerts\": [\"SAS server RSA (auto) (rsa2048)\", \"SAS server ECDSA (auto) (ec256)\"],\n    \"trustAnchors\": 7,\n    \"ciphers\": \"AES128-GCM-SHA256:AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256\",\n    \"protocols\": \"TLSv1.2\"\n  }\n}"
+      }
+    ],
+    "setServerCerts": [
+      {
+        "title": "Choose the certificates the HTTPS listener presents",
+        "curl": "curl -s -X PUT \"$API/tls/server-certs\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\"ids\": [\"854a3c37-4fdf-4759-b1cb-3a02c07bdab3\", \"d2ce1631-5c73-453a-b8ae-c725c46e0921\"]}'",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"serverCertIds\": [\"854a3c37-4fdf-4759-b1cb-3a02c07bdab3\", \"d2ce1631-5c73-453a-b8ae-c725c46e0921\"],\n  \"trustedClientCaIds\": [],\n  \"serverCerts\": [\n    {\n      \"id\": \"854a3c37-4fdf-4759-b1cb-3a02c07bdab3\",\n      \"name\": \"SAS server RSA (auto)\",\n      \"kind\": \"server\",\n      \"subject\": \"O=SASBench, CN=sas.lab.example\",\n      \"notAfter\": 1864400784000,\n      \"revoked\": false\n    },\n    {\n      \"id\": \"d2ce1631-5c73-453a-b8ae-c725c46e0921\",\n      \"name\": \"SAS server ECDSA (auto)\",\n      \"kind\": \"server\",\n      \"subject\": \"O=SASBench, CN=sas.lab.example\",\n      \"notAfter\": 1864400785000,\n      \"revoked\": false\n    }\n  ],\n  \"trustedClientCas\": [],\n  \"clientAuth\": \"optional\",\n  \"minVersion\": \"TLSv1.2\",\n  \"maxVersion\": \"TLSv1.2\",\n  \"cipherPolicy\": \"winnforum\",\n  \"checkCrl\": true,\n  \"listener\": {\n    \"enabled\": true,\n    \"listening\": true,\n    \"port\": 8443,\n    \"error\": null,\n    \"clientAuth\": \"optional\",\n    \"serverCerts\": [\"SAS server RSA (auto) (rsa2048)\", \"SAS server ECDSA (auto) (ec256)\"],\n    \"trustAnchors\": 7,\n    \"ciphers\": \"AES128-GCM-SHA256:AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256\",\n    \"protocols\": \"TLSv1.2\"\n  }\n}"
+      }
+    ],
+    "setTrustedClientCas": [
+      {
+        "title": "Trust client certificates from the CBSD CA only",
+        "curl": "curl -s -X PUT \"$API/tls/trusted-cas\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\"ids\": [\"b479ab3a-21c1-4075-860d-959ad37ef9ac\"]}'",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"serverCertIds\": [\"854a3c37-4fdf-4759-b1cb-3a02c07bdab3\", \"d2ce1631-5c73-453a-b8ae-c725c46e0921\"],\n  \"trustedClientCaIds\": [\"b479ab3a-21c1-4075-860d-959ad37ef9ac\"],\n  \"serverCerts\": [\"{…}\", \"{…}\"],\n  \"trustedClientCas\": [\"{…}\"],\n  \"clientAuth\": \"optional\",\n  \"minVersion\": \"TLSv1.2\",\n  \"maxVersion\": \"TLSv1.2\",\n  \"cipherPolicy\": \"winnforum\",\n  \"checkCrl\": true,\n  \"listener\": {\n    \"enabled\": true,\n    \"listening\": true,\n    \"port\": 8443,\n    \"error\": null,\n    \"clientAuth\": \"optional\",\n    \"serverCerts\": \"[…]\",\n    \"trustAnchors\": 1,\n    \"ciphers\": \"AES128-GCM-SHA256:AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256\",\n    \"protocols\": \"TLSv1.2\"\n  }\n}"
+      }
+    ],
+    "downloadTrustBundle": [
+      {
+        "title": "The root CAs, for a radio's trust store",
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/trust-bundle?which=roots\"",
+        "status": 200,
+        "kind": "text",
+        "contentType": "application/x-pem-file",
+        "text": "-----BEGIN CERTIFICATE-----\nMIIFhzCCA2+gAwIBAgIQbIXYmL3A0rysvhXbmoOb…\n-----END CERTIFICATE-----\n-----BEGIN CERTIFICATE-----\nMIIB9DCCAZugAwIBAgIQZFAyBQijoZceVP+aSlwG…\n-----END CERTIFICATE-----"
+      }
+    ],
+    "listCrls": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/crls\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"items\": [\n    {\n      \"id\": \"59369a89-ac9e-409a-83d3-4f5edee3ae64\",\n      \"name\": \"CBSD CA CRL\",\n      \"issuerHash\": \"df9035ef\",\n      \"thisUpdate\": 1793120795000,\n      \"nextUpdate\": 1795712795000,\n      \"revokedCount\": 1,\n      \"revoked\": [\"74E4D98C6E804BE4376951D794938728\"]\n    }\n  ],\n  \"total\": 1,\n  \"limit\": 500,\n  \"offset\": 0\n}"
+      }
+    ],
+    "importCrls": [
+      {
+        "title": "Import a CRL",
+        "curl": "jq -n --arg data \"$(base64 -w0 cbsd-ca.crl)\" '{files: [{name: \"CBSD CA CRL\", data: $data}]}' \\\n  | curl -s -X POST \"$API/crls\" -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' -d @-",
+        "status": 201,
+        "kind": "json",
+        "json": "{\n  \"items\": [\n    {\n      \"id\": \"59369a89-ac9e-409a-83d3-4f5edee3ae64\",\n      \"name\": \"CBSD CA CRL\",\n      \"issuerHash\": \"df9035ef\",\n      \"thisUpdate\": 1793120795000,\n      \"nextUpdate\": 1795712795000,\n      \"revokedCount\": 1,\n      \"revoked\": [\"74E4D98C6E804BE4376951D794938728\"]\n    }\n  ]\n}",
+        "note": "Each file (PEM or DER) goes in `data` as base64: `{\"files\": [{\"name\": \"CBSD CA CRL\", \"data\": \"LS0tLS1CRUdJTi…\"}]}`."
+      }
+    ],
+    "getCrl": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/crls/59369a89-ac9e-409a-83d3-4f5edee3ae64\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"id\": \"59369a89-ac9e-409a-83d3-4f5edee3ae64\",\n  \"name\": \"CBSD CA CRL\",\n  \"issuerHash\": \"df9035ef\",\n  \"thisUpdate\": 1793120795000,\n  \"nextUpdate\": 1795712795000,\n  \"revokedCount\": 1,\n  \"revoked\": [\"74E4D98C6E804BE4376951D794938728\"]\n}"
+      }
+    ],
+    "deleteCrl": [
+      {
+        "title": null,
+        "curl": "curl -s -X DELETE -H \"Authorization: Bearer $KEY\" \"$API/crls/59369a89-ac9e-409a-83d3-4f5edee3ae64\"",
+        "status": 204,
+        "kind": "empty"
+      }
+    ],
+    "downloadCrl": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/crls/59369a89-ac9e-409a-83d3-4f5edee3ae64/download\"",
+        "status": 200,
+        "kind": "text",
+        "contentType": "application/x-pem-file",
+        "text": "-----BEGIN X509 CRL-----\nMIIC5DCBzQIBATANBgkqhkiG9w0BAQsFADBAMREw…\n-----END X509 CRL-----"
+      }
+    ],
+    "signCpiData": [
+      {
+        "title": "Sign installation data as that CPI",
+        "curl": "curl -s -X POST \"$API/cpi/sign\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\n    \"installerCertId\": \"d89318b7-8887-4128-bb4f-7bfe66d3187a\",\n    \"fccId\": \"TEST-FCC-B\",\n    \"cbsdSerialNumber\": \"SN-B002\",\n    \"installationParam\": {\n      \"latitude\": 37.4215,\n      \"longitude\": -122.0839,\n      \"height\": 12,\n      \"heightType\": \"AGL\",\n      \"indoorDeployment\": false,\n      \"antennaGain\": 15,\n      \"eirpCapability\": 40\n    }\n  }'",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"cpiSignatureData\": {\n    \"protectedHeader\": \"eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9\",\n    \"encodedCpiSignedData\": \"eyJmY2NJZCI6IlRFU1QtRkNDLUIiLCJjYnNkU2VyaWFsTnVtYmVyIjoiU04tQjAwMiIsImluc3RhbGxhdGlvblBhcmFtIjp7Imxh…\",\n    \"digitalSignature\": \"N-LoLTLg7ADXFrViGNz2zSEAbmAckAk4e6jkxvNL6L39YSRsRPMAbttTNJ0RVsAMRh5ol45hpIVRAnl_bb0L7RfqO9_seXELyXI8…\"\n  },\n  \"signedData\": {\n    \"fccId\": \"TEST-FCC-B\",\n    \"cbsdSerialNumber\": \"SN-B002\",\n    \"installationParam\": {\n      \"latitude\": 37.4215,\n      \"longitude\": -122.0839,\n      \"height\": 12,\n      \"heightType\": \"AGL\",\n      \"indoorDeployment\": false,\n      \"antennaGain\": 15,\n      \"eirpCapability\": 40\n    },\n    \"professionalInstallerData\": {\n      \"cpiId\": \"CPI-0007\",\n      \"cpiName\": \"Sam Rivera\",\n      \"installCertificationTime\": \"2026-10-27T17:06:33Z\"\n    }\n  }\n}"
+      }
+    ],
+    "getMap": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/map\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"source\": \"builtin\",\n  \"url\": \"https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}\",\n  \"attribution\": \"USGS The National Map\",\n  \"maxZoom\": 16,\n  \"darken\": true,\n  \"local\": null,\n  \"store\": {\n    \"dir\": \"/data/tiles\",\n    \"sets\": [\n      {\n        \"id\": \"lab-topo\",\n        \"kind\": \"directory\",\n        \"name\": \"lab-topo\",\n        \"format\": \"png\",\n        \"minZoom\": 10,\n        \"maxZoom\": 10,\n        \"bounds\": null,\n        \"attribution\": null,\n        \"sizeBytes\": null,\n        \"usable\": true,\n        \"error\": null\n      }\n    ]\n  },\n  \"download\": null,\n  \"maxDownloadTiles\": 100000\n}"
+      }
+    ],
+    "listTileSets": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/map/tilesets\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"items\": [\n    {\n      \"id\": \"lab-topo\",\n      \"kind\": \"directory\",\n      \"name\": \"lab-topo\",\n      \"format\": \"png\",\n      \"minZoom\": 10,\n      \"maxZoom\": 10,\n      \"bounds\": null,\n      \"attribution\": null,\n      \"sizeBytes\": null,\n      \"usable\": true,\n      \"error\": null\n    }\n  ],\n  \"total\": 1,\n  \"limit\": 500,\n  \"offset\": 0\n}"
+      }
+    ],
+    "rescanTileSets": [
+      {
+        "title": "Pick up files copied into the tile store",
+        "curl": "curl -s -X POST -H \"Authorization: Bearer $KEY\" \"$API/map/tilesets/rescan\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"items\": [\n    {\n      \"id\": \"lab-topo\",\n      \"kind\": \"directory\",\n      \"name\": \"lab-topo\",\n      \"format\": \"png\",\n      \"minZoom\": 10,\n      \"maxZoom\": 10,\n      \"bounds\": null,\n      \"attribution\": null,\n      \"sizeBytes\": null,\n      \"usable\": true,\n      \"error\": null\n    }\n  ]\n}"
+      }
+    ],
+    "getTileSet": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/map/tilesets/lab-topo\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"id\": \"lab-topo\",\n  \"kind\": \"directory\",\n  \"name\": \"lab-topo\",\n  \"format\": \"png\",\n  \"minZoom\": 10,\n  \"maxZoom\": 10,\n  \"bounds\": null,\n  \"attribution\": null,\n  \"sizeBytes\": null,\n  \"usable\": true,\n  \"error\": null\n}"
+      }
+    ],
+    "deleteTileSet": [
+      {
+        "title": null,
+        "curl": "curl -s -X DELETE -H \"Authorization: Bearer $KEY\" \"$API/map/tilesets/bench-area.mbtiles\"",
+        "status": 204,
+        "kind": "empty"
+      }
+    ],
+    "getTile": [
+      {
+        "title": "One tile (z/x/y)",
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" -o tile.png \"$API/map/tilesets/lab-topo/tiles/10/163/396\"",
+        "status": 200,
+        "kind": "file",
+        "contentType": "image/png",
+        "bytes": 69,
+        "file": "tile.png"
+      }
+    ],
+    "getTileDownload": [
+      {
+        "title": "Progress of the download (here, finished)",
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/map/download\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"job\": {\n    \"state\": \"done\",\n    \"file\": \"bench-area.mbtiles\",\n    \"url\": \"https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}\",\n    \"bounds\": [-122.2, 37.3, -121.9, 37.5],\n    \"minZoom\": 10,\n    \"maxZoom\": 13,\n    \"total\": 89,\n    \"done\": 89,\n    \"missing\": 0,\n    \"failed\": 0,\n    \"bytes\": 6141,\n    \"startedAt\": 1793120795961,\n    \"finishedAt\": 1793120796167,\n    \"error\": null\n  }\n}"
+      }
+    ],
+    "startTileDownload": [
+      {
+        "title": "Download that area from the USGS topo map for offline use",
+        "curl": "curl -s -X POST \"$API/map/download\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\n    \"url\": \"https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}\",\n    \"bounds\": [-122.2, 37.3, -121.9, 37.5],\n    \"minZoom\": 10,\n    \"maxZoom\": 13,\n    \"name\": \"bench-area\",\n    \"attribution\": \"USGS The National Map\"\n  }'",
+        "status": 202,
+        "kind": "json",
+        "json": "{\n  \"state\": \"running\",\n  \"file\": \"bench-area.mbtiles\",\n  \"url\": \"https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}\",\n  \"bounds\": [-122.2, 37.3, -121.9, 37.5],\n  \"minZoom\": 10,\n  \"maxZoom\": 13,\n  \"total\": 89,\n  \"done\": 0,\n  \"missing\": 0,\n  \"failed\": 0,\n  \"bytes\": 0,\n  \"startedAt\": 1793120795961,\n  \"finishedAt\": null,\n  \"error\": null\n}"
+      }
+    ],
+    "cancelTileDownload": [
+      {
+        "title": "Stop a download in progress",
+        "curl": "curl -s -X DELETE -H \"Authorization: Bearer $KEY\" \"$API/map/download\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"cancelled\": true,\n  \"job\": {\n    \"state\": \"running\",\n    \"file\": \"imagery.mbtiles\",\n    \"url\": \"https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}\",\n    \"bounds\": [-123, 37, -121, 38.5],\n    \"minZoom\": 8,\n    \"maxZoom\": 11,\n    \"total\": 196,\n    \"done\": 0,\n    \"missing\": 0,\n    \"failed\": 0,\n    \"bytes\": 0,\n    \"startedAt\": 1793120796221,\n    \"finishedAt\": null,\n    \"error\": null\n  }\n}"
+      }
+    ],
+    "estimateTileDownload": [
+      {
+        "title": "How many tiles is the area around the bench?",
+        "curl": "curl -s \"$API/map/download/estimate?bounds=-122.2,37.3,-121.9,37.5&minZoom=10&maxZoom=13\" \\\n  -H \"Authorization: Bearer $KEY\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\"tiles\": 89, \"limit\": 100000, \"allowed\": true}"
+      }
+    ],
+    "getTerrain": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/terrain\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"directory\": \"/data/terrain\",\n  \"tileCount\": 1,\n  \"files\": [{\"name\": \"n40w101\", \"file\": \"floatn40w101_1_std.flt\", \"sizeBytes\": 90000}],\n  \"source\": \"https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/1/TIFF/current\",\n  \"download\": null\n}"
+      }
+    ],
+    "rescanTerrain": [
+      {
+        "title": "Pick up tiles copied into the terrain folder",
+        "curl": "curl -s -X POST -H \"Authorization: Bearer $KEY\" \"$API/terrain/rescan\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\"tileCount\": 1}"
+      }
+    ],
+    "getElevation": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/terrain/elevation?lat=39.5&lon=-100.5\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\"lat\": 39.5, \"lon\": -100.5, \"tile\": \"n40w101\", \"elevationM\": 374.5}"
+      }
+    ],
+    "getHaat": [
+      {
+        "title": "Height above average terrain of a 10 m antenna, as the Category A check computes it",
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/terrain/haat?lat=39.5&lon=-100.5&height=10\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"lat\": 39.5,\n  \"lon\": -100.5,\n  \"height\": 10,\n  \"heightType\": \"AGL\",\n  \"haatM\": 10.000000000000796,\n  \"elevationM\": 374.5,\n  \"tiles\": [\"n40w101\"],\n  \"missingTiles\": []\n}"
+      }
+    ],
+    "getTerrainTilesNeeded": [
+      {
+        "title": "Which tiles do HAAT checks at these two sites need?",
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/terrain/tiles-needed?points=39.5%2C-100.5%3B37.425%2C-122.084\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"tiles\": [\"n38w122\", \"n38w123\", \"n40w101\"],\n  \"present\": [\"n40w101\"],\n  \"missing\": [\"n38w122\", \"n38w123\"]\n}"
+      }
+    ],
+    "getTerrainDownload": [
+      {
+        "title": "Progress of the download (here, finished)",
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/terrain/download\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"job\": {\n    \"state\": \"done\",\n    \"directory\": \"/data/terrain\",\n    \"source\": \"https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/1/TIFF/current\",\n    \"force\": false,\n    \"total\": 1,\n    \"finished\": 1,\n    \"failed\": 0,\n    \"bytes\": 4096,\n    \"tiles\": [{\"name\": \"n10w010\", \"status\": \"downloaded\", \"bytes\": 4096, \"error\": null}],\n    \"startedAt\": 1793120796273,\n    \"finishedAt\": 1793120796283\n  }\n}"
+      }
+    ],
+    "startTerrainDownload": [
+      {
+        "title": "Download a tile from USGS",
+        "curl": "curl -s -X POST \"$API/terrain/download\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\"tiles\": [\"n10w010\"]}'",
+        "status": 202,
+        "kind": "json",
+        "json": "{\n  \"state\": \"running\",\n  \"directory\": \"/data/terrain\",\n  \"source\": \"https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/1/TIFF/current\",\n  \"force\": false,\n  \"total\": 1,\n  \"finished\": 0,\n  \"failed\": 0,\n  \"bytes\": 0,\n  \"tiles\": [{\"name\": \"n10w010\", \"status\": \"downloading\", \"bytes\": null, \"error\": null}],\n  \"startedAt\": 1793120796273,\n  \"finishedAt\": null\n}"
+      }
+    ],
+    "cancelTerrainDownload": [
+      {
+        "title": null,
+        "curl": "curl -s -X DELETE -H \"Authorization: Bearer $KEY\" \"$API/terrain/download\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"cancelled\": true,\n  \"job\": {\n    \"state\": \"running\",\n    \"directory\": \"/data/terrain\",\n    \"source\": \"https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/1/TIFF/current\",\n    \"force\": false,\n    \"total\": 1,\n    \"finished\": 0,\n    \"failed\": 0,\n    \"bytes\": 0,\n    \"tiles\": [{\"name\": \"n11w010\", \"status\": \"downloading\", \"bytes\": null, \"error\": null}],\n    \"startedAt\": 1793120796389,\n    \"finishedAt\": null\n  }\n}"
+      }
+    ],
+    "exportConfig": [
+      {
+        "title": "Settings, registry, protections, PPAs and fault rules as one JSON document",
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/config/export\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"exportedAt\": \"2026-10-27T17:06:36.394Z\",\n  \"version\": \"1.0.0\",\n  \"settings\": {\n    \"sasHttpEnabled\": true,\n    \"sasHttpPort\": 8000,\n    \"sasHttpsEnabled\": true,\n    \"sasHttpsPort\": 8443,\n    \"tlsClientAuth\": \"optional\",\n    \"tlsMinVersion\": \"TLSv1.2\",\n    \"tlsMaxVersion\": \"TLSv1.2\",\n    \"tlsCipherPolicy\": \"winnforum\",\n    \"serverCertIds\": \"[…]\",\n    \"trustedClientCaIds\": [],\n    \"tlsCheckCrl\": true,\n    \"certRoleCheck\": \"lenient\",\n    \"rejectUnverifiedClientCert\": false,\n    \"supportedVersions\": [\"v1.2\"],\n    \"acceptVersionlessPaths\": true,\n    \"heartbeatIntervalSec\": 60,\n    \"transmitExpireSec\": 240,\n    \"grantExpireSec\": 604800,\n    \"connectivityLostSec\": 604800,\n    \"versionErrorAsResponseCode\": false,\n    \"siqChannelization\": \"none\",\n    \"siqIncludeDpa\": false,\n    \"strictOperationState\": false,\n    \"responseDelayMs\": 0,\n    \"…\": \"28 more\"\n  },\n  \"fccIds\": [\"{…}\", \"… 1 more\"],\n  \"userIds\": [{\"user_id\": \"lab-user\", \"created_at\": 1793120787858}],\n  \"blacklist\": [],\n  \"conditional\": [\"{…}\", \"… 1 more\"],\n  \"cpiUsers\": [\"{…}\"],\n  \"protections\": [],\n  \"ppas\": [],\n  \"faults\": []\n}"
+      }
+    ],
+    "importConfig": [
+      {
+        "title": "Import a configuration (here, one setting and one FCC ID)",
+        "curl": "curl -s -X POST \"$API/config/import\" \\\n  -H \"Authorization: Bearer $KEY\" -H 'Content-Type: application/json' \\\n  -d '{\n    \"settings\": {\"heartbeatIntervalSec\": 60},\n    \"fccIds\": [{\"fcc_id\": \"IMPORTED-FCC\", \"max_eirp\": 33, \"created_at\": 1793120796398}]\n  }'",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"settingsChanged\": [],\n  \"settingsSkipped\": [],\n  \"rows\": {\n    \"fccIds\": 1,\n    \"userIds\": 0,\n    \"blacklist\": 0,\n    \"conditional\": 0,\n    \"cpiUsers\": 0,\n    \"protections\": 0,\n    \"ppas\": 0,\n    \"faults\": 0\n  },\n  \"listenersRestarted\": false\n}"
+      }
+    ],
+    "downloadBackup": [
+      {
+        "title": "A consistent copy of the whole database, while the SAS runs (admins only)",
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" -o sasbench-backup.db \"$API/system/backup\"",
+        "status": 200,
+        "kind": "file",
+        "contentType": "application/vnd.sqlite3",
+        "bytes": 290816,
+        "file": "sasbench-backup.db"
+      }
+    ],
+    "listTables": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/data/tables\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"items\": [\n    {\n      \"name\": \"api_tokens\",\n      \"rows\": 1,\n      \"columns\": [\"id\", \"name\", \"scope\", \"token_hash\", \"… 6 more\"]\n    },\n    {\n      \"name\": \"blacklist\",\n      \"rows\": 0,\n      \"columns\": [\"id\", \"fcc_id\", \"serial\", \"reason\", \"created_at\"]\n    },\n    {\n      \"name\": \"cbsds\",\n      \"rows\": 4,\n      \"columns\": [\"cbsd_id\", \"fcc_id\", \"serial\", \"user_id\", \"… 22 more\"]\n    },\n    {\"name\": \"certs\", \"rows\": 18, \"columns\": [\"id\", \"kind\", \"role\", \"name\", \"… 13 more\"]},\n    \"… 15 more\"\n  ]\n}"
+      }
+    ],
+    "getTable": [
+      {
+        "title": null,
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/data/tables/fcc_ids\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"name\": \"fcc_ids\",\n  \"rows\": 3,\n  \"sql\": \"CREATE TABLE fcc_ids (\\n  fcc_id      TEXT PRIMARY KEY,\\n  max_eirp    REAL,                         -…\",\n  \"columns\": [\n    {\n      \"name\": \"fcc_id\",\n      \"type\": \"TEXT\",\n      \"notNull\": false,\n      \"primaryKey\": true,\n      \"default\": null\n    },\n    {\n      \"name\": \"max_eirp\",\n      \"type\": \"REAL\",\n      \"notNull\": false,\n      \"primaryKey\": false,\n      \"default\": null\n    },\n    \"… 1 more\"\n  ],\n  \"indexes\": [{\"name\": \"sqlite_autoindex_fcc_ids_1\", \"unique\": true, \"columns\": [\"fcc_id\"]}]\n}"
+      }
+    ],
+    "listTableRows": [
+      {
+        "title": "Rows of a table, filtered",
+        "curl": "curl -s -H \"Authorization: Bearer $KEY\" \"$API/data/tables/fcc_ids/rows?column=fcc_id&like=TEST&limit=5\"",
+        "status": 200,
+        "kind": "json",
+        "json": "{\n  \"items\": [{\"fcc_id\": \"TEST-FCC\", \"max_eirp\": 47, \"created_at\": 1793120787857}],\n  \"total\": 1,\n  \"limit\": 5,\n  \"offset\": 0,\n  \"columns\": [\"fcc_id\", \"max_eirp\", \"created_at\"]\n}"
+      }
+    ]
+  }
+}

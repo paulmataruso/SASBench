@@ -4,7 +4,7 @@ The SASBench API gives you everything the web console can do, and more, over HTT
 
 This guide covers authentication, the conventions every endpoint follows, and worked examples for each area. Two companion documents go with it:
 
-- [API-REFERENCE.md](API-REFERENCE.md) lists every endpoint, parameter, status code and schema. It is generated from the code.
+- [API-REFERENCE.md](API-REFERENCE.md) lists every endpoint, parameter, status code and schema, each with a real example: the `curl` command and the response it got. It is generated from the code.
 - [API-ARCHITECTURE.md](API-ARCHITECTURE.md) explains how the API is built, its security model and how to extend it.
 
 The running SAS also describes itself. `GET /api/v1/openapi.json` returns an OpenAPI 3.1 document that you can load into Swagger UI, Postman, Insomnia, or a client generator.
@@ -369,7 +369,7 @@ A page that uses any other name gets `403 host_not_allowed`, unless its origin i
 
 ## Recipes
 
-These examples assume `API` is set and credentials are sent as in the [quick start](#quick-start) (an API key in `~/.sasbench/.curlrc`, or add `-u user:password` to each command).
+These examples assume `API` is set and credentials are sent as in the [quick start](#quick-start) (an API key in `~/.sasbench/.curlrc`, or add `-u user:password` to each command). They show how operations fit together; for a ready-made `curl` command and a real response for any single operation, look it up in the [API reference](API-REFERENCE.md).
 
 ### Drive a CBSD through the protocol
 

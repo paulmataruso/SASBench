@@ -8,6 +8,16 @@ This file lists every endpoint, parameter and schema. Read [API.md](API.md) firs
 
 **Scopes.** `public`: no credentials needed. `read`: any user (viewer, operator or admin) or API key. `write`: an operator or admin, or their read-write API key. `admin`: an admin, or an admin's read-write API key. Credentials are a console session, a user name and password (HTTP Basic) or an API key (`Authorization: Bearer sasb_…`); see [Authentication](API.md#authentication). With `SAS_AUTH=off` every operation is open.
 
+**Examples.** Every operation has a real request and the response it got, captured from a running SASBench by `npm run api:examples`. The commands use three shell variables:
+
+```bash
+export API=http://sas.lab.example:8080/api/v1   # your SAS
+export KEY=sasb_...                             # an API key (console → API keys)
+export PASSWORD='...'                           # the admin password, for the few calls that need one
+```
+
+IDs, keys and times come from that capture: use your own. Long responses are shortened. Lists keep their first items and say how many more there were (`"… 12 more"`), large nested objects show as `"{…}"`, and long values and PEM blocks end in `…`.
+
 ## Contents
 
 176 operations in 25 groups.
@@ -61,6 +71,39 @@ Service index, health, OpenAPI document, status summary, process details, activi
 
 Names the service and links to the OpenAPI document and the main collections. Needs no authentication.
 
+Example:
+
+```bash
+curl -s "$API/"
+```
+
+Response `200`:
+
+```json
+{
+  "service": "SASBench",
+  "version": "1.0.0",
+  "apiVersion": "v1",
+  "openapi": "/api/v1/openapi.json",
+  "links": {
+    "status": "/api/v1/status",
+    "system": "/api/v1/system",
+    "cbsds": "/api/v1/cbsds",
+    "grants": "/api/v1/grants",
+    "spectrum": "/api/v1/spectrum",
+    "registry": "/api/v1/registry",
+    "faults": "/api/v1/faults",
+    "messages": "/api/v1/messages",
+    "events": "/api/v1/events",
+    "stream": "/api/v1/stream",
+    "settings": "/api/v1/settings",
+    "certs": "/api/v1/certs",
+    "harness": "/api/v1/harness/methods",
+    "tokens": "/api/v1/tokens"
+  }
+}
+```
+
 Responses:
 
 | Status | Description | Body |
@@ -75,6 +118,25 @@ Responses:
 **Health check.**
 
 For load balancers and container health checks. Needs no authentication. `status` is `degraded` when an enabled SAS listener is not listening.
+
+Example:
+
+*Health check (no credentials).*
+
+```bash
+curl -s "$API/health"
+```
+
+Response `200`:
+
+```json
+{
+  "status": "ok",
+  "version": "1.0.0",
+  "uptimeMs": 440,
+  "listeners": {"http": true, "https": true}
+}
+```
 
 Responses:
 
@@ -91,6 +153,29 @@ Responses:
 
 Machine-readable description of every endpoint, generated from the same route table that serves the API. Load it into Swagger UI, Postman, Insomnia or a client generator. Needs no authentication.
 
+Example:
+
+*Download the OpenAPI description (for Postman, Insomnia or code generators).*
+
+```bash
+curl -s "$API/openapi.json"
+```
+
+Response `200`:
+
+```json
+{
+  "openapi": "3.1.0",
+  "info": "{…}",
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "servers": [{"url": "/api/v1", "description": "This SAS (UI port)"}],
+  "tags": "[…]",
+  "paths": "{…}",
+  "components": "{…}",
+  "security": [{"bearerAuth": []}, {"basicAuth": []}, "… 1 more"]
+}
+```
+
 Responses:
 
 | Status | Description | Body |
@@ -105,6 +190,67 @@ Responses:
 **SAS status summary.**
 
 What the Overview page shows: listener state, SAS URLs, counts of CBSDs, grants, messages and protections, measurement-report triggers, daily-activity state and the active settings profile.
+
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/status"
+```
+
+Response `200`:
+
+```json
+{
+  "version": "1.0.0",
+  "startedAt": 1793120785117,
+  "now": 1793120786508,
+  "hostname": "sas-lab",
+  "listeners": {
+    "http": {"enabled": true, "listening": true, "port": 8000, "error": null},
+    "https": {
+      "enabled": true,
+      "listening": true,
+      "port": 8443,
+      "error": null,
+      "clientAuth": "optional",
+      "serverCerts": ["SAS server RSA (auto) (rsa2048)", "SAS server ECDSA (auto) (ec256)"],
+      "trustAnchors": 5,
+      "ciphers": "AES128-GCM-SHA256:AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256",
+      "protocols": "TLSv1.2"
+    }
+  },
+  "urls": [
+    "https://sas.lab.example:8443/v1.2/",
+    "http://sas.lab.example:8000/v1.2/",
+    "https://192.0.2.10:8443/v1.2/",
+    "http://192.0.2.10:8000/v1.2/"
+  ],
+  "counts": {
+    "cbsdsRegistered": 0,
+    "cbsdsPending": 0,
+    "cbsdsTotal": 0,
+    "grantsByState": {},
+    "authorizedMHz": 0,
+    "messagesLastHour": 0,
+    "errorsLastHour": 0,
+    "activeProtections": 0,
+    "ppas": 0,
+    "faultRules": 0
+  },
+  "triggers": {"measInRegistration": false, "measInHeartbeat": false},
+  "daily": {
+    "completed": true,
+    "running": false,
+    "lastStarted": null,
+    "lastCompleted": null,
+    "log": []
+  },
+  "ppaStatus": {"completed": true, "withError": false},
+  "flags": {"ntiaExclusionZones": false, "scheduledDailyActivities": false, "escConnected": true},
+  "terrain": {"directory": "/data/terrain", "tiles": 1},
+  "profile": "lab"
+}
+```
 
 Responses:
 
@@ -124,6 +270,44 @@ Responses:
 
 Versions, uptime, memory, ports and addresses, data locations and database size.
 
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/system"
+```
+
+Response `200`:
+
+```json
+{
+  "version": "1.0.0",
+  "apiVersion": "v1",
+  "node": "v24.22.1",
+  "platform": "linux",
+  "arch": "x64",
+  "hostname": "sas-lab",
+  "pid": 393959,
+  "startedAt": 1793120785117,
+  "uptimeMs": 1406,
+  "memory": {
+    "rss": 145252352,
+    "heapTotal": 25600000,
+    "heapUsed": 19863000,
+    "external": 12679662,
+    "arrayBuffers": 858398
+  },
+  "uiPort": 8080,
+  "apiPort": 8080,
+  "bindIp": "0.0.0.0",
+  "hostnames": ["sas.lab.example", "localhost", "127.0.0.1", "sas-lab", "192.0.2.10"],
+  "advertised": ["sas.lab.example", "192.0.2.10"],
+  "dataDir": "/data",
+  "database": {"file": "/data/sas.db", "sizeBytes": 4096, "walSizeBytes": 655112},
+  "terrainDir": "/data/terrain",
+  "tilesDir": "/data/tiles"
+}
+```
+
 Responses:
 
 | Status | Description | Body |
@@ -141,6 +325,20 @@ Responses:
 **Message counts over time.**
 
 Wire-log messages per SAS method in time buckets: one-minute buckets up to 60 minutes, five-minute buckets beyond. `errors` counts the exchanges that failed: an HTTP or transport error, or a non-zero first response code (the same rule as the console's activity chart).
+
+Example:
+
+*Message counts for the last hour.*
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/activity?minutes=60"
+```
+
+Response `200`:
+
+```json
+{"bucketMs": 60000, "since": 1793117186533, "rows": []}
+```
 
 Query parameters:
 
@@ -166,6 +364,57 @@ Responses:
 **Enumerations and reference data.**
 
 Every fixed vocabulary the API accepts or returns: WINNF-TS-0016 response codes, SAS methods, radio technologies, measurement capabilities, states, fault actions, protection kinds, incumbent kinds, key types, CA roles, download formats, harness methods and settings profiles.
+
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/reference"
+```
+
+Response `200`:
+
+```json
+{
+  "responseCodes": [{"code": 0, "name": "SUCCESS"}, {"code": 100, "name": "VERSION"}, "… 13 more"],
+  "sasMethods": [
+    "registration",
+    "spectrumInquiry",
+    "grant",
+    "heartbeat",
+    "relinquishment",
+    "deregistration"
+  ],
+  "radioTechnologies": ["E_UTRA", "CAMBIUM_NETWORKS", "… 7 more"],
+  "measCapabilities": ["RECEIVED_POWER_WITHOUT_GRANT", "RECEIVED_POWER_WITH_GRANT", "INDOOR_LOSS_USING_GNSS"],
+  "cbsdStates": ["REGISTERED", "PENDING", "UNREGISTERED"],
+  "grantStates": ["GRANTED", "AUTHORIZED", "TERMINATED", "RELINQUISHED", "EXPIRED", "DELETED"],
+  "channelTypes": ["GAA", "PAL"],
+  "faultActions": ["response_code", "patch", "http_status", "delay", "drop", "malformed"],
+  "protectionKinds": ["ADMIN", "DPA", "ESC", "FSS", "EXCLUSION", "GWPZ", "FSS_GWBL", "EXCLUSION_ZONE"],
+  "protectionActions": ["suspend", "terminate"],
+  "incumbentKinds": ["fss", "wisp", "… 8 more"],
+  "keyTypes": ["rsa2048", "rsa3072", "rsa4096", "ec256", "ec384"],
+  "caRoles": ["sas", "cbsd", "operator", "installer"],
+  "downloadFormats": [
+    {"format": "pem", "key": false, "description": "The certificate (PEM)."},
+    {"format": "crt", "key": false, "description": "The certificate (PEM, .crt)."},
+    "… 11 more"
+  ],
+  "harnessMethods": [
+    {
+      "method": "reset",
+      "description": "Reset the SAS state (like POST /operations/reset without clearing logs)."
+    },
+    {
+      "method": "injectdata/fcc_id",
+      "description": "{\"fccId\", \"fccMaxEirp\"}: add an FCC ID."
+    },
+    "… 34 more"
+  ],
+  "settingsProfiles": ["lab", "winnforum", "open"],
+  "tokenScopes": ["read", "write"]
+}
+```
 
 Responses:
 
@@ -197,6 +446,29 @@ API keys (read or write scope, owned by a user) and the identity of the caller.
 
 How this request was authenticated (`session` for the console login, `password` for HTTP Basic, `token` for an API key, `open` when authentication is switched off), as which user, and with which role and scope.
 
+Example:
+
+*Who is this key?*
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/auth/whoami"
+```
+
+Response `200`:
+
+```json
+{
+  "method": "token",
+  "scope": "write",
+  "role": "admin",
+  "userId": 1,
+  "username": "admin",
+  "tokenId": "0cbd0e9c-fa89-4498-a8f4-9a3d75766a49",
+  "tokenName": "CI pipeline",
+  "authEnabled": true
+}
+```
+
 Responses:
 
 | Status | Description | Body |
@@ -214,6 +486,45 @@ Responses:
 **List API keys.**
 
 Your keys; admins see every key. Each with its owner, name, scope, prefix, expiry and last use. Secrets are never returned after creation.
+
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/tokens"
+```
+
+Response `200`:
+
+```json
+{
+  "items": [
+    {
+      "id": "0cbd0e9c-fa89-4498-a8f4-9a3d75766a49",
+      "name": "CI pipeline",
+      "scope": "write",
+      "prefix": "sasb_g8cUp_",
+      "createdAt": 1793120786430,
+      "expiresAt": 1800896786430,
+      "lastUsedAt": 1793120786459,
+      "lastUsedAddr": "127.0.0.1",
+      "userId": 1,
+      "username": "admin"
+    },
+    {
+      "id": "bd39f34c-034a-4ad5-9ae4-a9edc2f84319",
+      "name": "Grafana dashboard",
+      "scope": "read",
+      "prefix": "sasb_ueTHUi",
+      "createdAt": 1793120786449,
+      "expiresAt": null,
+      "lastUsedAt": null,
+      "lastUsedAddr": null,
+      "userId": 1,
+      "username": "admin"
+    }
+  ]
+}
+```
 
 Responses:
 
@@ -239,6 +550,36 @@ Response 200 body:
 
 Returns the secret in `token`. Store it now: only its SHA-256 hash is kept. The key acts as its owner (you, or `userId` for admins) with at most the owner's access: `read` keys may call the read-only operations (GET, except those that reveal private keys); `write` keys everything the owner may do. Viewers can create read keys only. Needs a signed-in user, not another API key.
 
+Example:
+
+*Create a read-write key for a CI pipeline, valid for 90 days.*
+
+```bash
+curl -s -X POST "$API/tokens" \
+  -u "admin:$PASSWORD" -H 'Content-Type: application/json' \
+  -d '{"name": "CI pipeline", "scope": "write", "expiresInDays": 90}'
+```
+
+Response `201`:
+
+```json
+{
+  "id": "0cbd0e9c-fa89-4498-a8f4-9a3d75766a49",
+  "name": "CI pipeline",
+  "scope": "write",
+  "prefix": "sasb_g8cUp_",
+  "createdAt": 1793120786430,
+  "expiresAt": 1800896786430,
+  "lastUsedAt": null,
+  "lastUsedAddr": null,
+  "userId": 1,
+  "username": "admin",
+  "token": "sasb_g8cUp_fSt03awbIV7juDKn7opLqUJQ_e"
+}
+```
+
+Keys are created by people (user name and password, or the console), not by other keys. The `token` is shown only in this response.
+
 Request body (JSON, required):
 
 | Field | Type | Required | Description |
@@ -248,16 +589,6 @@ Request body (JSON, required):
 | `expiresInDays` | integer |  | Lifetime in days. Omit for a key that does not expire. · ≥ 1, ≤ 3650 |
 | `expiresAt` | time (epoch ms or RFC 3339) |  | Absolute expiry instead of expiresInDays. |
 | `userId` | integer |  | Admins: create the key for this user (e.g. a service account). Default: yourself. · ≥ 1 |
-
-Example:
-
-```json
-{
-  "name": "CI pipeline",
-  "scope": "write",
-  "expiresInDays": 90
-}
-```
 
 Responses:
 
@@ -277,6 +608,29 @@ Responses:
 **Get an API key.**
 
 Yours, or any key for admins.
+
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/tokens/bd39f34c-034a-4ad5-9ae4-a9edc2f84319"
+```
+
+Response `200`:
+
+```json
+{
+  "id": "bd39f34c-034a-4ad5-9ae4-a9edc2f84319",
+  "name": "Grafana dashboard",
+  "scope": "read",
+  "prefix": "sasb_ueTHUi",
+  "createdAt": 1793120786449,
+  "expiresAt": null,
+  "lastUsedAt": null,
+  "lastUsedAddr": null,
+  "userId": 1,
+  "username": "admin"
+}
+```
 
 Path parameters:
 
@@ -303,6 +657,16 @@ Responses:
 **Revoke an API key.**
 
 Yours, or any key for admins. The key stops working immediately, and its open event streams end.
+
+Example:
+
+*Revoke a key.*
+
+```bash
+curl -s -X DELETE -u "admin:$PASSWORD" "$API/tokens/bd39f34c-034a-4ad5-9ae4-a9edc2f84319"
+```
+
+Response `204`, no body.
 
 Path parameters:
 
@@ -346,6 +710,47 @@ User accounts (admins only), sessions and password changes.
 
 Every account, by user name. Password hashes are never returned.
 
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/users"
+```
+
+Response `200`:
+
+```json
+{
+  "items": [
+    {
+      "id": 1,
+      "username": "admin",
+      "displayName": "Administrator",
+      "role": "admin",
+      "enabled": true,
+      "defaultPassword": true,
+      "createdAt": 1793120785126,
+      "updatedAt": 1793120785126,
+      "passwordChangedAt": 1793120785126,
+      "lastLoginAt": null,
+      "lastLoginAddr": null
+    },
+    {
+      "id": 2,
+      "username": "olivia",
+      "displayName": "Olivia Ortiz",
+      "role": "operator",
+      "enabled": true,
+      "defaultPassword": false,
+      "createdAt": 1793120786557,
+      "updatedAt": 1793120786557,
+      "passwordChangedAt": 1793120786557,
+      "lastLoginAt": null,
+      "lastLoginAddr": null
+    }
+  ]
+}
+```
+
 Responses:
 
 | Status | Description | Body |
@@ -370,6 +775,39 @@ Response 200 body:
 
 409 when the user name is taken (user names are case-insensitive).
 
+Example:
+
+*Add an operator.*
+
+```bash
+curl -s -X POST "$API/users" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{
+    "username": "olivia",
+    "password": "correct horse 42",
+    "role": "operator",
+    "displayName": "Olivia Ortiz"
+  }'
+```
+
+Response `201`:
+
+```json
+{
+  "id": 2,
+  "username": "olivia",
+  "displayName": "Olivia Ortiz",
+  "role": "operator",
+  "enabled": true,
+  "defaultPassword": false,
+  "createdAt": 1793120786557,
+  "updatedAt": 1793120786557,
+  "passwordChangedAt": 1793120786557,
+  "lastLoginAt": null,
+  "lastLoginAddr": null
+}
+```
+
 Request body (JSON, required):
 
 | Field | Type | Required | Description |
@@ -379,17 +817,6 @@ Request body (JSON, required):
 | `role` | `"admin"` \| `"operator"` \| `"viewer"` | yes | admin: everything; operator: everything except users; viewer: read-only. |
 | `displayName` | string \| null |  | max length 100 |
 | `enabled` | boolean |  | default `true` |
-
-Example:
-
-```json
-{
-  "username": "jsmith",
-  "password": "correct horse battery",
-  "role": "operator",
-  "displayName": "J. Smith"
-}
-```
 
 Responses:
 
@@ -408,6 +835,30 @@ Responses:
 `GET /api/v1/users/{userId}` · scope **admin**
 
 **Get a user.**
+
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/users/2"
+```
+
+Response `200`:
+
+```json
+{
+  "id": 2,
+  "username": "olivia",
+  "displayName": "Olivia Ortiz",
+  "role": "operator",
+  "enabled": true,
+  "defaultPassword": false,
+  "createdAt": 1793120786557,
+  "updatedAt": 1793120786557,
+  "passwordChangedAt": 1793120786557,
+  "lastLoginAt": null,
+  "lastLoginAddr": null
+}
+```
 
 Path parameters:
 
@@ -435,6 +886,34 @@ Responses:
 
 Display name, role, enabled flag and/or a new password. Disabling a user or setting their password signs them out everywhere (except the caller's own session). 409 when the change would leave no enabled admin.
 
+Example:
+
+*Make her read-only and fix the display name.*
+
+```bash
+curl -s -X PATCH "$API/users/2" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{"displayName": "Olivia O.", "role": "viewer"}'
+```
+
+Response `200`:
+
+```json
+{
+  "id": 2,
+  "username": "olivia",
+  "displayName": "Olivia O.",
+  "role": "viewer",
+  "enabled": true,
+  "defaultPassword": false,
+  "createdAt": 1793120786557,
+  "updatedAt": 1793120786792,
+  "passwordChangedAt": 1793120786557,
+  "lastLoginAt": null,
+  "lastLoginAddr": null
+}
+```
+
 Path parameters:
 
 | Name | Type | Description |
@@ -449,14 +928,6 @@ Request body (JSON, required):
 | `role` | `"admin"` \| `"operator"` \| `"viewer"` |  | admin: everything; operator: everything except users; viewer: read-only. |
 | `enabled` | boolean |  |  |
 | `password` | string |  | At least 8 characters. · min length 8, max length 256, write-only |
-
-Example:
-
-```json
-{
-  "role": "viewer"
-}
-```
 
 Responses:
 
@@ -478,6 +949,14 @@ Responses:
 **Delete a user.**
 
 Deletes the account with its sessions and API keys. 409 for your own account and for the last enabled admin.
+
+Example:
+
+```bash
+curl -s -X DELETE -H "Authorization: Bearer $KEY" "$API/users/2"
+```
+
+Response `204`, no body.
 
 Path parameters:
 
@@ -505,6 +984,29 @@ Responses:
 **List a user's sessions.**
 
 Console sign-ins that have not expired, most recently used first.
+
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/users/2/sessions"
+```
+
+Response `200`:
+
+```json
+{
+  "items": [
+    {
+      "createdAt": 1793120786990,
+      "lastSeenAt": 1793120786990,
+      "expiresAt": 1793725586990,
+      "addr": "127.0.0.1",
+      "userAgent": "Mozilla/5.0 (X11; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0",
+      "current": false
+    }
+  ]
+}
+```
 
 Path parameters:
 
@@ -537,6 +1039,20 @@ Response 200 body:
 **Sign a user out everywhere.**
 
 Ends every console session of the user (except the caller's own). API keys are not affected.
+
+Example:
+
+*Sign her out everywhere.*
+
+```bash
+curl -s -X DELETE -H "Authorization: Bearer $KEY" "$API/users/2/sessions"
+```
+
+Response `200`:
+
+```json
+{"revoked": 1}
+```
 
 Path parameters:
 
@@ -571,21 +1087,26 @@ Response 200 body:
 
 For a signed-in user (session or HTTP Basic), not an API key. Your other sessions end; this one stays.
 
+Example:
+
+*Change your own password (here, Olivia changes hers).*
+
+```bash
+curl -s -X POST "$API/auth/password" \
+  -u 'olivia:correct horse 42' -H 'Content-Type: application/json' \
+  -d '{"currentPassword": "correct horse 42", "newPassword": "battery staple 77"}'
+```
+
+Response `204`, no body.
+
+Needs a user name and password or a console session, not an API key. Your other console sessions are signed out.
+
 Request body (JSON, required):
 
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `currentPassword` | string | yes | min length 1, max length 256, write-only |
 | `newPassword` | string | yes | At least 8 characters. · min length 8, max length 256, write-only |
-
-Example:
-
-```json
-{
-  "currentPassword": "admin",
-  "newPassword": "a much better password"
-}
-```
 
 Responses:
 
@@ -621,6 +1142,47 @@ Every runtime setting: read, change (validated), describe, profiles and defaults
 
 Current values of every runtime setting and the matching settings profile, if any.
 
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/settings"
+```
+
+Response `200`:
+
+```json
+{
+  "settings": {
+    "sasHttpEnabled": true,
+    "sasHttpPort": 8000,
+    "sasHttpsEnabled": true,
+    "sasHttpsPort": 8443,
+    "tlsClientAuth": "optional",
+    "tlsMinVersion": "TLSv1.2",
+    "tlsMaxVersion": "TLSv1.2",
+    "tlsCipherPolicy": "winnforum",
+    "serverCertIds": ["854a3c37-4fdf-4759-b1cb-3a02c07bdab3", "d2ce1631-5c73-453a-b8ae-c725c46e0921"],
+    "trustedClientCaIds": [],
+    "tlsCheckCrl": true,
+    "certRoleCheck": "lenient",
+    "rejectUnverifiedClientCert": false,
+    "supportedVersions": ["v1.2"],
+    "acceptVersionlessPaths": true,
+    "heartbeatIntervalSec": 60,
+    "transmitExpireSec": 240,
+    "grantExpireSec": 604800,
+    "connectivityLostSec": 604800,
+    "versionErrorAsResponseCode": false,
+    "siqChannelization": "none",
+    "siqIncludeDpa": false,
+    "strictOperationState": false,
+    "responseDelayMs": 0,
+    "…": "28 more"
+  },
+  "profile": "lab"
+}
+```
+
 Responses:
 
 | Status | Description | Body |
@@ -645,6 +1207,28 @@ Response 200 body:
 **Change settings.**
 
 Send only the settings to change. Every value is checked against its type and range before anything is applied. Changing a listener or TLS setting restarts the SAS listeners; the response is sent once they are back.
+
+Example:
+
+*Change several settings at once.*
+
+```bash
+curl -s -X PATCH "$API/settings" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{"heartbeatIntervalSec": 60, "maxGrantsPerCbsd": 4}'
+```
+
+Response `200`:
+
+```json
+{
+  "changed": ["heartbeatIntervalSec", "maxGrantsPerCbsd"],
+  "listenersRestarted": false,
+  "settings": "{…}",
+  "profile": "lab",
+  "listeners": "{…}"
+}
+```
 
 Request body (JSON, required):
 
@@ -705,15 +1289,6 @@ Request body (JSON, required):
 | `mapTileMaxZoom` | integer |  | Highest zoom level the tile source serves. · ≥ 1, ≤ 22 |
 | `mapDarkenTiles` | boolean |  | Invert raster tiles in the dark theme. |
 
-Example:
-
-```json
-{
-  "heartbeatIntervalSec": 30,
-  "missingInstallParams": "register"
-}
-```
-
 Responses:
 
 | Status | Description | Body |
@@ -732,6 +1307,42 @@ Responses:
 **Describe every setting.**
 
 For each setting: group, meaning, unit, JSON schema (type, allowed values, range), default, current value and whether changing it restarts the listeners.
+
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/settings/schema"
+```
+
+Response `200`:
+
+```json
+{
+  "items": [
+    {
+      "key": "sasHttpEnabled",
+      "group": "Listeners",
+      "description": "Serve the SAS–CBSD protocol over plain HTTP.",
+      "unit": null,
+      "schema": {"type": "boolean"},
+      "default": true,
+      "value": true,
+      "restartsListeners": true
+    },
+    {
+      "key": "sasHttpPort",
+      "group": "Listeners",
+      "description": "Plain-HTTP listener port. The SAS_HTTP_PORT environment variable overrides it on every start.",
+      "unit": null,
+      "schema": {"type": "integer", "minimum": 1, "maximum": 65535},
+      "default": 8000,
+      "value": 37771,
+      "restartsListeners": true
+    },
+    "… 50 more"
+  ]
+}
+```
 
 Responses:
 
@@ -757,6 +1368,40 @@ Response 200 body:
 
 The named profiles (lab, winnforum, open) with the settings each one sets, and which one matches the current settings.
 
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/settings/profiles"
+```
+
+Response `200`:
+
+```json
+{
+  "items": [
+    {
+      "name": "lab",
+      "label": "Lab (permissive)",
+      "description": "For bring-up of real radios: HTTP and HTTPS, client certificates optional, unknown FCC/user IDs acce…",
+      "settings": "{…}"
+    },
+    {
+      "name": "winnforum",
+      "label": "WInnForum test harness (strict)",
+      "description": "Matches WINNF-TS-0061 expectations: mutual TLS required (TLS 1.2, WInnForum ciphers, CRLs), FCC and …",
+      "settings": "{…}"
+    },
+    {
+      "name": "open",
+      "label": "Open (no security)",
+      "description": "Everything accepted: no client certificates requested, no role/identity checks, and radios that send…",
+      "settings": "{…}"
+    }
+  ],
+  "active": "lab"
+}
+```
+
 Responses:
 
 | Status | Description | Body |
@@ -781,6 +1426,26 @@ Response 200 body:
 **Apply a settings profile.**
 
 Sets every setting the profile defines; other settings keep their values.
+
+Example:
+
+*Switch to the WInnForum strict profile.*
+
+```bash
+curl -s -X POST -H "Authorization: Bearer $KEY" "$API/settings/profiles/winnforum/apply"
+```
+
+Response `200`:
+
+```json
+{
+  "changed": ["tlsClientAuth", "rejectUnverifiedClientCert", "… 7 more"],
+  "listenersRestarted": true,
+  "settings": "{…}",
+  "profile": "winnforum",
+  "listeners": "{…}"
+}
+```
 
 Path parameters:
 
@@ -809,6 +1474,26 @@ Responses:
 
 Every setting returns to its default except the server certificates, trusted client CAs and listener ports.
 
+Example:
+
+*Back to the defaults (the lab profile).*
+
+```bash
+curl -s -X POST -H "Authorization: Bearer $KEY" "$API/settings/reset"
+```
+
+Response `200`:
+
+```json
+{
+  "changed": ["tlsClientAuth", "rejectUnverifiedClientCert", "… 8 more"],
+  "listenersRestarted": true,
+  "settings": "{…}",
+  "profile": "lab",
+  "listeners": "{…}"
+}
+```
+
 Responses:
 
 | Status | Description | Body |
@@ -825,6 +1510,27 @@ Responses:
 `GET /api/v1/settings/{key}` · scope **read**
 
 **Get one setting.**
+
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/settings/heartbeatIntervalSec"
+```
+
+Response `200`:
+
+```json
+{
+  "key": "heartbeatIntervalSec",
+  "group": "Protocol",
+  "description": "heartbeatInterval returned in grant responses.",
+  "unit": "s",
+  "schema": {"type": "integer", "minimum": 1},
+  "default": 60,
+  "value": 60,
+  "restartsListeners": false
+}
+```
 
 Path parameters:
 
@@ -850,6 +1556,28 @@ Responses:
 
 **Change one setting.**
 
+Example:
+
+*Ask radios to heartbeat every 30 seconds.*
+
+```bash
+curl -s -X PUT "$API/settings/heartbeatIntervalSec" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{"value": 30}'
+```
+
+Response `200`:
+
+```json
+{
+  "changed": ["heartbeatIntervalSec"],
+  "listenersRestarted": false,
+  "settings": "{…}",
+  "profile": null,
+  "listeners": "{…}"
+}
+```
+
 Path parameters:
 
 | Name | Type | Description |
@@ -861,14 +1589,6 @@ Request body (JSON, required):
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `value` | any | yes | New value; must match the setting's schema. |
-
-Example:
-
-```json
-{
-  "value": 30
-}
-```
 
 Responses:
 
@@ -908,6 +1628,69 @@ Registered and pending CBSDs: details, availability, grants, logs, and operator 
 **List CBSDs.**
 
 Every CBSD the SAS has seen, most recently updated first, with its registration data and a count of grants per state.
+
+Example:
+
+*Registered CBSDs.*
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/cbsds?state=REGISTERED"
+```
+
+Response `200`:
+
+```json
+{
+  "items": [
+    {
+      "cbsdId": "TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c",
+      "fccId": "TEST-FCC",
+      "serial": "SN-0001",
+      "userId": "lab-user",
+      "category": "A",
+      "state": "REGISTERED",
+      "callSign": null,
+      "radioTechnology": "E_UTRA",
+      "latitude": 37.425,
+      "longitude": -122.084,
+      "height": 5,
+      "heightType": "AGL",
+      "indoor": true,
+      "eirpCapability": 26,
+      "antennaGain": 5,
+      "measCapability": [],
+      "registration": {
+        "userId": "lab-user",
+        "fccId": "TEST-FCC",
+        "cbsdSerialNumber": "SN-0001",
+        "cbsdCategory": "A",
+        "airInterface": {"radioTechnology": "E_UTRA"},
+        "measCapability": [],
+        "installationParam": "{…}"
+      },
+      "effective": {
+        "userId": "lab-user",
+        "fccId": "TEST-FCC",
+        "cbsdSerialNumber": "SN-0001",
+        "cbsdCategory": "A",
+        "airInterface": {"radioTechnology": "E_UTRA"},
+        "installationParam": "{…}",
+        "measCapability": []
+      },
+      "certInfo": null,
+      "approved": true,
+      "transport": "internal",
+      "remoteAddr": "api",
+      "eirpCapDbmMhz": null,
+      "pendingDeregister": false,
+      "…": "11 more"
+    }
+  ],
+  "total": 1,
+  "limit": 500,
+  "offset": 0
+}
+```
 
 Query parameters:
 
@@ -950,6 +1733,76 @@ Response 200 body:
 
 The CBSD with its live grants, preloaded (conditional) registration data, EIRP limits, the spectrum available to it now and the active protections that cover it.
 
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/cbsds/TEST-FCC%2Fb7eeb0aceec6f6087a0c75b6f69289c95b3e191c"
+```
+
+Response `200`:
+
+```json
+{
+  "cbsdId": "TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c",
+  "fccId": "TEST-FCC",
+  "serial": "SN-0001",
+  "userId": "lab-user",
+  "category": "A",
+  "state": "REGISTERED",
+  "callSign": null,
+  "radioTechnology": "E_UTRA",
+  "latitude": 37.425,
+  "longitude": -122.084,
+  "height": 5,
+  "heightType": "AGL",
+  "indoor": true,
+  "eirpCapability": 26,
+  "antennaGain": 5,
+  "measCapability": [],
+  "registration": {
+    "userId": "lab-user",
+    "fccId": "TEST-FCC",
+    "cbsdSerialNumber": "SN-0001",
+    "cbsdCategory": "A",
+    "airInterface": {"radioTechnology": "E_UTRA"},
+    "measCapability": [],
+    "installationParam": {
+      "latitude": 37.425,
+      "longitude": -122.084,
+      "height": 5,
+      "heightType": "AGL",
+      "indoorDeployment": true,
+      "antennaGain": 5,
+      "eirpCapability": 26
+    }
+  },
+  "effective": {
+    "userId": "lab-user",
+    "fccId": "TEST-FCC",
+    "cbsdSerialNumber": "SN-0001",
+    "cbsdCategory": "A",
+    "airInterface": {"radioTechnology": "E_UTRA"},
+    "installationParam": {
+      "latitude": 37.425,
+      "longitude": -122.084,
+      "height": 5,
+      "heightType": "AGL",
+      "indoorDeployment": true,
+      "antennaGain": 5,
+      "eirpCapability": 26
+    },
+    "measCapability": []
+  },
+  "certInfo": null,
+  "approved": true,
+  "transport": "internal",
+  "remoteAddr": "api",
+  "eirpCapDbmMhz": null,
+  "pendingDeregister": false,
+  "…": "16 more"
+}
+```
+
 Path parameters:
 
 | Name | Type | Description |
@@ -976,6 +1829,48 @@ Responses:
 
 Notes, a per-CBSD EIRP cap, measurement reports to request, and a pending SAS-initiated deregistration. Send only the fields to change.
 
+Example:
+
+*Note the bench and cap its EIRP.*
+
+```bash
+curl -s -X PATCH "$API/cbsds/TEST-FCC%2Fb7eeb0aceec6f6087a0c75b6f69289c95b3e191c" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{"notes": "Bench 3, firmware 25R2", "eirpCapDbmMhz": 20}'
+```
+
+Response `200`:
+
+```json
+{
+  "cbsdId": "TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c",
+  "fccId": "TEST-FCC",
+  "serial": "SN-0001",
+  "userId": "lab-user",
+  "category": "A",
+  "state": "REGISTERED",
+  "callSign": null,
+  "radioTechnology": "E_UTRA",
+  "latitude": 37.425,
+  "longitude": -122.084,
+  "height": 5,
+  "heightType": "AGL",
+  "indoor": true,
+  "eirpCapability": 26,
+  "antennaGain": 5,
+  "measCapability": [],
+  "registration": "{…}",
+  "effective": "{…}",
+  "certInfo": null,
+  "approved": true,
+  "transport": "internal",
+  "remoteAddr": "api",
+  "eirpCapDbmMhz": 20,
+  "pendingDeregister": false,
+  "…": "16 more"
+}
+```
+
 Path parameters:
 
 | Name | Type | Description |
@@ -991,15 +1886,6 @@ Request body (JSON, required):
 | `regMeasConfig` | array of `"RECEIVED_POWER_WITHOUT_GRANT"` \| `"RECEIVED_POWER_WITH_GRANT"` \| `"INDOOR_LOSS_USING_GNSS"` \| null |  | measReportConfig to send in the next successful registration response. |
 | `hbMeasConfig` | array of `"RECEIVED_POWER_WITHOUT_GRANT"` \| `"RECEIVED_POWER_WITH_GRANT"` \| `"INDOOR_LOSS_USING_GNSS"` \| null |  | measReportConfig to send once, in the next successful heartbeat response. |
 | `pendingDeregister` | boolean |  | true: answer the next request from this CBSD with 105 DEREGISTER (CBSD must be REGISTERED). false: cancel that. |
-
-Example:
-
-```json
-{
-  "eirpCapDbmMhz": 20,
-  "notes": "Bench 3, firmware 25R2"
-}
-```
 
 Responses:
 
@@ -1021,6 +1907,15 @@ Responses:
 **Delete a CBSD and its grants.**
 
 Removes the record entirely. The radio is not told; its next request gets 103 (unknown cbsdId) and it must register again.
+
+Example:
+
+```bash
+curl -s -X DELETE "$API/cbsds/TEST-FCC%2F7cf46ef1e21867030fe34c80fe59f73b6e265b5d" \
+  -H "Authorization: Bearer $KEY"
+```
+
+Response `204`, no body.
 
 Path parameters:
 
@@ -1049,6 +1944,49 @@ Responses:
 
 For manual approval (setting manualApproval). The registration completes on the CBSD's next registration request.
 
+Example:
+
+*Approve a radio held by manual approval.*
+
+```bash
+curl -s -X POST "$API/cbsds/TEST-FCC%2F7cf46ef1e21867030fe34c80fe59f73b6e265b5d/approve" \
+  -H "Authorization: Bearer $KEY"
+```
+
+Response `200`:
+
+```json
+{
+  "cbsdId": "TEST-FCC/7cf46ef1e21867030fe34c80fe59f73b6e265b5d",
+  "fccId": "TEST-FCC",
+  "serial": "SN-0003",
+  "userId": "lab-user",
+  "category": "A",
+  "state": "PENDING",
+  "callSign": null,
+  "radioTechnology": "E_UTRA",
+  "latitude": 37.425,
+  "longitude": -122.084,
+  "height": 5,
+  "heightType": "AGL",
+  "indoor": true,
+  "eirpCapability": 26,
+  "antennaGain": 5,
+  "measCapability": [],
+  "registration": "{…}",
+  "effective": "{…}",
+  "certInfo": null,
+  "approved": true,
+  "transport": "internal",
+  "remoteAddr": "api",
+  "eirpCapDbmMhz": null,
+  "pendingDeregister": false,
+  "…": "16 more"
+}
+```
+
+Its next registration request then succeeds.
+
 Path parameters:
 
 | Name | Type | Description |
@@ -1076,6 +2014,31 @@ Responses:
 
 Adds the CBSD's FCC ID and user ID and preloads the parameters it registered with, so it stays known when the registry is enforced. Entries already present are kept; `notes` says why something was not added. The same for many CBSDs: POST /registry/from-cbsds.
 
+Example:
+
+*Keep its FCC ID, user ID and registration data in the registry.*
+
+```bash
+curl -s -X POST "$API/cbsds/TEST-FCC%2Fb7eeb0aceec6f6087a0c75b6f69289c95b3e191c/registry" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{}'
+```
+
+Response `200`:
+
+```json
+{
+  "cbsdId": "TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c",
+  "fccId": "TEST-FCC",
+  "serial": "SN-0001",
+  "userId": "lab-user",
+  "state": "REGISTERED",
+  "inRegistry": {"fccId": true, "userId": true, "registration": true},
+  "added": {"fccId": true, "userId": true, "registration": true},
+  "notes": []
+}
+```
+
 Path parameters:
 
 | Name | Type | Description |
@@ -1090,15 +2053,6 @@ Request body (JSON, optional):
 | `userId` | boolean |  | Add the user ID. · default `true` |
 | `registration` | boolean |  | Preload the registration parameters (category, air interface, installation parameters, measurement capability, call sign) as REG-Conditional data. · default `true` |
 | `replace` | boolean |  | Overwrite registration data already preloaded for the device. · default `false` |
-
-Example:
-
-```json
-{
-  "registration": true,
-  "replace": false
-}
-```
 
 Responses:
 
@@ -1121,6 +2075,47 @@ Responses:
 
 `next-request` (default): the CBSD's next request is answered with 105 DEREGISTER, which removes its grants and tells it to register again. `immediate`: the SAS deregisters it now without telling it; its grants are removed and later requests get 103.
 
+Example:
+
+*Send it 105 (DEREGISTER) at its next request.*
+
+```bash
+curl -s -X POST "$API/cbsds/TEST-FCC%2F7cf46ef1e21867030fe34c80fe59f73b6e265b5d/deregister" \
+  -H "Authorization: Bearer $KEY"
+```
+
+Response `200`:
+
+```json
+{
+  "cbsdId": "TEST-FCC/7cf46ef1e21867030fe34c80fe59f73b6e265b5d",
+  "fccId": "TEST-FCC",
+  "serial": "SN-0003",
+  "userId": "lab-user",
+  "category": "A",
+  "state": "REGISTERED",
+  "callSign": null,
+  "radioTechnology": "E_UTRA",
+  "latitude": 37.425,
+  "longitude": -122.084,
+  "height": 5,
+  "heightType": "AGL",
+  "indoor": true,
+  "eirpCapability": 26,
+  "antennaGain": 5,
+  "measCapability": [],
+  "registration": "{…}",
+  "effective": "{…}",
+  "certInfo": null,
+  "approved": true,
+  "transport": "internal",
+  "remoteAddr": "api",
+  "eirpCapDbmMhz": null,
+  "pendingDeregister": true,
+  "…": "16 more"
+}
+```
+
 Path parameters:
 
 | Name | Type | Description |
@@ -1132,14 +2127,6 @@ Request body (JSON, optional):
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `mode` | `"next-request"` \| `"immediate"` |  | default `"next-request"` |
-
-Example:
-
-```json
-{
-  "mode": "next-request"
-}
-```
 
 Responses:
 
@@ -1161,6 +2148,48 @@ Responses:
 **List a CBSD's grants.**
 
 Newest first, including ended grants.
+
+Example:
+
+```bash
+curl -s "$API/cbsds/TEST-FCC%2Fb7eeb0aceec6f6087a0c75b6f69289c95b3e191c/grants" \
+  -H "Authorization: Bearer $KEY"
+```
+
+Response `200`:
+
+```json
+{
+  "items": [
+    {
+      "grantId": "5329943951600446",
+      "cbsdId": "TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c",
+      "fccId": "TEST-FCC",
+      "serial": "SN-0001",
+      "category": "A",
+      "state": "AUTHORIZED",
+      "suspended": false,
+      "low": 3550000000,
+      "high": 3560000000,
+      "maxEirp": 10,
+      "channelType": "GAA",
+      "grantExpireTime": 1793725587000,
+      "transmitExpireTime": 1793121027000,
+      "heartbeatInterval": 60,
+      "heartbeatCount": 2,
+      "lastHeartbeat": 1793120787705,
+      "pendingHeartbeatInterval": null,
+      "suggestedOperationParam": null,
+      "endReason": null,
+      "endedAt": null,
+      "createdAt": 1793120787682
+    }
+  ],
+  "total": 1,
+  "limit": 500,
+  "offset": 0
+}
+```
 
 Path parameters:
 
@@ -1202,6 +2231,44 @@ Response 200 body:
 `GET /api/v1/cbsds/{cbsdId}/events` · scope **read**
 
 **List a CBSD's events.**
+
+Example:
+
+```bash
+curl -s "$API/cbsds/TEST-FCC%2Fb7eeb0aceec6f6087a0c75b6f69289c95b3e191c/events?limit=3" \
+  -H "Authorization: Bearer $KEY"
+```
+
+Response `200`:
+
+```json
+{
+  "items": [
+    {
+      "id": 30,
+      "ts": 1793120787803,
+      "level": "info",
+      "category": "admin",
+      "message": "CBSD TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c updated (notes, eirpCapDbmMhz)",
+      "cbsdId": "TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c",
+      "grantId": null
+    },
+    {
+      "id": 24,
+      "ts": 1793120787695,
+      "level": "success",
+      "category": "grant",
+      "message": "Grant 5329943951600446 AUTHORIZED (3550–3560 MHz)",
+      "cbsdId": "TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c",
+      "grantId": "5329943951600446"
+    },
+    "… 1 more"
+  ],
+  "limit": 3,
+  "order": "desc",
+  "next": 23
+}
+```
 
 Path parameters:
 
@@ -1248,6 +2315,55 @@ Response 200 body:
 
 Exchanges that mention this cbsdId in the request or response. Use GET /messages/{id} for the full JSON.
 
+Example:
+
+```bash
+curl -s "$API/cbsds/TEST-FCC%2Fb7eeb0aceec6f6087a0c75b6f69289c95b3e191c/messages?limit=2" \
+  -H "Authorization: Bearer $KEY"
+```
+
+Response `200`:
+
+```json
+{
+  "items": [
+    {
+      "id": 5,
+      "ts": 1793120787704,
+      "transport": "internal",
+      "remoteAddr": "api",
+      "path": "/v1.2/heartbeat",
+      "method": "heartbeat",
+      "version": "v1.2",
+      "httpStatus": 200,
+      "durationMs": 2,
+      "cbsdIds": ["TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c"],
+      "codes": [0],
+      "certSubject": null,
+      "error": null
+    },
+    {
+      "id": 4,
+      "ts": 1793120787691,
+      "transport": "internal",
+      "remoteAddr": "api",
+      "path": "/v1.2/heartbeat",
+      "method": "heartbeat",
+      "version": "v1.2",
+      "httpStatus": 200,
+      "durationMs": 5,
+      "cbsdIds": ["TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c"],
+      "codes": [0],
+      "certSubject": null,
+      "error": null
+    }
+  ],
+  "limit": 2,
+  "order": "desc",
+  "next": 4
+}
+```
+
 Path parameters:
 
 | Name | Type | Description |
@@ -1293,6 +2409,23 @@ Response 200 body:
 
 Computed now from the GAA band plan, PPAs and active protections: available segments with channel type and maximum EIRP, the EIRP limits, and the protections that cover the CBSD.
 
+Example:
+
+```bash
+curl -s "$API/cbsds/TEST-FCC%2Fb7eeb0aceec6f6087a0c75b6f69289c95b3e191c/availability" \
+  -H "Authorization: Bearer $KEY"
+```
+
+Response `200`:
+
+```json
+{
+  "limits": {"maxEirpPer10MHz": 26, "maxEirpDbmMhz": 16},
+  "availability": [{"low": 3550000000, "high": 3700000000, "channelType": "GAA", "maxEirp": 16}],
+  "protections": []
+}
+```
+
 Path parameters:
 
 | Name | Type | Description |
@@ -1333,6 +2466,49 @@ Grants across all CBSDs, and SAS-side actions on them: suspend, resume, terminat
 
 Newest first, with the owning CBSD's FCC ID, serial number and category. Ended grants stay in the list (state TERMINATED, RELINQUISHED, EXPIRED or DELETED) until purged.
 
+Example:
+
+*Grants that may transmit.*
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/grants?state=AUTHORIZED"
+```
+
+Response `200`:
+
+```json
+{
+  "items": [
+    {
+      "grantId": "5329943951600446",
+      "cbsdId": "TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c",
+      "fccId": "TEST-FCC",
+      "serial": "SN-0001",
+      "category": "A",
+      "state": "AUTHORIZED",
+      "suspended": false,
+      "low": 3550000000,
+      "high": 3560000000,
+      "maxEirp": 10,
+      "channelType": "GAA",
+      "grantExpireTime": 1793725587000,
+      "transmitExpireTime": 1793121027000,
+      "heartbeatInterval": 60,
+      "heartbeatCount": 2,
+      "lastHeartbeat": 1793120787705,
+      "pendingHeartbeatInterval": null,
+      "suggestedOperationParam": null,
+      "endReason": null,
+      "endedAt": null,
+      "createdAt": 1793120787682
+    }
+  ],
+  "total": 1,
+  "limit": 500,
+  "offset": 0
+}
+```
+
 Query parameters:
 
 | Name | Type | Required | Description |
@@ -1372,6 +2548,20 @@ Response 200 body:
 
 Removes every TERMINATED, RELINQUISHED, EXPIRED and DELETED grant record. Live grants are untouched.
 
+Example:
+
+*Delete terminated, relinquished and expired grants.*
+
+```bash
+curl -s -X DELETE -H "Authorization: Bearer $KEY" "$API/grants/ended"
+```
+
+Response `200`:
+
+```json
+{"deleted": 2}
+```
+
 Responses:
 
 | Status | Description | Body |
@@ -1396,6 +2586,47 @@ Response 200 body:
 **Get a grant.**
 
 The grant and the grant request the CBSD sent.
+
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/grants/5329943951600446"
+```
+
+Response `200`:
+
+```json
+{
+  "grantId": "5329943951600446",
+  "cbsdId": "TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c",
+  "fccId": "TEST-FCC",
+  "serial": "SN-0001",
+  "category": "A",
+  "state": "AUTHORIZED",
+  "suspended": false,
+  "low": 3550000000,
+  "high": 3560000000,
+  "maxEirp": 10,
+  "channelType": "GAA",
+  "grantExpireTime": 1793725587000,
+  "transmitExpireTime": 1793121027000,
+  "heartbeatInterval": 60,
+  "heartbeatCount": 2,
+  "lastHeartbeat": 1793120787705,
+  "pendingHeartbeatInterval": null,
+  "suggestedOperationParam": null,
+  "endReason": null,
+  "endedAt": null,
+  "createdAt": 1793120787682,
+  "request": {
+    "cbsdId": "TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c",
+    "operationParam": {
+      "maxEirp": 10,
+      "operationFrequencyRange": {"lowFrequency": 3550000000, "highFrequency": 3560000000}
+    }
+  }
+}
+```
 
 Path parameters:
 
@@ -1423,6 +2654,51 @@ Responses:
 
 `heartbeatInterval` is sent with the next successful heartbeat response and then applies. `suggestedOperationParam` is returned in every successful heartbeat response while set. `grantExpireTime` moves the expiry immediately.
 
+Example:
+
+*Tell the radio to heartbeat every 30 s from its next heartbeat.*
+
+```bash
+curl -s -X PATCH "$API/grants/5329943951600446" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{"heartbeatInterval": 30}'
+```
+
+Response `200`:
+
+```json
+{
+  "grantId": "5329943951600446",
+  "cbsdId": "TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c",
+  "fccId": "TEST-FCC",
+  "serial": "SN-0001",
+  "category": "A",
+  "state": "AUTHORIZED",
+  "suspended": false,
+  "low": 3550000000,
+  "high": 3560000000,
+  "maxEirp": 10,
+  "channelType": "GAA",
+  "grantExpireTime": 1793725587000,
+  "transmitExpireTime": 1793121027000,
+  "heartbeatInterval": 60,
+  "heartbeatCount": 2,
+  "lastHeartbeat": 1793120787705,
+  "pendingHeartbeatInterval": 30,
+  "suggestedOperationParam": null,
+  "endReason": null,
+  "endedAt": null,
+  "createdAt": 1793120787682,
+  "request": {
+    "cbsdId": "TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c",
+    "operationParam": {
+      "maxEirp": 10,
+      "operationFrequencyRange": {"lowFrequency": 3550000000, "highFrequency": 3560000000}
+    }
+  }
+}
+```
+
 Path parameters:
 
 | Name | Type | Description |
@@ -1440,14 +2716,6 @@ Request body (JSON, required):
 | `suggestedOperationParam.operationFrequencyRange.lowFrequency` | integer | yes | ≥ 0 |
 | `suggestedOperationParam.operationFrequencyRange.highFrequency` | integer | yes | ≥ 0 |
 | `grantExpireTime` | time (epoch ms or RFC 3339) |  | New expiry (epoch milliseconds or RFC 3339). |
-
-Example:
-
-```json
-{
-  "heartbeatInterval": 30
-}
-```
 
 Responses:
 
@@ -1469,6 +2737,49 @@ Responses:
 **Suspend a grant.**
 
 The CBSD's next heartbeat is answered with 501 SUSPENDED_GRANT, and every heartbeat after it until the grant is resumed.
+
+Example:
+
+*Suspend: the next heartbeat gets 501 SUSPENDED_GRANT.*
+
+```bash
+curl -s -X POST -H "Authorization: Bearer $KEY" "$API/grants/5329943951600446/suspend"
+```
+
+Response `200`:
+
+```json
+{
+  "grantId": "5329943951600446",
+  "cbsdId": "TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c",
+  "fccId": "TEST-FCC",
+  "serial": "SN-0001",
+  "category": "A",
+  "state": "AUTHORIZED",
+  "suspended": true,
+  "low": 3550000000,
+  "high": 3560000000,
+  "maxEirp": 10,
+  "channelType": "GAA",
+  "grantExpireTime": 1793725587000,
+  "transmitExpireTime": 1793121027000,
+  "heartbeatInterval": 60,
+  "heartbeatCount": 2,
+  "lastHeartbeat": 1793120787705,
+  "pendingHeartbeatInterval": 30,
+  "suggestedOperationParam": null,
+  "endReason": null,
+  "endedAt": null,
+  "createdAt": 1793120787682,
+  "request": {
+    "cbsdId": "TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c",
+    "operationParam": {
+      "maxEirp": 10,
+      "operationFrequencyRange": {"lowFrequency": 3550000000, "highFrequency": 3560000000}
+    }
+  }
+}
+```
 
 Path parameters:
 
@@ -1497,6 +2808,47 @@ Responses:
 
 The next heartbeat is authorized again (unless a protection still blocks the spectrum).
 
+Example:
+
+```bash
+curl -s -X POST -H "Authorization: Bearer $KEY" "$API/grants/5329943951600446/resume"
+```
+
+Response `200`:
+
+```json
+{
+  "grantId": "5329943951600446",
+  "cbsdId": "TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c",
+  "fccId": "TEST-FCC",
+  "serial": "SN-0001",
+  "category": "A",
+  "state": "AUTHORIZED",
+  "suspended": false,
+  "low": 3550000000,
+  "high": 3560000000,
+  "maxEirp": 10,
+  "channelType": "GAA",
+  "grantExpireTime": 1793725587000,
+  "transmitExpireTime": 1793121027000,
+  "heartbeatInterval": 60,
+  "heartbeatCount": 2,
+  "lastHeartbeat": 1793120787705,
+  "pendingHeartbeatInterval": 30,
+  "suggestedOperationParam": null,
+  "endReason": null,
+  "endedAt": null,
+  "createdAt": 1793120787682,
+  "request": {
+    "cbsdId": "TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c",
+    "operationParam": {
+      "maxEirp": 10,
+      "operationFrequencyRange": {"lowFrequency": 3550000000, "highFrequency": 3560000000}
+    }
+  }
+}
+```
+
 Path parameters:
 
 | Name | Type | Description |
@@ -1524,6 +2876,51 @@ Responses:
 
 The grant ends now; the CBSD's next heartbeat for it is answered with 500 TERMINATED_GRANT.
 
+Example:
+
+*Terminate: the next heartbeat gets 500 TERMINATED_GRANT.*
+
+```bash
+curl -s -X POST "$API/grants/7338392050789261/terminate" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{"reason": "Interference test 4"}'
+```
+
+Response `200`:
+
+```json
+{
+  "grantId": "7338392050789261",
+  "cbsdId": "TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c",
+  "fccId": "TEST-FCC",
+  "serial": "SN-0001",
+  "category": "A",
+  "state": "TERMINATED",
+  "suspended": false,
+  "low": 3570000000,
+  "high": 3580000000,
+  "maxEirp": 10,
+  "channelType": "GAA",
+  "grantExpireTime": 1793725587000,
+  "transmitExpireTime": null,
+  "heartbeatInterval": 60,
+  "heartbeatCount": 0,
+  "lastHeartbeat": null,
+  "pendingHeartbeatInterval": null,
+  "suggestedOperationParam": null,
+  "endReason": "Interference test 4",
+  "endedAt": 1793120787992,
+  "createdAt": 1793120787982,
+  "request": {
+    "cbsdId": "TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c",
+    "operationParam": {
+      "maxEirp": 10,
+      "operationFrequencyRange": {"lowFrequency": 3570000000, "highFrequency": 3580000000}
+    }
+  }
+}
+```
+
 Path parameters:
 
 | Name | Type | Description |
@@ -1535,14 +2932,6 @@ Request body (JSON, optional):
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `reason` | string |  | Recorded as the end reason and sent as responseMessage. · max length 500 |
-
-Example:
-
-```json
-{
-  "reason": "interference test"
-}
-```
 
 Responses:
 
@@ -1579,6 +2968,386 @@ The body is exactly what a radio sends, e.g. `{"registrationRequest": [ … ]}`;
 With `raw=true` (http or https only) the body is `{"rawBody": "…"}` and that text is sent unchanged, for testing how the SAS handles malformed payloads.
 Protocol errors are not API errors: a request the SAS rejects still returns HTTP 200 here, with the SAS's answer in `body`.
 
+Examples:
+
+*Register a Category A radio (this creates the CBSD).*
+
+```bash
+curl -s -X POST "$API/sas/registration" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{
+    "registrationRequest": [
+      {
+        "userId": "lab-user",
+        "fccId": "TEST-FCC",
+        "cbsdSerialNumber": "SN-0001",
+        "cbsdCategory": "A",
+        "airInterface": {"radioTechnology": "E_UTRA"},
+        "measCapability": [],
+        "installationParam": {
+          "latitude": 37.425,
+          "longitude": -122.084,
+          "height": 5,
+          "heightType": "AGL",
+          "indoorDeployment": true,
+          "antennaGain": 5,
+          "eirpCapability": 26
+        }
+      }
+    ]
+  }'
+```
+
+Response `200`:
+
+```json
+{
+  "transport": "internal",
+  "method": "registration",
+  "version": "v1.2",
+  "httpStatus": 200,
+  "durationMs": 8,
+  "body": {
+    "registrationResponse": [
+      {
+        "cbsdId": "TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c",
+        "response": {"responseCode": 0, "responseMessage": "SUCCESS"}
+      }
+    ]
+  },
+  "error": null
+}
+```
+
+The body is exactly what a radio sends. The SAS's verdict is in `body`; a refused request is still HTTP 200 here.
+
+*Ask which channels it may use.*
+
+```bash
+curl -s -X POST "$API/sas/spectrumInquiry" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{
+    "spectrumInquiryRequest": [
+      {
+        "cbsdId": "TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c",
+        "inquiredSpectrum": [{"lowFrequency": 3550000000, "highFrequency": 3700000000}]
+      }
+    ]
+  }'
+```
+
+Response `200`:
+
+```json
+{
+  "transport": "internal",
+  "method": "spectrumInquiry",
+  "version": "v1.2",
+  "httpStatus": 200,
+  "durationMs": 6,
+  "body": {
+    "spectrumInquiryResponse": [
+      {
+        "cbsdId": "TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c",
+        "availableChannel": [
+          {
+            "frequencyRange": {"lowFrequency": 3550000000, "highFrequency": 3700000000},
+            "channelType": "GAA",
+            "ruleApplied": "FCC_PART_96",
+            "maxEirp": 16
+          }
+        ],
+        "response": {"responseCode": 0, "responseMessage": "SUCCESS"}
+      }
+    ]
+  },
+  "error": null
+}
+```
+
+*Request a grant: 3550–3560 MHz at 10 dBm/MHz.*
+
+```bash
+curl -s -X POST "$API/sas/grant" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{
+    "grantRequest": [
+      {
+        "cbsdId": "TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c",
+        "operationParam": {
+          "maxEirp": 10,
+          "operationFrequencyRange": {"lowFrequency": 3550000000, "highFrequency": 3560000000}
+        }
+      }
+    ]
+  }'
+```
+
+Response `200`:
+
+```json
+{
+  "transport": "internal",
+  "method": "grant",
+  "version": "v1.2",
+  "httpStatus": 200,
+  "durationMs": 8,
+  "body": {
+    "grantResponse": [
+      {
+        "cbsdId": "TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c",
+        "grantId": "5329943951600446",
+        "grantExpireTime": "2026-11-03T17:06:27Z",
+        "heartbeatInterval": 60,
+        "channelType": "GAA",
+        "response": {"responseCode": 0, "responseMessage": "SUCCESS"}
+      }
+    ]
+  },
+  "error": null
+}
+```
+
+*Heartbeat: the grant becomes AUTHORIZED and may transmit until transmitExpireTime.*
+
+```bash
+curl -s -X POST "$API/sas/heartbeat" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{
+    "heartbeatRequest": [
+      {
+        "cbsdId": "TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c",
+        "grantId": "5329943951600446",
+        "operationState": "GRANTED"
+      }
+    ]
+  }'
+```
+
+Response `200`:
+
+```json
+{
+  "transport": "internal",
+  "method": "heartbeat",
+  "version": "v1.2",
+  "httpStatus": 200,
+  "durationMs": 6,
+  "body": {
+    "heartbeatResponse": [
+      {
+        "cbsdId": "TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c",
+        "grantId": "5329943951600446",
+        "transmitExpireTime": "2026-10-27T17:10:27Z",
+        "response": {"responseCode": 0, "responseMessage": "SUCCESS"}
+      }
+    ]
+  },
+  "error": null
+}
+```
+
+*A Category B radio that sends no location waits at REG_PENDING.*
+
+```bash
+curl -s -X POST "$API/sas/registration" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{
+    "registrationRequest": [
+      {
+        "userId": "lab-user",
+        "fccId": "TEST-FCC-B",
+        "cbsdSerialNumber": "SN-B001",
+        "cbsdCategory": "B",
+        "airInterface": {"radioTechnology": "E_UTRA"},
+        "measCapability": []
+      }
+    ]
+  }'
+```
+
+Response `200`:
+
+```json
+{
+  "transport": "internal",
+  "method": "registration",
+  "version": "v1.2",
+  "httpStatus": 200,
+  "durationMs": 2,
+  "body": {
+    "registrationResponse": [
+      {
+        "response": {
+          "responseCode": 200,
+          "responseMessage": "Missing REG-conditional parameter(s): installationParam.latitude, installationParam.longitude, insta…",
+          "responseData": ["installationParam.latitude", "installationParam.longitude", "… 7 more"]
+        }
+      }
+    ]
+  },
+  "error": null
+}
+```
+
+Preload its location (POST /registry/conditional) and it registers on its next attempt.
+
+*Relinquish a grant.*
+
+```bash
+curl -s -X POST "$API/sas/relinquishment" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{
+    "relinquishmentRequest": [
+      {
+        "cbsdId": "TEST-FCC/eecf4e3a24d9945c2e75cbebf90763afcd43ef74",
+        "grantId": "3060262647489416"
+      }
+    ]
+  }'
+```
+
+Response `200`:
+
+```json
+{
+  "transport": "internal",
+  "method": "relinquishment",
+  "version": "v1.2",
+  "httpStatus": 200,
+  "durationMs": 4,
+  "body": {
+    "relinquishmentResponse": [
+      {
+        "cbsdId": "TEST-FCC/eecf4e3a24d9945c2e75cbebf90763afcd43ef74",
+        "grantId": "3060262647489416",
+        "response": {"responseCode": 0, "responseMessage": "SUCCESS"}
+      }
+    ]
+  },
+  "error": null
+}
+```
+
+*Deregister.*
+
+```bash
+curl -s -X POST "$API/sas/deregistration" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{
+    "deregistrationRequest": [{"cbsdId": "TEST-FCC/eecf4e3a24d9945c2e75cbebf90763afcd43ef74"}]
+  }'
+```
+
+Response `200`:
+
+```json
+{
+  "transport": "internal",
+  "method": "deregistration",
+  "version": "v1.2",
+  "httpStatus": 200,
+  "durationMs": 4,
+  "body": {
+    "deregistrationResponse": [
+      {
+        "cbsdId": "TEST-FCC/eecf4e3a24d9945c2e75cbebf90763afcd43ef74",
+        "response": {"responseCode": 0, "responseMessage": "SUCCESS"}
+      }
+    ]
+  },
+  "error": null
+}
+```
+
+*Through the real HTTP listener, where fault rules apply.*
+
+```bash
+curl -s -X POST "$API/sas/heartbeat?transport=http" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{
+    "heartbeatRequest": [
+      {
+        "cbsdId": "TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c",
+        "grantId": "5329943951600446",
+        "operationState": "AUTHORIZED"
+      }
+    ]
+  }'
+```
+
+Response `200`:
+
+```json
+{
+  "transport": "http",
+  "method": "heartbeat",
+  "version": "v1.2",
+  "httpStatus": 200,
+  "durationMs": 35,
+  "body": {
+    "heartbeatResponse": [
+      {
+        "cbsdId": "TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c",
+        "grantId": "5329943951600446",
+        "transmitExpireTime": "2026-10-27T17:10:28Z",
+        "response": {"responseCode": 501}
+      }
+    ]
+  },
+  "error": null
+}
+```
+
+*Register over HTTPS with mutual TLS, presenting a lab device certificate.*
+
+```bash
+curl -s -X POST "$API/sas/registration?transport=https&clientCertId=e4a32bba-ac9d-44c0-86a1-f6a5fdc35a75" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{
+    "registrationRequest": [
+      {
+        "userId": "lab-user",
+        "fccId": "TEST-FCC",
+        "cbsdSerialNumber": "SN-0004",
+        "cbsdCategory": "A",
+        "airInterface": {"radioTechnology": "E_UTRA"},
+        "measCapability": [],
+        "installationParam": {
+          "latitude": 37.425,
+          "longitude": -122.084,
+          "height": 5,
+          "heightType": "AGL",
+          "indoorDeployment": true,
+          "antennaGain": 5,
+          "eirpCapability": 26
+        }
+      }
+    ]
+  }'
+```
+
+Response `200`:
+
+```json
+{
+  "transport": "https",
+  "method": "registration",
+  "version": "v1.2",
+  "httpStatus": 200,
+  "durationMs": 24,
+  "body": {
+    "registrationResponse": [
+      {
+        "cbsdId": "TEST-FCC/1c26db59db0506d45d6cd0bc6972fa409a00d3f2",
+        "response": {"responseCode": 0, "responseMessage": "SUCCESS"}
+      }
+    ]
+  },
+  "error": null
+}
+```
+
 Path parameters:
 
 | Name | Type | Description |
@@ -1598,34 +3367,6 @@ Query parameters:
 Request body (JSON, required):
 
 Type: object. The protocol request object, or {"rawBody": "…"} with raw=true.
-
-Example:
-
-```json
-{
-  "registrationRequest": [
-    {
-      "userId": "lab-user",
-      "fccId": "TEST-FCC",
-      "cbsdSerialNumber": "SN-0001",
-      "cbsdCategory": "A",
-      "airInterface": {
-        "radioTechnology": "E_UTRA"
-      },
-      "measCapability": [],
-      "installationParam": {
-        "latitude": 37.425,
-        "longitude": -122.084,
-        "height": 5,
-        "heightType": "AGL",
-        "indoorDeployment": true,
-        "antennaGain": 5,
-        "eirpCapability": 26
-      }
-    }
-  ]
-}
-```
 
 Responses:
 
@@ -1678,6 +3419,55 @@ FCC IDs, user IDs, blacklist, preloaded (conditional) registrations and CPI user
 
 FCC IDs, user IDs, blacklist entries, preloaded registrations and CPI users in one response (no paging).
 
+Example:
+
+*Everything in the registry at once.*
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/registry"
+```
+
+Response `200`:
+
+```json
+{
+  "fccIds": [{"fccId": "TEST-FCC", "maxEirp": 47, "createdAt": 1793120787857}],
+  "userIds": [{"userId": "lab-user", "createdAt": 1793120787858}],
+  "blacklist": [],
+  "conditional": [
+    {
+      "fccId": "TEST-FCC",
+      "serial": "SN-0002",
+      "data": {
+        "fccId": "TEST-FCC",
+        "cbsdSerialNumber": "SN-0002",
+        "cbsdCategory": "A",
+        "airInterface": {"radioTechnology": "E_UTRA"},
+        "installationParam": "{…}",
+        "measCapability": []
+      },
+      "source": "cbsd",
+      "createdAt": 1793120788214
+    },
+    {
+      "fccId": "TEST-FCC",
+      "serial": "SN-0001",
+      "data": {
+        "fccId": "TEST-FCC",
+        "cbsdSerialNumber": "SN-0001",
+        "cbsdCategory": "A",
+        "airInterface": {"radioTechnology": "E_UTRA"},
+        "installationParam": "{…}",
+        "measCapability": []
+      },
+      "source": "cbsd",
+      "createdAt": 1793120787859
+    }
+  ],
+  "cpiUsers": []
+}
+```
+
 Responses:
 
 | Status | Description | Body |
@@ -1695,6 +3485,42 @@ Responses:
 **List registered radios and their registry status.**
 
 Every CBSD the SAS has a record of, oldest first, with what the registry already holds for it: its FCC ID, its user ID and preloaded registration data.
+
+Example:
+
+*Radios that have registered, and what the registry holds for each.*
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/registry/from-cbsds"
+```
+
+Response `200`:
+
+```json
+{
+  "items": [
+    {
+      "cbsdId": "TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c",
+      "fccId": "TEST-FCC",
+      "serial": "SN-0001",
+      "userId": "lab-user",
+      "state": "REGISTERED",
+      "inRegistry": {"fccId": true, "userId": true, "registration": true}
+    },
+    {
+      "cbsdId": "TEST-FCC/eecf4e3a24d9945c2e75cbebf90763afcd43ef74",
+      "fccId": "TEST-FCC",
+      "serial": "SN-0002",
+      "userId": "lab-user",
+      "state": "UNREGISTERED",
+      "inRegistry": {"fccId": true, "userId": true, "registration": false}
+    }
+  ],
+  "total": 2,
+  "limit": 500,
+  "offset": 0
+}
+```
 
 Query parameters:
 
@@ -1732,6 +3558,50 @@ Response 200 body:
 
 For each CBSD (all of them when cbsdIds is omitted), adds its FCC ID and user ID and preloads the parameters it registered with, so the radio stays known when the registry is enforced (requireKnownFccId, requireKnownUserId, conditional registration). Entries already present are kept. Unknown cbsdIds are listed in `unknown`.
 
+Example:
+
+*Add every radio not yet in the registry.*
+
+```bash
+curl -s -X POST "$API/registry/from-cbsds" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{}'
+```
+
+Response `200`:
+
+```json
+{
+  "results": [
+    {
+      "cbsdId": "TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c",
+      "fccId": "TEST-FCC",
+      "serial": "SN-0001",
+      "userId": "lab-user",
+      "state": "REGISTERED",
+      "inRegistry": {"fccId": true, "userId": true, "registration": true},
+      "added": {"fccId": false, "userId": false, "registration": false},
+      "notes": [
+        "The FCC ID is already in the registry",
+        "The user ID is already in the registry",
+        "Registration data is already preloaded for this device (replace overwrites it)"
+      ]
+    },
+    {
+      "cbsdId": "TEST-FCC/eecf4e3a24d9945c2e75cbebf90763afcd43ef74",
+      "fccId": "TEST-FCC",
+      "serial": "SN-0002",
+      "userId": "lab-user",
+      "state": "UNREGISTERED",
+      "inRegistry": {"fccId": true, "userId": true, "registration": true},
+      "added": {"fccId": false, "userId": false, "registration": true},
+      "notes": ["The FCC ID is already in the registry", "The user ID is already in the registry"]
+    }
+  ],
+  "unknown": []
+}
+```
+
 Request body (JSON, optional):
 
 | Field | Type | Required | Description |
@@ -1741,17 +3611,6 @@ Request body (JSON, optional):
 | `userId` | boolean |  | Add the user ID. · default `true` |
 | `registration` | boolean |  | Preload the registration parameters (category, air interface, installation parameters, measurement capability, call sign) as REG-Conditional data. · default `true` |
 | `replace` | boolean |  | Overwrite registration data already preloaded for the device. · default `false` |
-
-Example:
-
-```json
-{
-  "cbsdIds": [
-    "2AG32MBS3500/0a1b2c3d4e5f60718293a4b5c6d7e8f9a0b1c2d3"
-  ],
-  "registration": true
-}
-```
 
 Responses:
 
@@ -1771,6 +3630,26 @@ Responses:
 **List FCC IDs.**
 
 FCC IDs known to the SAS. With requireKnownFccId, registrations from other FCC IDs are rejected (103).
+
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/registry/fcc-ids"
+```
+
+Response `200`:
+
+```json
+{
+  "items": [
+    {"fccId": "TEST-FCC", "maxEirp": 47, "createdAt": 1793120787857},
+    {"fccId": "TEST-FCC-2", "maxEirp": 30, "createdAt": 1793120788224}
+  ],
+  "total": 2,
+  "limit": 500,
+  "offset": 0
+}
+```
 
 Query parameters:
 
@@ -1808,21 +3687,26 @@ Response 200 body:
 
 Same as the harness call injectdata/fcc_id. 201 when added, 200 when an existing FCC ID was updated.
 
+Example:
+
+```bash
+curl -s -X POST "$API/registry/fcc-ids" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{"fccId": "TEST-FCC-2", "maxEirp": 30}'
+```
+
+Response `201`:
+
+```json
+{"fccId": "TEST-FCC-2", "maxEirp": 30, "createdAt": 1793120788224}
+```
+
 Request body (JSON, required):
 
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `fccId` | string | yes | min length 1, max length 64 |
 | `maxEirp` | number |  | Certified maximum EIRP in dBm/10 MHz. · ≥ -137, ≤ 100, default `47` |
-
-Example:
-
-```json
-{
-  "fccId": "TEST-FCC",
-  "maxEirp": 47
-}
-```
 
 Responses:
 
@@ -1841,6 +3725,18 @@ Responses:
 `GET /api/v1/registry/fcc-ids/{fccId}` · scope **read**
 
 **Get an FCC ID.**
+
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/registry/fcc-ids/TEST-FCC-2"
+```
+
+Response `200`:
+
+```json
+{"fccId": "TEST-FCC-2", "maxEirp": 30, "createdAt": 1793120788224}
+```
 
 Path parameters:
 
@@ -1865,6 +3761,14 @@ Responses:
 `DELETE /api/v1/registry/fcc-ids/{fccId}` · scope **write**
 
 **Remove an FCC ID.**
+
+Example:
+
+```bash
+curl -s -X DELETE -H "Authorization: Bearer $KEY" "$API/registry/fcc-ids/TEST-FCC-2"
+```
+
+Response `204`, no body.
 
 Path parameters:
 
@@ -1892,6 +3796,26 @@ Responses:
 **List user IDs.**
 
 User IDs known to the SAS. With requireKnownUserId, registrations from other user IDs are rejected (103).
+
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/registry/user-ids"
+```
+
+Response `200`:
+
+```json
+{
+  "items": [
+    {"userId": "bench-team", "createdAt": 1793120788251},
+    {"userId": "lab-user", "createdAt": 1793120787858}
+  ],
+  "total": 2,
+  "limit": 500,
+  "offset": 0
+}
+```
 
 Query parameters:
 
@@ -1929,19 +3853,25 @@ Response 200 body:
 
 Same as the harness call injectdata/user_id. 201 when added, 200 when it already existed.
 
+Example:
+
+```bash
+curl -s -X POST "$API/registry/user-ids" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{"userId": "bench-team"}'
+```
+
+Response `201`:
+
+```json
+{"userId": "bench-team", "createdAt": 1793120788251}
+```
+
 Request body (JSON, required):
 
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `userId` | string | yes | min length 1, max length 256 |
-
-Example:
-
-```json
-{
-  "userId": "lab-user"
-}
-```
 
 Responses:
 
@@ -1960,6 +3890,18 @@ Responses:
 `GET /api/v1/registry/user-ids/{userId}` · scope **read**
 
 **Get a user ID.**
+
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/registry/user-ids/bench-team"
+```
+
+Response `200`:
+
+```json
+{"userId": "bench-team", "createdAt": 1793120788251}
+```
 
 Path parameters:
 
@@ -1984,6 +3926,14 @@ Responses:
 `DELETE /api/v1/registry/user-ids/{userId}` · scope **write**
 
 **Remove a user ID.**
+
+Example:
+
+```bash
+curl -s -X DELETE -H "Authorization: Bearer $KEY" "$API/registry/user-ids/bench-team"
+```
+
+Response `204`, no body.
 
 Path parameters:
 
@@ -2011,6 +3961,31 @@ Responses:
 **List blacklist entries.**
 
 Blacklisted CBSDs are answered with 101 BLACKLISTED, and their grants are terminated on their next request.
+
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/registry/blacklist"
+```
+
+Response `200`:
+
+```json
+{
+  "items": [
+    {
+      "id": 1,
+      "fccId": "BAD-FCC",
+      "serial": "SN-666",
+      "reason": "Firmware sends malformed grants",
+      "createdAt": 1793120788276
+    }
+  ],
+  "total": 1,
+  "limit": 500,
+  "offset": 0
+}
+```
 
 Query parameters:
 
@@ -2048,6 +4023,28 @@ Response 200 body:
 
 Without `serial` the whole FCC ID is blacklisted. Same as the harness calls blacklist_fcc_id and blacklist_fcc_id_and_serial_number. 201 when added, 200 when the same entry existed.
 
+Example:
+
+*Blacklist one device.*
+
+```bash
+curl -s -X POST "$API/registry/blacklist" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{"fccId": "BAD-FCC", "serial": "SN-666", "reason": "Firmware sends malformed grants"}'
+```
+
+Response `201`:
+
+```json
+{
+  "id": 1,
+  "fccId": "BAD-FCC",
+  "serial": "SN-666",
+  "reason": "Firmware sends malformed grants",
+  "createdAt": 1793120788276
+}
+```
+
 Request body (JSON, required):
 
 | Field | Type | Required | Description |
@@ -2055,16 +4052,6 @@ Request body (JSON, required):
 | `fccId` | string | yes | min length 1, max length 64 |
 | `serial` | string \| null |  | Only this serial number. · min length 1, max length 256 |
 | `reason` | string |  | max length 500 |
-
-Example:
-
-```json
-{
-  "fccId": "TEST-FCC",
-  "serial": "SN-0001",
-  "reason": "interference investigation"
-}
-```
 
 Responses:
 
@@ -2083,6 +4070,24 @@ Responses:
 `GET /api/v1/registry/blacklist/{id}` · scope **read**
 
 **Get a blacklist entry.**
+
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/registry/blacklist/1"
+```
+
+Response `200`:
+
+```json
+{
+  "id": 1,
+  "fccId": "BAD-FCC",
+  "serial": "SN-666",
+  "reason": "Firmware sends malformed grants",
+  "createdAt": 1793120788276
+}
+```
 
 Path parameters:
 
@@ -2107,6 +4112,14 @@ Responses:
 `DELETE /api/v1/registry/blacklist/{id}` · scope **write**
 
 **Remove a blacklist entry.**
+
+Example:
+
+```bash
+curl -s -X DELETE -H "Authorization: Bearer $KEY" "$API/registry/blacklist/1"
+```
+
+Response `204`, no body.
 
 Path parameters:
 
@@ -2134,6 +4147,52 @@ Responses:
 **List preloaded registrations.**
 
 REG-Conditional data (location, antenna, category, …) preloaded per FCC ID and serial number. A CBSD that registers without that data gets it from here, e.g. radios that send no location.
+
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/registry/conditional"
+```
+
+Response `200`:
+
+```json
+{
+  "items": [
+    {
+      "fccId": "TEST-FCC-B",
+      "serial": "SN-B001",
+      "data": {
+        "fccId": "TEST-FCC-B",
+        "cbsdSerialNumber": "SN-B001",
+        "cbsdCategory": "B",
+        "airInterface": {"radioTechnology": "E_UTRA"},
+        "installationParam": "{…}"
+      },
+      "source": "api",
+      "createdAt": 1793120788301
+    },
+    {
+      "fccId": "TEST-FCC",
+      "serial": "SN-0002",
+      "data": {
+        "fccId": "TEST-FCC",
+        "cbsdSerialNumber": "SN-0002",
+        "cbsdCategory": "A",
+        "airInterface": {"radioTechnology": "E_UTRA"},
+        "installationParam": "{…}",
+        "measCapability": []
+      },
+      "source": "cbsd",
+      "createdAt": 1793120788214
+    },
+    "… 1 more"
+  ],
+  "total": 3,
+  "limit": 500,
+  "offset": 0
+}
+```
 
 Query parameters:
 
@@ -2171,32 +4230,70 @@ Response 200 body:
 
 One record, an array of records, or `{"registrationData": [ … ]}` (the harness format). Each record needs fccId and cbsdSerialNumber and may carry any RegistrationRequest parameters (cbsdCategory, airInterface, installationParam, …). Existing records for the same device are replaced.
 
-Request body (JSON, required):
-
-Type: array of object \| object \| object
-
 Example:
+
+*Preload the location of the Category B radio waiting at REG_PENDING.*
+
+```bash
+curl -s -X POST "$API/registry/conditional" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{
+    "fccId": "TEST-FCC-B",
+    "cbsdSerialNumber": "SN-B001",
+    "cbsdCategory": "B",
+    "airInterface": {"radioTechnology": "E_UTRA"},
+    "installationParam": {
+      "latitude": 37.4215,
+      "longitude": -122.0839,
+      "height": 12,
+      "heightType": "AGL",
+      "indoorDeployment": false,
+      "antennaGain": 15,
+      "eirpCapability": 40,
+      "antennaAzimuth": 180,
+      "antennaDowntilt": 4,
+      "antennaBeamwidth": 65
+    }
+  }'
+```
+
+Response `200`:
 
 ```json
 {
-  "fccId": "TEST-FCC",
-  "cbsdSerialNumber": "SN-0002",
-  "cbsdCategory": "B",
-  "airInterface": {
-    "radioTechnology": "E_UTRA"
-  },
-  "installationParam": {
-    "latitude": 39.74,
-    "longitude": -104.99,
-    "height": 12,
-    "heightType": "AGL",
-    "indoorDeployment": false,
-    "antennaGain": 16,
-    "antennaBeamwidth": 65,
-    "antennaAzimuth": 180
-  }
+  "saved": 1,
+  "items": [
+    {
+      "fccId": "TEST-FCC-B",
+      "serial": "SN-B001",
+      "data": {
+        "fccId": "TEST-FCC-B",
+        "cbsdSerialNumber": "SN-B001",
+        "cbsdCategory": "B",
+        "airInterface": {"radioTechnology": "E_UTRA"},
+        "installationParam": {
+          "latitude": 37.4215,
+          "longitude": -122.0839,
+          "height": 12,
+          "heightType": "AGL",
+          "indoorDeployment": false,
+          "antennaGain": 15,
+          "eirpCapability": 40,
+          "antennaAzimuth": 180,
+          "antennaDowntilt": 4,
+          "antennaBeamwidth": 65
+        }
+      },
+      "source": "api",
+      "createdAt": 1793120788301
+    }
+  ]
 }
 ```
+
+Request body (JSON, required):
+
+Type: array of object \| object \| object
 
 Responses:
 
@@ -2222,6 +4319,41 @@ Response 200 body:
 
 **Get preloaded registration data.**
 
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/registry/conditional/TEST-FCC-B/SN-B001"
+```
+
+Response `200`:
+
+```json
+{
+  "fccId": "TEST-FCC-B",
+  "serial": "SN-B001",
+  "data": {
+    "fccId": "TEST-FCC-B",
+    "cbsdSerialNumber": "SN-B001",
+    "cbsdCategory": "B",
+    "airInterface": {"radioTechnology": "E_UTRA"},
+    "installationParam": {
+      "latitude": 37.4215,
+      "longitude": -122.0839,
+      "height": 12,
+      "heightType": "AGL",
+      "indoorDeployment": false,
+      "antennaGain": 15,
+      "eirpCapability": 40,
+      "antennaAzimuth": 180,
+      "antennaDowntilt": 4,
+      "antennaBeamwidth": 65
+    }
+  },
+  "source": "api",
+  "createdAt": 1793120788301
+}
+```
+
 Path parameters:
 
 | Name | Type | Description |
@@ -2246,6 +4378,14 @@ Responses:
 `DELETE /api/v1/registry/conditional/{fccId}/{serial}` · scope **write**
 
 **Remove preloaded registration data.**
+
+Example:
+
+```bash
+curl -s -X DELETE -H "Authorization: Bearer $KEY" "$API/registry/conditional/TEST-FCC-B/SN-B001"
+```
+
+Response `204`, no body.
 
 Path parameters:
 
@@ -2274,6 +4414,31 @@ Responses:
 **List CPI users.**
 
 Certified Professional Installers whose signatures (cpiSignatureData) the SAS verifies.
+
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/registry/cpi-users"
+```
+
+Response `200`:
+
+```json
+{
+  "items": [
+    {
+      "cpiId": "CPI-0042",
+      "name": "Jordan Lee",
+      "publicKey": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEyTJ+…\n-----END PUBLIC KEY-----\n",
+      "source": "api",
+      "createdAt": 1793120788345
+    }
+  ],
+  "total": 1,
+  "limit": 500,
+  "offset": 0
+}
+```
 
 Query parameters:
 
@@ -2310,6 +4475,29 @@ Response 200 body:
 
 The public key may be given as a SubjectPublicKeyInfo PEM (`publicKey`), a certificate PEM (`publicKey` containing a certificate) or the id of a certificate in the store (`certId`). Same as the harness call injectdata/cpi_user.
 
+Example:
+
+*Register a certified professional installer by public key.*
+
+```bash
+jq -n --rawfile publicKey cpi-0042.pem '{cpiId: "CPI-0042", name: "Jordan Lee", publicKey: $publicKey}' \
+  | curl -s -X POST "$API/registry/cpi-users" -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' -d @-
+```
+
+Response `201`:
+
+```json
+{
+  "cpiId": "CPI-0042",
+  "name": "Jordan Lee",
+  "publicKey": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEyTJ+…\n-----END PUBLIC KEY-----\n",
+  "source": "api",
+  "createdAt": 1793120788345
+}
+```
+
+`jq` builds the body from the PEM file: `{"cpiId": "CPI-0042", "name": "Jordan Lee", "publicKey": "-----BEGIN PUBLIC KEY-----\n…"}`.
+
 Request body (JSON, required):
 
 | Field | Type | Required | Description |
@@ -2318,16 +4506,6 @@ Request body (JSON, required):
 | `name` | string |  | max length 256 |
 | `publicKey` | string |  | PEM public key or certificate. · min length 1 |
 | `certId` | string |  | Certificate in the store whose public key to use. · min length 1 |
-
-Example:
-
-```json
-{
-  "cpiId": "cpi-0001",
-  "name": "Lab installer",
-  "certId": "<installer certificate id>"
-}
-```
 
 Responses:
 
@@ -2347,6 +4525,24 @@ Responses:
 `GET /api/v1/registry/cpi-users/{cpiId}` · scope **read**
 
 **Get a CPI user.**
+
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/registry/cpi-users/CPI-0042"
+```
+
+Response `200`:
+
+```json
+{
+  "cpiId": "CPI-0042",
+  "name": "Jordan Lee",
+  "publicKey": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEyTJ+…\n-----END PUBLIC KEY-----\n",
+  "source": "api",
+  "createdAt": 1793120788345
+}
+```
 
 Path parameters:
 
@@ -2371,6 +4567,14 @@ Responses:
 `DELETE /api/v1/registry/cpi-users/{cpiId}` · scope **write**
 
 **Remove a CPI user.**
+
+Example:
+
+```bash
+curl -s -X DELETE -H "Authorization: Bearer $KEY" "$API/registry/cpi-users/CPI-0042"
+```
+
+Response `204`, no body.
 
 Path parameters:
 
@@ -2407,6 +4611,61 @@ The band overview: band plan, protections, PPAs, live grants, CBSD locations, in
 
 The managed band and GAA ranges, every protection and PPA, live grants with their CBSD locations, registered CBSD locations and injected incumbents: everything the Spectrum page draws.
 
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/spectrum"
+```
+
+Response `200`:
+
+```json
+{
+  "band": {"low": 3550000000, "high": 3700000000},
+  "gaaRanges": [{"low": 3550000000, "high": 3700000000}],
+  "protections": [],
+  "ppas": [],
+  "grants": [
+    {
+      "grantId": "5329943951600446",
+      "cbsdId": "TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c",
+      "state": "AUTHORIZED",
+      "suspended": false,
+      "low": 3550000000,
+      "high": 3560000000,
+      "maxEirp": 10,
+      "channelType": "GAA",
+      "lat": 37.425,
+      "lon": -122.084
+    }
+  ],
+  "cbsds": [
+    {
+      "cbsdId": "TEST-FCC-B/1a22eeb4baa2cd9a2aa1bd242c366c403f5a9770",
+      "fccId": "TEST-FCC-B",
+      "serial": "SN-B001",
+      "category": "B",
+      "lat": 37.4215,
+      "lon": -122.0839,
+      "indoor": false
+    },
+    "… 1 more"
+  ],
+  "incumbents": {
+    "fss": [],
+    "wisp": [],
+    "pal": [],
+    "zone": [],
+    "exclusion_zone": [],
+    "peer_sas": [],
+    "esc_sensor": [],
+    "sas_admin": [],
+    "fad_cbsd": [],
+    "database_url": []
+  }
+}
+```
+
 Responses:
 
 | Status | Description | Body |
@@ -2438,6 +4697,44 @@ Administrator blocks, ESC, FSS, exclusion zones and DPAs that remove spectrum fr
 **List protections.**
 
 Administrator blocks, DPAs, ESC and FSS protections, exclusion zones and the protections derived from injected incumbent data.
+
+Example:
+
+*Active administrator protections.*
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/protections?kind=ADMIN&active=true"
+```
+
+Response `200`:
+
+```json
+{
+  "items": [
+    {
+      "id": "ui:e9d164f3-58be-45da-be6b-c4303f57fa40",
+      "name": "Radar test block",
+      "kind": "ADMIN",
+      "source": "ui",
+      "low": 3550000000,
+      "high": 3560000000,
+      "active": true,
+      "channels": null,
+      "action": "suspend",
+      "geometry": null,
+      "latitude": null,
+      "longitude": null,
+      "radiusKm": null,
+      "neighborhood": null,
+      "notes": null,
+      "updatedAt": 1793120788392
+    }
+  ],
+  "total": 1,
+  "limit": 500,
+  "offset": 0
+}
+```
 
 Query parameters:
 
@@ -2477,6 +4774,45 @@ Response 200 body:
 
 Active protections remove spectrum from availability for the CBSDs they cover; grants they hit are suspended or terminated at the next heartbeat. A band-wide protection (no geometry, no point) covers every CBSD.
 
+Example:
+
+*Block 3550–3560 MHz: grants inside it are suspended.*
+
+```bash
+curl -s -X POST "$API/protections" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{
+    "name": "Radar test block",
+    "low": 3550000000,
+    "high": 3560000000,
+    "active": true,
+    "action": "suspend"
+  }'
+```
+
+Response `201`:
+
+```json
+{
+  "id": "ui:e9d164f3-58be-45da-be6b-c4303f57fa40",
+  "name": "Radar test block",
+  "kind": "ADMIN",
+  "source": "ui",
+  "low": 3550000000,
+  "high": 3560000000,
+  "active": true,
+  "channels": null,
+  "action": "suspend",
+  "geometry": null,
+  "latitude": null,
+  "longitude": null,
+  "radiusKm": null,
+  "neighborhood": null,
+  "notes": null,
+  "updatedAt": 1793120788392
+}
+```
+
 Request body (JSON, required):
 
 | Field | Type | Required | Description |
@@ -2496,19 +4832,6 @@ Request body (JSON, required):
 | `neighborhood` | object \| null |  | Neighbourhood distances (km) by CBSD class, as in the NTIA DPA files. |
 | `notes` | string \| null |  | max length 2000 |
 
-Example:
-
-```json
-{
-  "name": "Bench shield test",
-  "kind": "ADMIN",
-  "low": 3550000000,
-  "high": 3560000000,
-  "active": true,
-  "action": "suspend"
-}
-```
-
 Responses:
 
 | Status | Description | Body |
@@ -2526,6 +4849,35 @@ Responses:
 `GET /api/v1/protections/{id}` · scope **read**
 
 **Get a protection.**
+
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/protections/ui%3Ae9d164f3-58be-45da-be6b-c4303f57fa40"
+```
+
+Response `200`:
+
+```json
+{
+  "id": "ui:e9d164f3-58be-45da-be6b-c4303f57fa40",
+  "name": "Radar test block",
+  "kind": "ADMIN",
+  "source": "ui",
+  "low": 3550000000,
+  "high": 3560000000,
+  "active": true,
+  "channels": null,
+  "action": "suspend",
+  "geometry": null,
+  "latitude": null,
+  "longitude": null,
+  "radiusKm": null,
+  "neighborhood": null,
+  "notes": null,
+  "updatedAt": 1793120788392
+}
+```
 
 Path parameters:
 
@@ -2553,6 +4905,47 @@ Responses:
 
 201 when created, 200 when replaced. Protections derived from harness data are rebuilt whenever incumbent data changes.
 
+Example:
+
+*Create or replace a protection under your own id: an ESC sensor neighbourhood.*
+
+```bash
+curl -s -X PUT "$API/protections/esc-norfolk" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{
+    "name": "ESC sensor Norfolk",
+    "kind": "ESC",
+    "low": 3600000000,
+    "high": 3650000000,
+    "latitude": 36.9,
+    "longitude": -76,
+    "radiusKm": 40
+  }'
+```
+
+Response `201`:
+
+```json
+{
+  "id": "esc-norfolk",
+  "name": "ESC sensor Norfolk",
+  "kind": "ESC",
+  "source": "ui",
+  "low": 3600000000,
+  "high": 3650000000,
+  "active": false,
+  "channels": null,
+  "action": "suspend",
+  "geometry": null,
+  "latitude": 36.9,
+  "longitude": -76,
+  "radiusKm": 40,
+  "neighborhood": null,
+  "notes": null,
+  "updatedAt": 1793120788429
+}
+```
+
 Path parameters:
 
 | Name | Type | Description |
@@ -2577,19 +4970,6 @@ Request body (JSON, required):
 | `neighborhood` | object \| null |  | Neighbourhood distances (km) by CBSD class, as in the NTIA DPA files. |
 | `notes` | string \| null |  | max length 2000 |
 
-Example:
-
-```json
-{
-  "name": "Bench shield test",
-  "kind": "ADMIN",
-  "low": 3550000000,
-  "high": 3560000000,
-  "active": true,
-  "action": "suspend"
-}
-```
-
 Responses:
 
 | Status | Description | Body |
@@ -2609,6 +4989,14 @@ Responses:
 `DELETE /api/v1/protections/{id}` · scope **write**
 
 **Delete a protection.**
+
+Example:
+
+```bash
+curl -s -X DELETE -H "Authorization: Bearer $KEY" "$API/protections/ui%3Ae9d164f3-58be-45da-be6b-c4303f57fa40"
+```
+
+Response `204`, no body.
 
 Path parameters:
 
@@ -2637,6 +5025,39 @@ Responses:
 
 Optionally on selected sub-channels only. Grants it hits are suspended (or terminated) at their next heartbeat.
 
+Example:
+
+*Activate it on 3555–3560 MHz only.*
+
+```bash
+curl -s -X POST "$API/protections/ui%3Ae9d164f3-58be-45da-be6b-c4303f57fa40/activate" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{"channels": [[3555000000, 3560000000]]}'
+```
+
+Response `200`:
+
+```json
+{
+  "id": "ui:e9d164f3-58be-45da-be6b-c4303f57fa40",
+  "name": "Radar test block",
+  "kind": "ADMIN",
+  "source": "ui",
+  "low": 3550000000,
+  "high": 3560000000,
+  "active": true,
+  "channels": [[3555000000, 3560000000]],
+  "action": "suspend",
+  "geometry": null,
+  "latitude": null,
+  "longitude": null,
+  "radiusKm": null,
+  "neighborhood": null,
+  "notes": null,
+  "updatedAt": 1793120788420
+}
+```
+
 Path parameters:
 
 | Name | Type | Description |
@@ -2648,19 +5069,6 @@ Request body (JSON, optional):
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `channels` | array of array of integer \| null |  | Sub-channels to activate. Omit for the whole band. |
-
-Example:
-
-```json
-{
-  "channels": [
-    [
-      3550000000,
-      3560000000
-    ]
-  ]
-}
-```
 
 Responses:
 
@@ -2680,6 +5088,36 @@ Responses:
 `POST /api/v1/protections/{id}/deactivate` · scope **write**
 
 **Deactivate a protection.**
+
+Example:
+
+```bash
+curl -s -X POST "$API/protections/ui%3Ae9d164f3-58be-45da-be6b-c4303f57fa40/deactivate" \
+  -H "Authorization: Bearer $KEY"
+```
+
+Response `200`:
+
+```json
+{
+  "id": "ui:e9d164f3-58be-45da-be6b-c4303f57fa40",
+  "name": "Radar test block",
+  "kind": "ADMIN",
+  "source": "ui",
+  "low": 3550000000,
+  "high": 3560000000,
+  "active": false,
+  "channels": null,
+  "action": "suspend",
+  "geometry": null,
+  "latitude": null,
+  "longitude": null,
+  "radiusKm": null,
+  "neighborhood": null,
+  "notes": null,
+  "updatedAt": 1793120788411
+}
+```
 
 Path parameters:
 
@@ -2722,6 +5160,61 @@ Dynamic Protection Areas from the NTIA KML files, and their per-channel activati
 
 Dynamic Protection Areas loaded from the NTIA KML files (protections of kind DPA), and the files available to load.
 
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/dpas?limit=2"
+```
+
+Response `200`:
+
+```json
+{
+  "items": [
+    {
+      "id": "dpa:Alameda",
+      "name": "Alameda",
+      "kind": "DPA",
+      "source": "ntia-e-dpa",
+      "low": 3500000000,
+      "high": 3650000000,
+      "active": false,
+      "channels": null,
+      "action": "suspend",
+      "geometry": "{…}",
+      "latitude": null,
+      "longitude": null,
+      "radiusKm": null,
+      "neighborhood": "{…}",
+      "notes": "NTIA ESC DPA (3500-3650 MHz)",
+      "updatedAt": 1793120788481
+    },
+    {
+      "id": "dpa:Alaska1",
+      "name": "Alaska1",
+      "kind": "DPA",
+      "source": "ntia-e-dpa",
+      "low": 3550000000,
+      "high": 3650000000,
+      "active": false,
+      "channels": null,
+      "action": "suspend",
+      "geometry": "{…}",
+      "latitude": null,
+      "longitude": null,
+      "radiusKm": null,
+      "neighborhood": "{…}",
+      "notes": "NTIA ESC DPA (3550-3650 MHz)",
+      "updatedAt": 1793120788481
+    }
+  ],
+  "total": 93,
+  "limit": 2,
+  "offset": 0,
+  "files": ["E-DPAs.kml", "P-DPAs.kml"]
+}
+```
+
 Query parameters:
 
 | Name | Type | Required | Description |
@@ -2757,6 +5250,20 @@ Response 200 body:
 
 **Remove every DPA.**
 
+Example:
+
+*Unload every DPA.*
+
+```bash
+curl -s -X DELETE -H "Authorization: Bearer $KEY" "$API/dpas"
+```
+
+Response `200`:
+
+```json
+{"deleted": 93}
+```
+
 Responses:
 
 | Status | Description | Body |
@@ -2782,21 +5289,28 @@ Response 200 body:
 
 `E-DPAs.kml`: ESC-monitored coastal DPAs. `P-DPAs.kml`: portal DPAs. Already loaded DPAs are kept (and activated when `activate` is true).
 
+Example:
+
+*Load the NTIA east-coast DPAs.*
+
+```bash
+curl -s -X POST "$API/dpas/load" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{"file": "E-DPAs.kml"}'
+```
+
+Response `200`:
+
+```json
+{"loaded": 93}
+```
+
 Request body (JSON, optional):
 
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `file` | `"E-DPAs.kml"` \| `"P-DPAs.kml"` |  | default `"E-DPAs.kml"` |
 | `activate` | boolean |  | default `false` |
-
-Example:
-
-```json
-{
-  "file": "E-DPAs.kml",
-  "activate": false
-}
-```
 
 Responses:
 
@@ -2823,6 +5337,18 @@ Response 200 body:
 
 Same as the harness call trigger/bulk_dpa_activation with activate=true.
 
+Example:
+
+```bash
+curl -s -X POST -H "Authorization: Bearer $KEY" "$API/dpas/activate-all"
+```
+
+Response `200`:
+
+```json
+{"active": 93}
+```
+
 Responses:
 
 | Status | Description | Body |
@@ -2847,6 +5373,18 @@ Response 200 body:
 **Deactivate every DPA.**
 
 Same as the harness call trigger/bulk_dpa_activation with activate=false.
+
+Example:
+
+```bash
+curl -s -X POST -H "Authorization: Bearer $KEY" "$API/dpas/deactivate-all"
+```
+
+Response `200`:
+
+```json
+{"active": 0}
+```
 
 Responses:
 
@@ -2873,6 +5411,59 @@ Response 200 body:
 
 Same as the harness call trigger/dpa_activation. `dpaId` is the DPA name (e.g. "East1") or its protection id ("dpa:East1").
 
+Example:
+
+*Activate a DPA on one channel.*
+
+```bash
+curl -s -X POST "$API/dpas/Alameda/channels/activate" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{"lowFrequency": 3550000000, "highFrequency": 3560000000}'
+```
+
+Response `200`:
+
+```json
+{
+  "id": "dpa:Alameda",
+  "name": "Alameda",
+  "kind": "DPA",
+  "source": "ntia-e-dpa",
+  "low": 3500000000,
+  "high": 3650000000,
+  "active": true,
+  "channels": [[3550000000, 3560000000]],
+  "action": "suspend",
+  "geometry": {
+    "type": "MultiPolygon",
+    "coordinates": [
+      [
+        [
+          [-122.291778430115, 37.7675355761059],
+          [-122.291407305729, 37.7695817473655],
+          "… 10 more"
+        ]
+      ]
+    ]
+  },
+  "latitude": null,
+  "longitude": null,
+  "radiusKm": null,
+  "neighborhood": {
+    "catBNeighborhoodDistanceKm": 80,
+    "catB_6m_NeighborhoodDistanceKm": 80,
+    "catA_Indoor_NeighborhoodDistanceKm": 78,
+    "catA_Indoor_6m_NeighborhoodDistanceKm": 10,
+    "catA_Outdoor_NeighborhoodDistanceKm": 80,
+    "catA_Outdoor_6m_NeighborhoodDistanceKm": 80,
+    "catBOOBNeighborhoodDistanceKm": 0,
+    "catAOOBNeighborhoodDistanceKm": 0
+  },
+  "notes": "NTIA ESC DPA (3500-3650 MHz)",
+  "updatedAt": 1793120788954
+}
+```
+
 Path parameters:
 
 | Name | Type | Description |
@@ -2885,15 +5476,6 @@ Request body (JSON, required):
 |---|---|---|---|
 | `lowFrequency` | integer | yes | ≥ 0 |
 | `highFrequency` | integer | yes | ≥ 0 |
-
-Example:
-
-```json
-{
-  "lowFrequency": 3550000000,
-  "highFrequency": 3560000000
-}
-```
 
 Responses:
 
@@ -2916,6 +5498,57 @@ Responses:
 
 Same as the harness call trigger/dpa_deactivation. A wider active range is split around the channel.
 
+Example:
+
+```bash
+curl -s -X POST "$API/dpas/Alameda/channels/deactivate" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{"lowFrequency": 3550000000, "highFrequency": 3560000000}'
+```
+
+Response `200`:
+
+```json
+{
+  "id": "dpa:Alameda",
+  "name": "Alameda",
+  "kind": "DPA",
+  "source": "ntia-e-dpa",
+  "low": 3500000000,
+  "high": 3650000000,
+  "active": false,
+  "channels": [],
+  "action": "suspend",
+  "geometry": {
+    "type": "MultiPolygon",
+    "coordinates": [
+      [
+        [
+          [-122.291778430115, 37.7675355761059],
+          [-122.291407305729, 37.7695817473655],
+          "… 10 more"
+        ]
+      ]
+    ]
+  },
+  "latitude": null,
+  "longitude": null,
+  "radiusKm": null,
+  "neighborhood": {
+    "catBNeighborhoodDistanceKm": 80,
+    "catB_6m_NeighborhoodDistanceKm": 80,
+    "catA_Indoor_NeighborhoodDistanceKm": 78,
+    "catA_Indoor_6m_NeighborhoodDistanceKm": 10,
+    "catA_Outdoor_NeighborhoodDistanceKm": 80,
+    "catA_Outdoor_6m_NeighborhoodDistanceKm": 80,
+    "catBOOBNeighborhoodDistanceKm": 0,
+    "catAOOBNeighborhoodDistanceKm": 0
+  },
+  "notes": "NTIA ESC DPA (3500-3650 MHz)",
+  "updatedAt": 1793120788964
+}
+```
+
 Path parameters:
 
 | Name | Type | Description |
@@ -2928,15 +5561,6 @@ Request body (JSON, required):
 |---|---|---|---|
 | `lowFrequency` | integer | yes | ≥ 0 |
 | `highFrequency` | integer | yes | ≥ 0 |
-
-Example:
-
-```json
-{
-  "lowFrequency": 3550000000,
-  "highFrequency": 3560000000
-}
-```
 
 Responses:
 
@@ -2969,6 +5593,40 @@ PAL Protection Areas: PAL channels reserved for a cluster of CBSDs within an are
 `GET /api/v1/ppas` · scope **read**
 
 **List PAL Protection Areas.**
+
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/ppas"
+```
+
+Response `200`:
+
+```json
+{
+  "items": [
+    {
+      "id": "zone/ppa/ui/d0ebe59d-768b-42f9-a005-c9a9d7c30e3d",
+      "name": "Lab PPA",
+      "channels": [
+        {
+          "low": 3550000000,
+          "high": 3560000000,
+          "palId": "pal/lab/1",
+          "licenseExpiration": 2051222400000
+        }
+      ],
+      "members": ["TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c"],
+      "geometry": null,
+      "expiration": null,
+      "source": "ui"
+    }
+  ],
+  "total": 1,
+  "limit": 500,
+  "offset": 0
+}
+```
 
 Query parameters:
 
@@ -3006,6 +5664,48 @@ Response 200 body:
 
 Member CBSDs get PAL grants on the PPA channels; other CBSDs inside the area are refused those channels.
 
+Example:
+
+*A PAL protection area around SN-0001.*
+
+```bash
+curl -s -X POST "$API/ppas" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{
+    "name": "Lab PPA",
+    "channels": [
+      {
+        "low": 3550000000,
+        "high": 3560000000,
+        "palId": "pal/lab/1",
+        "licenseExpiration": "2035-01-01T00:00:00Z"
+      }
+    ],
+    "members": ["TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c"]
+  }'
+```
+
+Response `201`:
+
+```json
+{
+  "id": "zone/ppa/ui/d0ebe59d-768b-42f9-a005-c9a9d7c30e3d",
+  "name": "Lab PPA",
+  "channels": [
+    {
+      "low": 3550000000,
+      "high": 3560000000,
+      "palId": "pal/lab/1",
+      "licenseExpiration": 2051222400000
+    }
+  ],
+  "members": ["TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c"],
+  "geometry": null,
+  "expiration": null,
+  "source": "ui"
+}
+```
+
 Request body (JSON, required):
 
 | Field | Type | Required | Description |
@@ -3020,24 +5720,6 @@ Request body (JSON, required):
 | `members` | array of string |  | cbsdIds in the PPA cluster: they may use the PAL channels; other CBSDs inside the area may not. |
 | `geometry` | object \| null |  | GeoJSON area. Null: the PPA applies to its members anywhere and excludes no one. |
 | `expiration` | time (epoch ms or RFC 3339) \| any \| null |  | When the PPA ends. |
-
-Example:
-
-```json
-{
-  "name": "Lab PPA",
-  "channels": [
-    {
-      "low": 3550000000,
-      "high": 3560000000,
-      "palId": "pal/lab/1"
-    }
-  ],
-  "members": [
-    "TEST-FCC/0123456789abcdef0123456789abcdef01234567"
-  ]
-}
-```
 
 Responses:
 
@@ -3059,6 +5741,58 @@ Responses:
 
 Same as the harness call trigger/create_ppa: the PAL records (inject them first as incumbents of kind `pal`) give the channels, the CBSDs form the cluster and must belong to the PAL holder. Without `providedContour`, the area is the union of 8 km circles around the CBSDs.
 
+Example:
+
+*A PPA for the PAL, with SN-0001 as its cluster.*
+
+```bash
+curl -s -X POST "$API/ppas/from-pal" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{
+    "cbsdIds": ["TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c"],
+    "palIds": ["pal/lab/1"]
+  }'
+```
+
+Response `201`:
+
+```json
+{
+  "id": "zone/ppa/lab/pal/lab/1/c26f00a4a2724c649551100690eb2867",
+  "name": "PPA pal/lab/1",
+  "channels": [
+    {
+      "low": 3550000000,
+      "high": 3560000000,
+      "palId": "pal/lab/1",
+      "licenseExpiration": 2051222400000
+    }
+  ],
+  "members": ["TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c"],
+  "geometry": {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "properties": {},
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [-122.084, 37.497349738636565],
+              [-122.06634571093794, 37.495959558695766],
+              "… 31 more"
+            ]
+          ]
+        }
+      }
+    ]
+  },
+  "expiration": 1824656789000,
+  "source": "harness"
+}
+```
+
 Request body (JSON, required):
 
 | Field | Type | Required | Description |
@@ -3066,19 +5800,6 @@ Request body (JSON, required):
 | `cbsdIds` | array of string | yes | min 1 items |
 | `palIds` | array of string | yes | min 1 items |
 | `providedContour` | object |  | GeoJSON FeatureCollection for the PPA area. |
-
-Example:
-
-```json
-{
-  "cbsdIds": [
-    "TEST-FCC/0123456789abcdef0123456789abcdef01234567"
-  ],
-  "palIds": [
-    "pal/lab/1"
-  ]
-}
-```
 
 Responses:
 
@@ -3096,6 +5817,33 @@ Responses:
 `GET /api/v1/ppas/{id}` · scope **read**
 
 **Get a PPA.**
+
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/ppas/zone%2Fppa%2Fui%2Fd0ebe59d-768b-42f9-a005-c9a9d7c30e3d"
+```
+
+Response `200`:
+
+```json
+{
+  "id": "zone/ppa/ui/d0ebe59d-768b-42f9-a005-c9a9d7c30e3d",
+  "name": "Lab PPA",
+  "channels": [
+    {
+      "low": 3550000000,
+      "high": 3560000000,
+      "palId": "pal/lab/1",
+      "licenseExpiration": 2051222400000
+    }
+  ],
+  "members": ["TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c"],
+  "geometry": null,
+  "expiration": null,
+  "source": "ui"
+}
+```
 
 Path parameters:
 
@@ -3123,6 +5871,48 @@ Responses:
 
 201 when created, 200 when replaced.
 
+Example:
+
+*Replace it (here: rename).*
+
+```bash
+curl -s -X PUT "$API/ppas/zone%2Fppa%2Fui%2Fd0ebe59d-768b-42f9-a005-c9a9d7c30e3d" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{
+    "name": "Lab PPA (bench 3)",
+    "channels": [
+      {
+        "low": 3550000000,
+        "high": 3560000000,
+        "palId": "pal/lab/1",
+        "licenseExpiration": "2035-01-01T00:00:00Z"
+      }
+    ],
+    "members": ["TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c"]
+  }'
+```
+
+Response `200`:
+
+```json
+{
+  "id": "zone/ppa/ui/d0ebe59d-768b-42f9-a005-c9a9d7c30e3d",
+  "name": "Lab PPA (bench 3)",
+  "channels": [
+    {
+      "low": 3550000000,
+      "high": 3560000000,
+      "palId": "pal/lab/1",
+      "licenseExpiration": 2051222400000
+    }
+  ],
+  "members": ["TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c"],
+  "geometry": null,
+  "expiration": null,
+  "source": "ui"
+}
+```
+
 Path parameters:
 
 | Name | Type | Description |
@@ -3142,21 +5932,6 @@ Request body (JSON, required):
 | `members` | array of string |  | cbsdIds in the PPA cluster: they may use the PAL channels; other CBSDs inside the area may not. |
 | `geometry` | object \| null |  | GeoJSON area. Null: the PPA applies to its members anywhere and excludes no one. |
 | `expiration` | time (epoch ms or RFC 3339) \| any \| null |  | When the PPA ends. |
-
-Example:
-
-```json
-{
-  "name": "Lab PPA",
-  "channels": [
-    {
-      "low": 3550000000,
-      "high": 3560000000
-    }
-  ],
-  "members": []
-}
-```
 
 Responses:
 
@@ -3179,6 +5954,15 @@ Responses:
 **Delete a PPA.**
 
 Also removes the zone record it was built from, if it came from injected harness data.
+
+Example:
+
+```bash
+curl -s -X DELETE "$API/ppas/zone%2Fppa%2Fui%2Fd0ebe59d-768b-42f9-a005-c9a9d7c30e3d" \
+  -H "Authorization: Bearer $KEY"
+```
+
+Response `204`, no body.
 
 Path parameters:
 
@@ -3217,6 +6001,54 @@ Injected incumbent and zone data (FSS, WISP, PAL, zones, exclusion zones, peer S
 **List injected incumbent and zone data.**
 
 FSS earth stations, WISP (GWPZ/GWBL) records, PAL records, PPA zones, exclusion zones, peer SASs, ESC sensors, SAS administrators, peer-SAS CBSD records and database URLs, as injected through the API, the console or the harness.
+
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/incumbents"
+```
+
+Response `200`:
+
+```json
+{
+  "items": [
+    {
+      "kind": "fss",
+      "id": "fss/lab/1",
+      "data": {
+        "record": {
+          "id": "fss/lab/1",
+          "deploymentParam": [
+            {
+              "installationParam": {"latitude": 39.1, "longitude": -98.6},
+              "operationParam": {
+                "operationFrequencyRange": {"lowFrequency": 3600000000, "highFrequency": 4200000000}
+              }
+            }
+          ]
+        },
+        "ttc": false
+      },
+      "createdAt": 1793120789027
+    },
+    {
+      "kind": "pal",
+      "id": "pal/lab/1",
+      "data": {
+        "palId": "pal/lab/1",
+        "userId": "lab-user",
+        "channelAssignment": {"primaryAssignment": {"lowFrequency": 3550000000, "highFrequency": 3560000000}},
+        "license": {"licenseExpiration": "2035-01-01T00:00:00Z"}
+      },
+      "createdAt": 1793120789039
+    }
+  ],
+  "total": 2,
+  "limit": 500,
+  "offset": 0
+}
+```
 
 Query parameters:
 
@@ -3266,6 +6098,82 @@ The body is the record in the WInnForum harness format for that kind (see WINNF-
 
 Protections and PPAs derived from the data are rebuilt immediately.
 
+Examples:
+
+*An FSS earth station (adds its GWBL exclusion as a protection).*
+
+```bash
+curl -s -X POST "$API/incumbents/fss" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{
+    "record": {
+      "id": "fss/lab/1",
+      "deploymentParam": [
+        {
+          "installationParam": {"latitude": 39.1, "longitude": -98.6},
+          "operationParam": {
+            "operationFrequencyRange": {"lowFrequency": 3600000000, "highFrequency": 4200000000}
+          }
+        }
+      ]
+    },
+    "ttc": false
+  }'
+```
+
+Response `201`:
+
+```json
+{
+  "kind": "fss",
+  "id": "fss/lab/1",
+  "data": {
+    "record": {
+      "id": "fss/lab/1",
+      "deploymentParam": [
+        {
+          "installationParam": {"latitude": 39.1, "longitude": -98.6},
+          "operationParam": {
+            "operationFrequencyRange": {"lowFrequency": 3600000000, "highFrequency": 4200000000}
+          }
+        }
+      ]
+    },
+    "ttc": false
+  },
+  "createdAt": 1793120789027
+}
+```
+
+*A PAL record.*
+
+```bash
+curl -s -X POST "$API/incumbents/pal" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{
+    "palId": "pal/lab/1",
+    "userId": "lab-user",
+    "channelAssignment": {"primaryAssignment": {"lowFrequency": 3550000000, "highFrequency": 3560000000}},
+    "license": {"licenseExpiration": "2035-01-01T00:00:00Z"}
+  }'
+```
+
+Response `201`:
+
+```json
+{
+  "kind": "pal",
+  "id": "pal/lab/1",
+  "data": {
+    "palId": "pal/lab/1",
+    "userId": "lab-user",
+    "channelAssignment": {"primaryAssignment": {"lowFrequency": 3550000000, "highFrequency": 3560000000}},
+    "license": {"licenseExpiration": "2035-01-01T00:00:00Z"}
+  },
+  "createdAt": 1793120789039
+}
+```
+
 Path parameters:
 
 | Name | Type | Description |
@@ -3275,31 +6183,6 @@ Path parameters:
 Request body (JSON, required):
 
 Type: object
-
-Example:
-
-```json
-{
-  "record": {
-    "id": "zone/fss/lab/1",
-    "deploymentParam": [
-      {
-        "installationParam": {
-          "latitude": 39,
-          "longitude": -98.5
-        },
-        "operationParam": {
-          "operationFrequencyRange": {
-            "lowFrequency": 3600000000,
-            "highFrequency": 4200000000
-          }
-        }
-      }
-    ]
-  },
-  "ttc": false
-}
-```
 
 Responses:
 
@@ -3319,6 +6202,36 @@ Responses:
 `GET /api/v1/incumbents/{kind}/{id}` · scope **read**
 
 **Get an incumbent record.**
+
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/incumbents/fss/fss%2Flab%2F1"
+```
+
+Response `200`:
+
+```json
+{
+  "kind": "fss",
+  "id": "fss/lab/1",
+  "data": {
+    "record": {
+      "id": "fss/lab/1",
+      "deploymentParam": [
+        {
+          "installationParam": {"latitude": 39.1, "longitude": -98.6},
+          "operationParam": {
+            "operationFrequencyRange": {"lowFrequency": 3600000000, "highFrequency": 4200000000}
+          }
+        }
+      ]
+    },
+    "ttc": false
+  },
+  "createdAt": 1793120789027
+}
+```
 
 Path parameters:
 
@@ -3346,6 +6259,14 @@ Responses:
 **Delete an incumbent record.**
 
 Derived protections and PPAs are rebuilt.
+
+Example:
+
+```bash
+curl -s -X DELETE -H "Authorization: Bearer $KEY" "$API/incumbents/fss/fss%2Flab%2F1"
+```
+
+Response `204`, no body.
 
 Path parameters:
 
@@ -3389,6 +6310,40 @@ Fault injection rules that alter what the SAS listener sends: response codes, me
 
 In the order they are evaluated (by id).
 
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/faults"
+```
+
+Response `200`:
+
+```json
+{
+  "items": [
+    {
+      "id": 1,
+      "enabled": true,
+      "name": "HB 501 once",
+      "method": "heartbeat",
+      "matchCbsd": "SN-0001",
+      "action": "response_code",
+      "responseCode": 501,
+      "responseData": null,
+      "responseMessage": null,
+      "httpStatus": null,
+      "delayMs": null,
+      "remaining": 0,
+      "hits": 1,
+      "createdAt": 1793120788009
+    }
+  ],
+  "total": 1,
+  "limit": 500,
+  "offset": 0
+}
+```
+
 Query parameters:
 
 | Name | Type | Required | Description |
@@ -3426,6 +6381,44 @@ Response 200 body:
 
 Rules apply to requests that reach the SAS HTTP/HTTPS listener, in id order. Whole-exchange rules (http_status, drop, malformed) stop at the first match; delays add up.
 
+Example:
+
+*Answer the next heartbeat from SN-0001 with 501.*
+
+```bash
+curl -s -X POST "$API/faults" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{
+    "name": "HB 501 once",
+    "method": "heartbeat",
+    "action": "response_code",
+    "responseCode": 501,
+    "matchCbsd": "SN-0001",
+    "remaining": 1
+  }'
+```
+
+Response `201`:
+
+```json
+{
+  "id": 1,
+  "enabled": true,
+  "name": "HB 501 once",
+  "method": "heartbeat",
+  "matchCbsd": "SN-0001",
+  "action": "response_code",
+  "responseCode": 501,
+  "responseData": null,
+  "responseMessage": null,
+  "httpStatus": null,
+  "delayMs": null,
+  "remaining": 1,
+  "hits": 0,
+  "createdAt": 1793120788009
+}
+```
+
 Request body (JSON, required):
 
 | Field | Type | Required | Description |
@@ -3441,18 +6434,6 @@ Request body (JSON, required):
 | `httpStatus` | integer \| null |  | With action http_status. · ≥ 100, ≤ 599 |
 | `delayMs` | integer \| null |  | With action delay. · ≥ 0, ≤ 600000 |
 | `remaining` | integer \| null |  | Apply this many more times, then stop. Null: no limit. · ≥ 0 |
-
-Example:
-
-```json
-{
-  "name": "Heartbeat 501 once",
-  "method": "heartbeat",
-  "action": "response_code",
-  "responseCode": 501,
-  "remaining": 1
-}
-```
 
 Responses:
 
@@ -3470,6 +6451,18 @@ Responses:
 `DELETE /api/v1/faults` · scope **write**
 
 **Delete every fault rule.**
+
+Example:
+
+```bash
+curl -s -X DELETE -H "Authorization: Bearer $KEY" "$API/faults"
+```
+
+Response `200`:
+
+```json
+{"deleted": 1}
+```
 
 Responses:
 
@@ -3495,6 +6488,35 @@ Response 200 body:
 **Get a fault rule.**
 
 `hits` counts how many times the rule has been applied.
+
+Example:
+
+*The rule has fired once and is used up.*
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/faults/1"
+```
+
+Response `200`:
+
+```json
+{
+  "id": 1,
+  "enabled": true,
+  "name": "HB 501 once",
+  "method": "heartbeat",
+  "matchCbsd": "SN-0001",
+  "action": "response_code",
+  "responseCode": 501,
+  "responseData": null,
+  "responseMessage": null,
+  "httpStatus": null,
+  "delayMs": null,
+  "remaining": 0,
+  "hits": 1,
+  "createdAt": 1793120788009
+}
+```
 
 Path parameters:
 
@@ -3522,6 +6544,37 @@ Responses:
 
 Fields left out take their defaults. The hit counter is kept.
 
+Example:
+
+*Replace the rule: delay every grant response by 2 s.*
+
+```bash
+curl -s -X PUT "$API/faults/1" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{"name": "Slow grants", "method": "grant", "action": "delay", "delayMs": 2000}'
+```
+
+Response `200`:
+
+```json
+{
+  "id": 1,
+  "enabled": true,
+  "name": "Slow grants",
+  "method": "grant",
+  "matchCbsd": null,
+  "action": "delay",
+  "responseCode": null,
+  "responseData": null,
+  "responseMessage": null,
+  "httpStatus": null,
+  "delayMs": 2000,
+  "remaining": null,
+  "hits": 1,
+  "createdAt": 1793120788009
+}
+```
+
 Path parameters:
 
 | Name | Type | Description |
@@ -3544,18 +6597,6 @@ Request body (JSON, required):
 | `delayMs` | integer \| null |  | With action delay. · ≥ 0, ≤ 600000 |
 | `remaining` | integer \| null |  | Apply this many more times, then stop. Null: no limit. · ≥ 0 |
 
-Example:
-
-```json
-{
-  "name": "Heartbeat 501 once",
-  "method": "heartbeat",
-  "action": "response_code",
-  "responseCode": 501,
-  "remaining": 1
-}
-```
-
 Responses:
 
 | Status | Description | Body |
@@ -3576,6 +6617,37 @@ Responses:
 **Change a fault rule.**
 
 Only the fields given change, e.g. `{"enabled": false}`.
+
+Example:
+
+*Two more times.*
+
+```bash
+curl -s -X PATCH "$API/faults/1" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{"remaining": 2}'
+```
+
+Response `200`:
+
+```json
+{
+  "id": 1,
+  "enabled": true,
+  "name": "HB 501 once",
+  "method": "heartbeat",
+  "matchCbsd": "SN-0001",
+  "action": "response_code",
+  "responseCode": 501,
+  "responseData": null,
+  "responseMessage": null,
+  "httpStatus": null,
+  "delayMs": null,
+  "remaining": 2,
+  "hits": 1,
+  "createdAt": 1793120788009
+}
+```
 
 Path parameters:
 
@@ -3599,14 +6671,6 @@ Request body (JSON, required):
 | `delayMs` | integer \| null |  | With action delay. · ≥ 0, ≤ 600000 |
 | `remaining` | integer \| null |  | Apply this many more times, then stop. Null: no limit. · ≥ 0 |
 
-Example:
-
-```json
-{
-  "enabled": false
-}
-```
-
 Responses:
 
 | Status | Description | Body |
@@ -3625,6 +6689,14 @@ Responses:
 `DELETE /api/v1/faults/{id}` · scope **write**
 
 **Delete a fault rule.**
+
+Example:
+
+```bash
+curl -s -X DELETE -H "Authorization: Bearer $KEY" "$API/faults/1"
+```
+
+Response `204`, no body.
 
 Path parameters:
 
@@ -3670,6 +6742,56 @@ The wire log of every exchange, the event log, exports and the live Server-Sent 
 
 Every SAS–CBSD exchange (HTTPS, HTTP and internal), newest first, without the request and response bodies. Page backwards with `before`, or poll for new exchanges with `after`.
 
+Example:
+
+*The last two heartbeats.*
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/messages?method=heartbeat&limit=2"
+```
+
+Response `200`:
+
+```json
+{
+  "items": [
+    {
+      "id": 14,
+      "ts": 1793120788035,
+      "transport": "http",
+      "remoteAddr": "127.0.0.1",
+      "path": "/v1.2/heartbeat",
+      "method": "heartbeat",
+      "version": "v1.2",
+      "httpStatus": 200,
+      "durationMs": 10,
+      "cbsdIds": ["TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c"],
+      "codes": [501],
+      "certSubject": null,
+      "error": null
+    },
+    {
+      "id": 5,
+      "ts": 1793120787704,
+      "transport": "internal",
+      "remoteAddr": "api",
+      "path": "/v1.2/heartbeat",
+      "method": "heartbeat",
+      "version": "v1.2",
+      "httpStatus": 200,
+      "durationMs": 2,
+      "cbsdIds": ["TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c"],
+      "codes": [0],
+      "certSubject": null,
+      "error": null
+    }
+  ],
+  "limit": 2,
+  "order": "desc",
+  "next": 5
+}
+```
+
 Query parameters:
 
 | Name | Type | Required | Description |
@@ -3714,6 +6836,20 @@ Response 200 body:
 
 **Clear the wire log.**
 
+Example:
+
+*Empty the wire log.*
+
+```bash
+curl -s -X DELETE -H "Authorization: Bearer $KEY" "$API/messages"
+```
+
+Response `200`:
+
+```json
+{"deleted": 18}
+```
+
 Responses:
 
 | Status | Description | Body |
@@ -3738,6 +6874,21 @@ Response 200 body:
 **Export the wire log.**
 
 Full exchanges including request and response JSON, oldest first. Accepts the same filters as the list.
+
+Example:
+
+*Export as NDJSON, one exchange per line.*
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/messages/export?method=grant&limit=2"
+```
+
+Response `200` (`application/x-ndjson`):
+
+```text
+{"id":8,"ts":1793120787733,"transport":"internal","remoteAddr":"api","path":"/v1.2/grant","method":"grant","version":"v1…
+{"id":13,"ts":1793120787980,"transport":"internal","remoteAddr":"api","path":"/v1.2/grant","method":"grant","version":"v…
+```
 
 Query parameters:
 
@@ -3775,6 +6926,51 @@ Responses:
 
 With the parsed request and response bodies (bodies over 512 KiB are truncated and returned as text).
 
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/messages/14"
+```
+
+Response `200`:
+
+```json
+{
+  "id": 14,
+  "ts": 1793120788035,
+  "transport": "http",
+  "remoteAddr": "127.0.0.1",
+  "path": "/v1.2/heartbeat",
+  "method": "heartbeat",
+  "version": "v1.2",
+  "httpStatus": 200,
+  "durationMs": 10,
+  "cbsdIds": ["TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c"],
+  "codes": [501],
+  "certSubject": null,
+  "error": null,
+  "request": {
+    "heartbeatRequest": [
+      {
+        "cbsdId": "TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c",
+        "grantId": "5329943951600446",
+        "operationState": "AUTHORIZED"
+      }
+    ]
+  },
+  "response": {
+    "heartbeatResponse": [
+      {
+        "cbsdId": "TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c",
+        "grantId": "5329943951600446",
+        "transmitExpireTime": "2026-10-27T17:10:28Z",
+        "response": {"responseCode": 501}
+      }
+    ]
+  }
+}
+```
+
 Path parameters:
 
 | Name | Type | Description |
@@ -3798,6 +6994,14 @@ Responses:
 `DELETE /api/v1/messages/{id}` · scope **write**
 
 **Delete a wire-log exchange.**
+
+Example:
+
+```bash
+curl -s -X DELETE -H "Authorization: Bearer $KEY" "$API/messages/5"
+```
+
+Response `204`, no body.
 
 Path parameters:
 
@@ -3825,6 +7029,44 @@ Responses:
 **List events.**
 
 The audit trail: registrations, grants, state changes, administrator actions, faults, TLS problems. Newest first.
+
+Example:
+
+*Warnings.*
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/events?level=warn&limit=2"
+```
+
+Response `200`:
+
+```json
+{
+  "items": [
+    {
+      "id": 46,
+      "ts": 1793120788099,
+      "level": "warn",
+      "category": "fault",
+      "message": "Fault rule \"http_status\" created",
+      "cbsdId": null,
+      "grantId": null
+    },
+    {
+      "id": 45,
+      "ts": 1793120788044,
+      "level": "warn",
+      "category": "fault",
+      "message": "Fault injected on heartbeat response #1: responseCode 501",
+      "cbsdId": "TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c",
+      "grantId": null
+    }
+  ],
+  "limit": 2,
+  "order": "desc",
+  "next": 45
+}
+```
 
 Query parameters:
 
@@ -3867,6 +7109,20 @@ Response 200 body:
 
 **Clear the event log.**
 
+Example:
+
+*Empty the event log.*
+
+```bash
+curl -s -X DELETE -H "Authorization: Bearer $KEY" "$API/events"
+```
+
+Response `200`:
+
+```json
+{"deleted": 98}
+```
+
 Responses:
 
 | Status | Description | Body |
@@ -3891,6 +7147,20 @@ Response 200 body:
 **Export the event log.**
 
 Oldest first. Accepts the same filters as the list.
+
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/events/export?category=admin&limit=3"
+```
+
+Response `200` (`application/x-ndjson`):
+
+```text
+{"id":40,"ts":1793120787963,"level":"warn","category":"admin","message":"Grant 5329943951600446 suspended by administrat…
+{"id":41,"ts":1793120787972,"level":"warn","category":"admin","message":"Grant 5329943951600446 resumed by administrator…
+{"id":43,"ts":1793120787993,"level":"warn","category":"admin","message":"Grant 7338392050789261 terminated by administra…
+```
 
 Query parameters:
 
@@ -3922,6 +7192,26 @@ Responses:
 `GET /api/v1/events/{id}` · scope **read**
 
 **Get an event.**
+
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/events/46"
+```
+
+Response `200`:
+
+```json
+{
+  "id": 46,
+  "ts": 1793120788099,
+  "level": "warn",
+  "category": "fault",
+  "message": "Fault rule \"http_status\" created",
+  "cbsdId": null,
+  "grantId": null
+}
+```
 
 Path parameters:
 
@@ -3956,6 +7246,30 @@ A `text/event-stream` that stays open. Event types:
 
 A comment line (`: ping`) is sent every 15 s to keep proxies from closing the connection.
 Browsers' EventSource cannot set headers, so this route also accepts the API key as `?access_token=` (in the console the login cookie is enough).
+
+Example:
+
+*Follow exchanges and events live (Server-Sent Events).*
+
+```bash
+curl -sN -H "Authorization: Bearer $KEY" "$API/stream?types=event,message"
+```
+
+Response `200` (`text/event-stream`):
+
+```text
+retry: 3000
+event: hello
+data: {"requestId": "8c28fded-b8bf-4603-a256-8709bb465140", "types": ["event", "message"], "serverTime": 1793120788161}
+
+event: message
+data: {"id": 15, "ts": 1793120788169, "transport": "internal", "remoteAddr": "api", "path": "/v1.2/heartbeat", "method": "heartbeat", "version": "v1.2", "httpStatus": 200, "durationMs": 3, "cbsdIds": ["TEST-FCC/b7eeb0aceec6f6087a0c75b6f69289c95b3e191c"], "codes": [0], "certSubject": null, "error": null}
+
+event: event
+data: {"id": 48, "ts": 1793120788182, "level": "info", "category": "admin", "message": "Measurement report triggers: registration=false, heartbeat=false", "cbsdId": null, "grantId": null}
+```
+
+Each `message` is a wire-log entry and each `event` an event-log entry, the same objects GET /messages and GET /events return (cut short here). A comment line (`: ping`) is sent every 15 s to keep the connection open.
 
 Query parameters:
 
@@ -3998,6 +7312,29 @@ Daily activities, measurement-report triggers, harness flags and the state reset
 
 Daily-activities status, the result of the last PPA creation, the harness flags and the measurement-report triggers.
 
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/operations/state"
+```
+
+Response `200`:
+
+```json
+{
+  "daily": {
+    "completed": true,
+    "running": false,
+    "lastStarted": null,
+    "lastCompleted": null,
+    "log": []
+  },
+  "ppaStatus": {"completed": true, "withError": false},
+  "flags": {"ntiaExclusionZones": false, "scheduledDailyActivities": false, "escConnected": true},
+  "measurementTriggers": {"measInRegistration": false, "measInHeartbeat": false}
+}
+```
+
 Responses:
 
 | Status | Description | Body |
@@ -4016,6 +7353,25 @@ Responses:
 
 With the log of the last run.
 
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/operations/daily-activities"
+```
+
+Response `200`:
+
+```json
+{
+  "completed": true,
+  "running": false,
+  "lastStarted": 1793120789136,
+  "lastCompleted": 1793120789140,
+  "log": ["0 grant(s) terminated"],
+  "scheduled": false
+}
+```
+
 Responses:
 
 | Status | Description | Body |
@@ -4033,6 +7389,27 @@ Responses:
 **Run daily activities now.**
 
 Pulls full-activity dumps from the peer SASs injected as incumbents of kind peer_sas, rebuilds PPAs and protections and expires PAL channels. With `wait=true` (default) the call returns when the run has finished (200); with `wait=false` it returns at once (202) and the status can be polled. A run already in progress is not restarted.
+
+Example:
+
+*Run the daily activities now and wait for them.*
+
+```bash
+curl -s -X POST -H "Authorization: Bearer $KEY" "$API/operations/daily-activities"
+```
+
+Response `200`:
+
+```json
+{
+  "completed": true,
+  "running": false,
+  "lastStarted": 1793120789136,
+  "lastCompleted": 1793120789140,
+  "log": ["0 grant(s) terminated"],
+  "scheduled": false
+}
+```
 
 Query parameters:
 
@@ -4060,6 +7437,25 @@ Responses:
 
 Same as the harness call trigger/enable_scheduled_daily_activities. The schedule lasts until the next state reset.
 
+Example:
+
+```bash
+curl -s -X POST -H "Authorization: Bearer $KEY" "$API/operations/daily-activities/schedule"
+```
+
+Response `200`:
+
+```json
+{
+  "completed": true,
+  "running": false,
+  "lastStarted": 1793120789136,
+  "lastCompleted": 1793120789140,
+  "log": ["0 grant(s) terminated"],
+  "scheduled": true
+}
+```
+
 Responses:
 
 | Status | Description | Body |
@@ -4076,6 +7472,18 @@ Responses:
 `GET /api/v1/operations/measurement-triggers` · scope **read**
 
 **Measurement-report triggers.**
+
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/operations/measurement-triggers"
+```
+
+Response `200`:
+
+```json
+{"measInRegistration": true, "measInHeartbeat": false}
+```
 
 Responses:
 
@@ -4095,21 +7503,28 @@ Responses:
 
 `measInRegistration`: registration responses carry measReportConfig RECEIVED_POWER_WITHOUT_GRANT (for CBSDs that support it). `measInHeartbeat`: heartbeat responses carry RECEIVED_POWER_WITH_GRANT. Fields left out are unchanged.
 
+Example:
+
+*Ask radios for measurement reports in registration responses.*
+
+```bash
+curl -s -X PUT "$API/operations/measurement-triggers" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{"measInRegistration": true}'
+```
+
+Response `200`:
+
+```json
+{"measInRegistration": true, "measInHeartbeat": false}
+```
+
 Request body (JSON, required):
 
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `measInRegistration` | boolean |  |  |
 | `measInHeartbeat` | boolean |  |  |
-
-Example:
-
-```json
-{
-  "measInRegistration": true,
-  "measInHeartbeat": false
-}
-```
 
 Responses:
 
@@ -4130,20 +7545,39 @@ Responses:
 
 `ntiaExclusionZones` (harness trigger/enable_ntia_15_517) and `escConnected` (trigger/disconnect_esc). They are recorded and reported; they do not change how requests are answered.
 
+Example:
+
+*Simulate the ESC network going down.*
+
+```bash
+curl -s -X PATCH "$API/operations/flags" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{"escConnected": false}'
+```
+
+Response `200`:
+
+```json
+{
+  "daily": {
+    "completed": true,
+    "running": false,
+    "lastStarted": 1793120789136,
+    "lastCompleted": 1793120789140,
+    "log": ["0 grant(s) terminated"]
+  },
+  "ppaStatus": {"completed": true, "withError": false},
+  "flags": {"ntiaExclusionZones": false, "scheduledDailyActivities": true, "escConnected": false},
+  "measurementTriggers": {"measInRegistration": false, "measInHeartbeat": false}
+}
+```
+
 Request body (JSON, required):
 
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `ntiaExclusionZones` | boolean |  |  |
 | `escConnected` | boolean |  |  |
-
-Example:
-
-```json
-{
-  "escConnected": false
-}
-```
 
 Responses:
 
@@ -4164,21 +7598,28 @@ Responses:
 
 Deletes every CBSD, grant, registry entry (FCC IDs, user IDs, blacklist, conditional registrations, CPI users), injected incumbent, PPA and protection, and clears the triggers and flags, like the harness Reset call. Settings, certificates and fault rules are kept. `clearLogs` also empties the wire log and event log. The body must contain `"confirm": "RESET"`.
 
+Example:
+
+*Reset the SAS like the harness does: CBSDs, grants, registry, incumbents, PPAs and protections.*
+
+```bash
+curl -s -X POST "$API/operations/reset" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{"confirm": "RESET", "clearLogs": false}'
+```
+
+Response `200`:
+
+```json
+{"reset": true, "logsCleared": false}
+```
+
 Request body (JSON, required):
 
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `confirm` | `"RESET"` | yes |  |
 | `clearLogs` | boolean |  | default `false` |
-
-Example:
-
-```json
-{
-  "confirm": "RESET",
-  "clearLogs": false
-}
-```
 
 Responses:
 
@@ -4216,6 +7657,31 @@ The SAS HTTP and HTTPS listeners: status, restart, TLS reload.
 
 HTTP and HTTPS listener state: port, whether it is listening and the last error; for HTTPS also the client-certificate policy, server certificates, trust-anchor count, cipher suites and protocol versions.
 
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/listeners"
+```
+
+Response `200`:
+
+```json
+{
+  "http": {"enabled": true, "listening": true, "port": 8000, "error": null},
+  "https": {
+    "enabled": true,
+    "listening": true,
+    "port": 8443,
+    "error": null,
+    "clientAuth": "optional",
+    "serverCerts": ["SAS server RSA (auto) (rsa2048)", "SAS server ECDSA (auto) (ec256)"],
+    "trustAnchors": 5,
+    "ciphers": "AES128-GCM-SHA256:AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256",
+    "protocols": "TLSv1.2"
+  }
+}
+```
+
 Responses:
 
 | Status | Description | Body |
@@ -4233,6 +7699,31 @@ Responses:
 **Restart the SAS listeners.**
 
 Closes and reopens both listeners with the current settings. Open connections are dropped. Returns when the listeners are back.
+
+Example:
+
+```bash
+curl -s -X POST -H "Authorization: Bearer $KEY" "$API/listeners/restart"
+```
+
+Response `200`:
+
+```json
+{
+  "http": {"enabled": true, "listening": true, "port": 8000, "error": null},
+  "https": {
+    "enabled": true,
+    "listening": true,
+    "port": 8443,
+    "error": null,
+    "clientAuth": "optional",
+    "serverCerts": ["SAS server RSA (auto) (rsa2048)", "SAS server ECDSA (auto) (ec256)"],
+    "trustAnchors": 5,
+    "ciphers": "AES128-GCM-SHA256:AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256",
+    "protocols": "TLSv1.2"
+  }
+}
+```
 
 Responses:
 
@@ -4252,6 +7743,33 @@ Responses:
 **Reload TLS certificates.**
 
 Swaps the server certificates, trust anchors and CRLs on the running HTTPS listener without dropping connections. This happens automatically when certificates change; use it after replacing files by hand.
+
+Example:
+
+*Reload certificates and CRLs into the HTTPS listener.*
+
+```bash
+curl -s -X POST -H "Authorization: Bearer $KEY" "$API/listeners/reload-tls"
+```
+
+Response `200`:
+
+```json
+{
+  "http": {"enabled": true, "listening": true, "port": 8000, "error": null},
+  "https": {
+    "enabled": true,
+    "listening": true,
+    "port": 8443,
+    "error": null,
+    "clientAuth": "optional",
+    "serverCerts": ["SAS server RSA (auto) (rsa2048)", "SAS server ECDSA (auto) (ec256)"],
+    "trustAnchors": 5,
+    "ciphers": "AES128-GCM-SHA256:AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256",
+    "protocols": "TLSv1.2"
+  }
+}
+```
 
 Responses:
 
@@ -4282,6 +7800,32 @@ The WInnForum test harness admin API (WINNF-TS-0096), callable from the REST API
 
 Every admin call of the WInnForum test harness that POST /harness/{method} accepts, and whether the SAS listeners currently accept them at <base>/admin/<method> (setting harnessAdminEnabled).
 
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/harness/methods"
+```
+
+Response `200`:
+
+```json
+{
+  "listenerAdminEnabled": true,
+  "methods": [
+    {
+      "method": "reset",
+      "description": "Reset the SAS state (like POST /operations/reset without clearing logs)."
+    },
+    {
+      "method": "injectdata/fcc_id",
+      "description": "{\"fccId\", \"fccMaxEirp\"}: add an FCC ID."
+    },
+    {"method": "injectdata/user_id", "description": "{\"userId\"}: add a user ID."},
+    "… 33 more"
+  ]
+}
+```
+
 Responses:
 
 | Status | Description | Body |
@@ -4309,6 +7853,34 @@ Response 200 body:
 
 Runs the call exactly as the SAS does for the harness (e.g. `POST /api/v1/harness/injectdata/fcc_id` with `{"fccId": "X", "fccMaxEirp": 47}`), whether or not harnessAdminEnabled is set, and logs it in the wire log as `admin/<method>`. `result` is what the harness would receive (null when the call returns nothing).
 
+Examples:
+
+*Inject an FCC ID, as the harness does.*
+
+```bash
+curl -s -X POST "$API/harness/injectdata/fcc_id" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{"fccId": "HARN-FCC", "fccMaxEirp": 30}'
+```
+
+Response `200`:
+
+```json
+{"method": "injectdata/fcc_id", "result": null}
+```
+
+*Ask whether the daily activities have finished.*
+
+```bash
+curl -s -X POST -H "Authorization: Bearer $KEY" "$API/harness/get_daily_activities_status"
+```
+
+Response `200`:
+
+```json
+{"method": "get_daily_activities_status", "result": {"completed": true}}
+```
+
 Path parameters:
 
 | Name | Type | Description |
@@ -4318,15 +7890,6 @@ Path parameters:
 Request body (JSON, optional):
 
 Type: any. The harness request body; omit for calls that take none.
-
-Example:
-
-```json
-{
-  "fccId": "TEST-FCC",
-  "fccMaxEirp": 47
-}
-```
 
 Responses:
 
@@ -4355,6 +7918,29 @@ Response 200 body:
 **Harness sas.cfg.**
 
 A `[SasConfig]` section for the harness pointing at this SAS's HTTPS listener.
+
+Example:
+
+*A sas.cfg for the WInnForum harness.*
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/harness/sas.cfg?host=sas.lab.example"
+```
+
+Response `200` (`text/plain`):
+
+```text
+[SasConfig]
+AdminApiBaseUrl: sas.lab.example:8443
+CbsdSasRsaBaseUrl: sas.lab.example:8443
+CbsdSasEcBaseUrl: sas.lab.example:8443
+SasSasRsaBaseUrl: sas.lab.example:8443
+SasSasEcBaseUrl: sas.lab.example:8443
+CbsdSasVersion: v1.2
+SasSasVersion: v1.3
+AdminId: sas_admin_id
+MaximumBatchSize: 100
+```
 
 Query parameters:
 
@@ -4405,6 +7991,69 @@ The lab PKI: create CAs and certificates, import PEM and PKCS#12, revoke, downlo
 
 Every certificate in the store with its subject, issuer, validity, fingerprint, key type, role, revocation and whether the SAS uses it as a server certificate or trusts it as a client CA. Private keys are never included.
 
+Example:
+
+*The intermediate CAs.*
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/certs?kind=sub_ca"
+```
+
+Response `200`:
+
+```json
+{
+  "items": [
+    {
+      "id": "52646b5c-ad10-4995-b55c-9964024838dd",
+      "kind": "sub_ca",
+      "role": "sas",
+      "name": "SASBench SAS CA",
+      "parentId": "20257d9a-4804-4362-8f46-53d202a5bea1",
+      "subject": "O=SASBench, OU=Lab PKI, CN=SASBench SAS CA",
+      "issuer": "O=SASBench, OU=Lab PKI, CN=SASBench Root CA",
+      "serial": "1D2DF5C23F643C71B56138AB59265072",
+      "notBefore": 1793120780000,
+      "notAfter": 2266160780000,
+      "fingerprint": "38:81:60:BA:37:83:18:E5:C3:94:E2:3A:58:F6:A8:20:33:01:44:35:21:93:E5:32:AF:9E:3F:F7:3E:16:E9:6D",
+      "keyType": "rsa4096",
+      "hasKey": true,
+      "isCa": true,
+      "meta": {},
+      "revokedAt": null,
+      "createdAt": 1793120780898,
+      "details": "{…}",
+      "usage": {"serverCertificate": false, "trustedClientCa": false}
+    },
+    {
+      "id": "b479ab3a-21c1-4075-860d-959ad37ef9ac",
+      "kind": "sub_ca",
+      "role": "cbsd",
+      "name": "SASBench CBSD CA",
+      "parentId": "20257d9a-4804-4362-8f46-53d202a5bea1",
+      "subject": "O=SASBench, OU=Lab PKI, CN=SASBench CBSD CA",
+      "issuer": "O=SASBench, OU=Lab PKI, CN=SASBench Root CA",
+      "serial": "4350045C7936AEBDA1089FE066C5847F",
+      "notBefore": 1793120781000,
+      "notAfter": 2266160781000,
+      "fingerprint": "CD:6E:17:3C:D4:0B:E4:B2:F0:B9:95:C0:CB:E2:46:DA:8F:E7:C3:B0:38:1F:E0:4B:8F:97:A7:B5:38:1D:16:D2",
+      "keyType": "rsa4096",
+      "hasKey": true,
+      "isCa": true,
+      "meta": {},
+      "revokedAt": null,
+      "createdAt": 1793120781378,
+      "details": "{…}",
+      "usage": {"serverCertificate": false, "trustedClientCa": false}
+    },
+    "… 2 more"
+  ],
+  "total": 4,
+  "limit": 500,
+  "offset": 0
+}
+```
+
 Query parameters:
 
 | Name | Type | Required | Description |
@@ -4446,6 +8095,67 @@ Response 200 body:
 
 With the PEM, the issuing chain and the certificates it issued.
 
+Example:
+
+*The CBSD CA.*
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/certs/b479ab3a-21c1-4075-860d-959ad37ef9ac"
+```
+
+Response `200`:
+
+```json
+{
+  "id": "b479ab3a-21c1-4075-860d-959ad37ef9ac",
+  "kind": "sub_ca",
+  "role": "cbsd",
+  "name": "SASBench CBSD CA",
+  "parentId": "20257d9a-4804-4362-8f46-53d202a5bea1",
+  "subject": "O=SASBench, OU=Lab PKI, CN=SASBench CBSD CA",
+  "issuer": "O=SASBench, OU=Lab PKI, CN=SASBench Root CA",
+  "serial": "4350045C7936AEBDA1089FE066C5847F",
+  "notBefore": 1793120781000,
+  "notAfter": 2266160781000,
+  "fingerprint": "CD:6E:17:3C:D4:0B:E4:B2:F0:B9:95:C0:CB:E2:46:DA:8F:E7:C3:B0:38:1F:E0:4B:8F:97:A7:B5:38:1D:16:D2",
+  "keyType": "rsa4096",
+  "hasKey": true,
+  "isCa": true,
+  "meta": {},
+  "revokedAt": null,
+  "createdAt": 1793120781378,
+  "details": {
+    "subject": "O=SASBench, OU=Lab PKI, CN=SASBench CBSD CA",
+    "issuer": "O=SASBench, OU=Lab PKI, CN=SASBench Root CA",
+    "commonName": "SASBench CBSD CA",
+    "serial": "4350045C7936AEBDA1089FE066C5847F",
+    "notBefore": 1793120781000,
+    "notAfter": 2266160781000,
+    "fingerprint256": "CD:6E:17:3C:D4:0B:E4:B2:F0:B9:95:C0:CB:E2:46:DA:8F:E7:C3:B0:38:1F:E0:4B:8F:97:A7:B5:38:1D:16:D2",
+    "keyType": "RSA 4096",
+    "isCa": true,
+    "selfSigned": false,
+    "subjectAltName": null,
+    "roles": ["CA", "CBSD"],
+    "policies": ["1.3.6.1.4.1.46609.1.1.5", "1.3.6.1.4.1.46609.1.1.3"],
+    "fccId": null,
+    "cbsdSerial": null,
+    "cpiId": null,
+    "frn": null
+  },
+  "usage": {"serverCertificate": false, "trustedClientCa": false},
+  "pem": "-----BEGIN CERTIFICATE-----\nMIIFmzCCA4OgAwIBAgIQQ1AEXHk2rr2hCJ/gZsWE…\n-----END CERTIFICATE-----\n",
+  "chain": [
+    {
+      "id": "20257d9a-4804-4362-8f46-53d202a5bea1",
+      "name": "SASBench Root CA",
+      "kind": "root"
+    }
+  ],
+  "children": []
+}
+```
+
 Path parameters:
 
 | Name | Type | Description |
@@ -4470,6 +8180,45 @@ Responses:
 
 **Rename a certificate.**
 
+Example:
+
+*Rename.*
+
+```bash
+curl -s -X PATCH "$API/certs/25ab0e24-e4ca-418f-bbbf-5b3fce333e89" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{"name": "Bench 3 root"}'
+```
+
+Response `200`:
+
+```json
+{
+  "id": "25ab0e24-e4ca-418f-bbbf-5b3fce333e89",
+  "kind": "root",
+  "role": "ca",
+  "name": "Bench 3 root",
+  "parentId": null,
+  "subject": "C=US, O=Example Lab, CN=Bench 3 Root CA",
+  "issuer": "C=US, O=Example Lab, CN=Bench 3 Root CA",
+  "serial": "6450320508A3A1971E54FF9A4A5C06C4",
+  "notBefore": 1793120793000,
+  "notAfter": 2108480793000,
+  "fingerprint": "20:2A:3B:5A:FA:63:94:C7:97:72:52:91:00:EB:31:A6:78:0F:EA:C3:D7:41:2B:09:5A:E0:DC:4D:53:32:25:2C",
+  "keyType": "ec256",
+  "hasKey": true,
+  "isCa": true,
+  "meta": {},
+  "revokedAt": null,
+  "createdAt": 1793120793777,
+  "details": "{…}",
+  "usage": {"serverCertificate": false, "trustedClientCa": false},
+  "pem": "-----BEGIN CERTIFICATE-----\nMIIB9DCCAZugAwIBAgIQZFAyBQijoZceVP+aSlwG…\n-----END CERTIFICATE-----\n",
+  "chain": [],
+  "children": "[…]"
+}
+```
+
 Path parameters:
 
 | Name | Type | Description |
@@ -4481,14 +8230,6 @@ Request body (JSON, required):
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `name` | string | yes | min length 1, max length 200 |
-
-Example:
-
-```json
-{
-  "name": "Lab root 2026"
-}
-```
 
 Responses:
 
@@ -4510,6 +8251,14 @@ Responses:
 **Delete a certificate.**
 
 Fails with 409 while it has issued certificates (delete those first) or while it is the only SAS server certificate (select another first). It is removed from the server-certificate and trusted-CA selections.
+
+Example:
+
+```bash
+curl -s -X DELETE -H "Authorization: Bearer $KEY" "$API/certs/7d93729d-efbf-4da4-9a5f-711d4e199c2d"
+```
+
+Response `204`, no body.
 
 Path parameters:
 
@@ -4536,6 +8285,45 @@ Responses:
 
 **Create a root CA.**
 
+Example:
+
+*A second root CA.*
+
+```bash
+curl -s -X POST "$API/certs/root" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{"CN": "Bench 3 Root CA", "O": "Example Lab", "C": "US", "keyType": "ec256", "days": 3650}'
+```
+
+Response `201`:
+
+```json
+{
+  "id": "25ab0e24-e4ca-418f-bbbf-5b3fce333e89",
+  "kind": "root",
+  "role": "ca",
+  "name": "Bench 3 Root CA",
+  "parentId": null,
+  "subject": "C=US, O=Example Lab, CN=Bench 3 Root CA",
+  "issuer": "C=US, O=Example Lab, CN=Bench 3 Root CA",
+  "serial": "6450320508A3A1971E54FF9A4A5C06C4",
+  "notBefore": 1793120793000,
+  "notAfter": 2108480793000,
+  "fingerprint": "20:2A:3B:5A:FA:63:94:C7:97:72:52:91:00:EB:31:A6:78:0F:EA:C3:D7:41:2B:09:5A:E0:DC:4D:53:32:25:2C",
+  "keyType": "ec256",
+  "hasKey": true,
+  "isCa": true,
+  "meta": {},
+  "revokedAt": null,
+  "createdAt": 1793120793777,
+  "details": "{…}",
+  "usage": {"serverCertificate": false, "trustedClientCa": false},
+  "pem": "-----BEGIN CERTIFICATE-----\nMIIB9DCCAZugAwIBAgIQZFAyBQijoZceVP+aSlwG…\n-----END CERTIFICATE-----\n",
+  "chain": [],
+  "children": []
+}
+```
+
 Request body (JSON, required):
 
 | Field | Type | Required | Description |
@@ -4549,16 +8337,6 @@ Request body (JSON, required):
 | `keyType` | `"rsa2048"` \| `"rsa3072"` \| `"rsa4096"` \| `"ec256"` \| `"ec384"` |  | default `"rsa4096"` |
 | `days` | integer |  | Validity in days (default depends on the kind). · ≥ 1, ≤ 36500 |
 | `name` | string |  | Display name in the store (defaults from the subject). · min length 1, max length 200 |
-
-Example:
-
-```json
-{
-  "CN": "Lab Root CA",
-  "O": "Lab",
-  "keyType": "rsa4096"
-}
-```
 
 Responses:
 
@@ -4579,6 +8357,50 @@ Responses:
 
 role: `sas` (issues SAS server certificates), `cbsd` (CBSD certificates), `operator` (domain-proxy certificates) or `installer` (CPI certificates); the WInnForum role OID is added.
 
+Example:
+
+*A CBSD CA under it.*
+
+```bash
+curl -s -X POST "$API/certs/sub-ca" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{
+    "parentId": "25ab0e24-e4ca-418f-bbbf-5b3fce333e89",
+    "role": "cbsd",
+    "CN": "Bench 3 CBSD CA",
+    "keyType": "ec256"
+  }'
+```
+
+Response `201`:
+
+```json
+{
+  "id": "3185dfcc-e4f5-407b-9c28-f66842aaf4d9",
+  "kind": "sub_ca",
+  "role": "cbsd",
+  "name": "Bench 3 CBSD CA",
+  "parentId": "25ab0e24-e4ca-418f-bbbf-5b3fce333e89",
+  "subject": "CN=Bench 3 CBSD CA",
+  "issuer": "C=US, O=Example Lab, CN=Bench 3 Root CA",
+  "serial": "2716EAA599654B04C5F173DD82D0FC9A",
+  "notBefore": 1793120793000,
+  "notAfter": 2266160793000,
+  "fingerprint": "27:E1:2E:95:09:1D:A4:1A:F9:42:BA:A8:46:F8:E5:2D:DB:6A:A5:8B:F7:0A:48:D0:DC:9E:18:79:F4:98:9A:04",
+  "keyType": "ec256",
+  "hasKey": true,
+  "isCa": true,
+  "meta": {},
+  "revokedAt": null,
+  "createdAt": 1793120793998,
+  "details": "{…}",
+  "usage": {"serverCertificate": false, "trustedClientCa": false},
+  "pem": "-----BEGIN CERTIFICATE-----\nMIIB5TCCAYygAwIBAgIQJxbqpZllSwTF8XPdgtD8…\n-----END CERTIFICATE-----\n",
+  "chain": "[…]",
+  "children": []
+}
+```
+
 Request body (JSON, required):
 
 | Field | Type | Required | Description |
@@ -4594,16 +8416,6 @@ Request body (JSON, required):
 | `keyType` | `"rsa2048"` \| `"rsa3072"` \| `"rsa4096"` \| `"ec256"` \| `"ec384"` |  | default `"rsa4096"` |
 | `days` | integer |  | Validity in days (default depends on the kind). · ≥ 1, ≤ 36500 |
 | `name` | string |  | Display name in the store (defaults from the subject). · min length 1, max length 200 |
-
-Example:
-
-```json
-{
-  "parentId": "<root id>",
-  "role": "cbsd",
-  "CN": "Lab CBSD CA"
-}
-```
 
 Responses:
 
@@ -4625,6 +8437,49 @@ Responses:
 
 `use`: `add` presents it next to the current SAS server certificates, in place of the one with the same key type (RSA or ECDSA) if there is one, since the HTTPS listener presents at most one of each; `replace` makes it the only one. Either way the HTTPS listener restarts and the call returns when it is back. Without `use` the certificate is only stored.
 
+Example:
+
+*A SAS server certificate for another name.*
+
+```bash
+curl -s -X POST "$API/certs/server" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{
+    "parentId": "52646b5c-ad10-4995-b55c-9964024838dd",
+    "CN": "sas2.lab.example",
+    "sans": ["sas2.lab.example", "192.0.2.20"]
+  }'
+```
+
+Response `201`:
+
+```json
+{
+  "id": "66131d72-5e81-47bf-8d83-e825141db726",
+  "kind": "server",
+  "role": "sas",
+  "name": "sas2.lab.example",
+  "parentId": "52646b5c-ad10-4995-b55c-9964024838dd",
+  "subject": "CN=sas2.lab.example",
+  "issuer": "O=SASBench, OU=Lab PKI, CN=SASBench SAS CA",
+  "serial": "5983F90A300C495C8D2C22B75F67E2B4",
+  "notBefore": 1793120793000,
+  "notAfter": 1864400793000,
+  "fingerprint": "C4:27:5D:E0:E7:20:09:66:42:BF:16:5E:6D:B2:6C:39:74:89:01:AD:69:D1:CD:A7:B3:4E:24:57:4F:07:2A:7E",
+  "keyType": "rsa2048",
+  "hasKey": true,
+  "isCa": false,
+  "meta": {"sans": ["sas2.lab.example", "192.0.2.20"], "frn": null},
+  "revokedAt": null,
+  "createdAt": 1793120793668,
+  "details": "{…}",
+  "usage": {"serverCertificate": false, "trustedClientCa": false},
+  "pem": "-----BEGIN CERTIFICATE-----\nMIIEnzCCAoegAwIBAgIQWYP5CjAMSVyNLCK3X2fi…\n-----END CERTIFICATE-----\n",
+  "chain": "[…]",
+  "children": []
+}
+```
+
 Request body (JSON, required):
 
 | Field | Type | Required | Description |
@@ -4642,21 +8497,6 @@ Request body (JSON, required):
 | `sans` | array of string |  | DNS names and IP addresses (default: the CN). |
 | `frn` | string |  | FCC Registration Number for the subject. |
 | `use` | `"add"` \| `"replace"` |  |  |
-
-Example:
-
-```json
-{
-  "parentId": "<sas ca id>",
-  "CN": "sas.lab",
-  "sans": [
-    "sas.lab",
-    "localhost",
-    "127.0.0.1"
-  ],
-  "use": "add"
-}
-```
 
 Responses:
 
@@ -4678,6 +8518,67 @@ Responses:
 
 The subject carries the FCC ID and serial number as the WInnForum profile requires. `registerFccId` also adds the FCC ID to the registry.
 
+Example:
+
+*A device certificate for TEST-FCC / SN-0001.*
+
+```bash
+curl -s -X POST "$API/certs/cbsd" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{
+    "parentId": "b479ab3a-21c1-4075-860d-959ad37ef9ac",
+    "fccId": "TEST-FCC",
+    "serial": "SN-0001"
+  }'
+```
+
+Response `201`:
+
+```json
+{
+  "id": "53e9ba60-a340-4bae-8cad-625e1297e732",
+  "kind": "cbsd",
+  "role": "cbsd",
+  "name": "TEST-FCC / SN-0001",
+  "parentId": "b479ab3a-21c1-4075-860d-959ad37ef9ac",
+  "subject": "CN=TEST-FCC:SN-0001",
+  "issuer": "O=SASBench, OU=Lab PKI, CN=SASBench CBSD CA",
+  "serial": "315A52E47D6871F96242A36DAAAC1492",
+  "notBefore": 1793120789000,
+  "notAfter": 2108480789000,
+  "fingerprint": "24:8F:1C:86:E4:5F:F0:11:22:7D:5B:48:BA:D6:4C:1C:D0:3A:E2:1E:DF:5E:8C:1D:6B:8A:4E:72:04:7B:54:B9",
+  "keyType": "rsa2048",
+  "hasKey": true,
+  "isCa": false,
+  "meta": {"fccId": "TEST-FCC", "serial": "SN-0001"},
+  "revokedAt": null,
+  "createdAt": 1793120789860,
+  "details": {
+    "subject": "CN=TEST-FCC:SN-0001",
+    "issuer": "O=SASBench, OU=Lab PKI, CN=SASBench CBSD CA",
+    "commonName": "TEST-FCC:SN-0001",
+    "serial": "315A52E47D6871F96242A36DAAAC1492",
+    "notBefore": 1793120789000,
+    "notAfter": 2108480789000,
+    "fingerprint256": "24:8F:1C:86:E4:5F:F0:11:22:7D:5B:48:BA:D6:4C:1C:D0:3A:E2:1E:DF:5E:8C:1D:6B:8A:4E:72:04:7B:54:B9",
+    "keyType": "RSA 2048",
+    "isCa": false,
+    "selfSigned": false,
+    "subjectAltName": "othername:<unsupported>, othername:<unsupported>",
+    "roles": ["CBSD"],
+    "policies": ["1.3.6.1.4.1.46609.1.1.3"],
+    "fccId": "TEST-FCC",
+    "cbsdSerial": "SN-0001",
+    "cpiId": null,
+    "frn": null
+  },
+  "usage": {"serverCertificate": false, "trustedClientCa": false},
+  "pem": "-----BEGIN CERTIFICATE-----\nMIIEsTCCApmgAwIBAgIQMVpS5H1ocfliQqNtqqwU…\n-----END CERTIFICATE-----\n",
+  "chain": ["{…}", "{…}"],
+  "children": []
+}
+```
+
 Request body (JSON, required):
 
 | Field | Type | Required | Description |
@@ -4692,17 +8593,6 @@ Request body (JSON, required):
 | `days` | integer |  | Validity in days (default depends on the kind). · ≥ 1, ≤ 36500 |
 | `name` | string |  | Display name in the store (defaults from the subject). · min length 1, max length 200 |
 | `registerFccId` | boolean |  | default `false` |
-
-Example:
-
-```json
-{
-  "parentId": "<cbsd ca id>",
-  "fccId": "TEST-FCC",
-  "serial": "SN-0001",
-  "registerFccId": true
-}
-```
 
 Responses:
 
@@ -4724,6 +8614,25 @@ Responses:
 
 Issues one certificate per device and returns a zip with a provisioning bundle per device (as format=bundle) plus devices.txt.
 
+Example:
+
+*Certificates for three radios at once (a zip of bundles).*
+
+```bash
+curl -s -X POST "$API/certs/cbsd-batch" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{
+    "parentId": "b479ab3a-21c1-4075-860d-959ad37ef9ac",
+    "devices": [
+      {"fccId": "TEST-FCC", "serial": "SN-0101"},
+      {"fccId": "TEST-FCC", "serial": "SN-0102"},
+      {"fccId": "TEST-FCC", "serial": "SN-0103"}
+    ]
+  }'
+```
+
+Response `200`: `application/zip`, 133,101 bytes, saved to `bundles.zip`.
+
 Request body (JSON, required):
 
 | Field | Type | Required | Description |
@@ -4736,24 +8645,6 @@ Request body (JSON, required):
 | `days` | integer |  | ≥ 1, ≤ 36500 |
 | `password` | string |  | PKCS#12 password. · min length 1, default `"cbrs"` |
 | `registerFccIds` | boolean |  | default `false` |
-
-Example:
-
-```json
-{
-  "parentId": "<cbsd ca id>",
-  "devices": [
-    {
-      "fccId": "TEST-FCC",
-      "serial": "SN-0001"
-    },
-    {
-      "fccId": "TEST-FCC",
-      "serial": "SN-0002"
-    }
-  ]
-}
-```
 
 Responses:
 
@@ -4773,6 +8664,47 @@ Responses:
 
 **Issue a domain-proxy certificate.**
 
+Example:
+
+```bash
+curl -s -X POST "$API/certs/domain-proxy" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{
+    "parentId": "580af9be-0c63-4d94-bbf8-c34e04209bfc",
+    "CN": "Lab Domain Proxy",
+    "frn": "0123456789"
+  }'
+```
+
+Response `201`:
+
+```json
+{
+  "id": "ffd3aad2-96e1-4c68-99dd-4bf2e940bbcc",
+  "kind": "domain_proxy",
+  "role": "operator",
+  "name": "Lab Domain Proxy",
+  "parentId": "580af9be-0c63-4d94-bbf8-c34e04209bfc",
+  "subject": "CN=Lab Domain Proxy",
+  "issuer": "O=SASBench, OU=Lab PKI, CN=SASBench Domain Proxy CA",
+  "serial": "6AAA7C53F0807792B6F671BADBA6C1E8",
+  "notBefore": 1793120792000,
+  "notAfter": 1950800792000,
+  "fingerprint": "20:30:30:5B:73:E2:E6:D8:CB:2B:87:8B:49:C6:BD:A3:17:F3:49:64:E2:5B:EC:1F:15:07:7C:C2:DE:3B:3D:D5",
+  "keyType": "rsa2048",
+  "hasKey": true,
+  "isCa": false,
+  "meta": {"frn": "0123456789"},
+  "revokedAt": null,
+  "createdAt": 1793120792890,
+  "details": "{…}",
+  "usage": {"serverCertificate": false, "trustedClientCa": false},
+  "pem": "-----BEGIN CERTIFICATE-----\nMIIEojCCAoqgAwIBAgIQaqp8U/CAd5K29nG626bB…\n-----END CERTIFICATE-----\n",
+  "chain": "[…]",
+  "children": []
+}
+```
+
 Request body (JSON, required):
 
 | Field | Type | Required | Description |
@@ -4788,16 +8720,6 @@ Request body (JSON, required):
 | `days` | integer |  | Validity in days (default depends on the kind). · ≥ 1, ≤ 36500 |
 | `name` | string |  | Display name in the store (defaults from the subject). · min length 1, max length 200 |
 | `frn` | string |  |  |
-
-Example:
-
-```json
-{
-  "parentId": "<operator ca id>",
-  "CN": "Lab Domain Proxy",
-  "frn": "0123456789"
-}
-```
 
 Responses:
 
@@ -4819,6 +8741,49 @@ Responses:
 
 With `registerCpi` (default) the CPI is also added to the registry with the certificate's public key, so its signed installation data is accepted.
 
+Example:
+
+*A CPI certificate (also registers the CPI).*
+
+```bash
+curl -s -X POST "$API/certs/installer" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{
+    "parentId": "e3251704-54c5-496e-8d9c-129bc7a248bd",
+    "cpiId": "CPI-0007",
+    "cpiName": "Sam Rivera"
+  }'
+```
+
+Response `201`:
+
+```json
+{
+  "id": "d89318b7-8887-4128-bb4f-7bfe66d3187a",
+  "kind": "installer",
+  "role": "installer",
+  "name": "CPI Sam Rivera (CPI-0007)",
+  "parentId": "e3251704-54c5-496e-8d9c-129bc7a248bd",
+  "subject": "O=SASBench CPI, CN=Sam Rivera",
+  "issuer": "O=SASBench, OU=Lab PKI, CN=SASBench Installer CA",
+  "serial": "18ED308FBD9DFF4C90FFE1663208B400",
+  "notBefore": 1793120793000,
+  "notAfter": 1950800793000,
+  "fingerprint": "42:31:50:24:DD:6C:82:C6:80:F9:6F:0F:84:82:CB:67:E5:83:6B:93:4D:4B:7D:3D:F4:34:F3:33:DB:10:16:D3",
+  "keyType": "rsa2048",
+  "hasKey": true,
+  "isCa": false,
+  "meta": {"cpiId": "CPI-0007", "cpiName": "Sam Rivera"},
+  "revokedAt": null,
+  "createdAt": 1793120793203,
+  "details": "{…}",
+  "usage": {"serverCertificate": false, "trustedClientCa": false},
+  "pem": "-----BEGIN CERTIFICATE-----\nMIIEmTCCAoGgAwIBAgIQGO0wj72d/0yQ/+FmMgi0…\n-----END CERTIFICATE-----\n",
+  "chain": "[…]",
+  "children": []
+}
+```
+
 Request body (JSON, required):
 
 | Field | Type | Required | Description |
@@ -4829,16 +8794,6 @@ Request body (JSON, required):
 | `keyType` | `"rsa2048"` \| `"rsa3072"` \| `"rsa4096"` \| `"ec256"` \| `"ec384"` |  | default `"rsa2048"` |
 | `days` | integer |  | ≥ 1, ≤ 36500 |
 | `registerCpi` | boolean |  | default `true` |
-
-Example:
-
-```json
-{
-  "parentId": "<installer ca id>",
-  "cpiId": "CPI-0001",
-  "cpiName": "Lab Installer"
-}
-```
 
 Responses:
 
@@ -4860,6 +8815,47 @@ Responses:
 
 One or more PEM certificates (e.g. a CA chain or the WInnForum harness CAs), optionally with the private key of the first. Imported CAs can then be trusted for client certificates (PUT /tls/trusted-cas).
 
+Example:
+
+*Import a CA certificate (PEM; add keyPem to import its key too).*
+
+```bash
+jq -n --rawfile pem partner-root-ca.pem '{pem: $pem, name: "Partner Root CA"}' \
+  | curl -s -X POST "$API/certs/import" -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' -d @-
+```
+
+Response `201`:
+
+```json
+{
+  "items": [
+    {
+      "id": "7d93729d-efbf-4da4-9a5f-711d4e199c2d",
+      "kind": "trusted",
+      "role": "ca",
+      "name": "Partner Root CA",
+      "parentId": null,
+      "subject": "O=Partner Lab, CN=Partner Root CA",
+      "issuer": "O=Partner Lab, CN=Partner Root CA",
+      "serial": "77C14AEA48B75AB1FCC601F978AC40A8",
+      "notBefore": 1793120794000,
+      "notAfter": 2108480794000,
+      "fingerprint": "32:8D:7F:17:A7:66:B0:3E:F8:A8:7E:6A:E3:A8:19:98:20:23:33:2A:79:E7:7E:13:2D:27:C4:FD:5A:D4:55:EB",
+      "keyType": "EC prime256v1",
+      "hasKey": false,
+      "isCa": true,
+      "meta": {"imported": true},
+      "revokedAt": null,
+      "createdAt": 1793120794214,
+      "details": "{…}",
+      "usage": {"serverCertificate": false, "trustedClientCa": false}
+    }
+  ]
+}
+```
+
+`jq` builds the body from the PEM file: `{"pem": "-----BEGIN CERTIFICATE-----\n…", "name": "Partner Root CA"}`.
+
 Request body (JSON, required):
 
 | Field | Type | Required | Description |
@@ -4868,15 +8864,6 @@ Request body (JSON, required):
 | `keyPem` | string |  | Private key (PEM) for the first certificate. |
 | `passphrase` | string |  | Passphrase of an encrypted key. |
 | `name` | string |  | max length 200 |
-
-Example:
-
-```json
-{
-  "pem": "-----BEGIN CERTIFICATE-----\n…\n-----END CERTIFICATE-----\n",
-  "name": "Harness root"
-}
-```
 
 Responses:
 
@@ -4901,6 +8888,48 @@ Response 201 body:
 
 **Import a PKCS#12 file.**
 
+Example:
+
+*Import a PKCS#12 file.*
+
+```bash
+jq -n --arg data "$(base64 -w0 device.p12)" '{data: $data, password: "cbrs", name: "SN-0001 from p12"}' \
+  | curl -s -X POST "$API/certs/import-p12" -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' -d @-
+```
+
+Response `201`:
+
+```json
+{
+  "items": [
+    {
+      "id": "53e9ba60-a340-4bae-8cad-625e1297e732",
+      "kind": "cbsd",
+      "role": "cbsd",
+      "name": "TEST-FCC / SN-0001",
+      "parentId": "b479ab3a-21c1-4075-860d-959ad37ef9ac",
+      "subject": "CN=TEST-FCC:SN-0001",
+      "issuer": "O=SASBench, OU=Lab PKI, CN=SASBench CBSD CA",
+      "serial": "315A52E47D6871F96242A36DAAAC1492",
+      "notBefore": 1793120789000,
+      "notAfter": 2108480789000,
+      "fingerprint": "24:8F:1C:86:E4:5F:F0:11:22:7D:5B:48:BA:D6:4C:1C:D0:3A:E2:1E:DF:5E:8C:1D:6B:8A:4E:72:04:7B:54:B9",
+      "keyType": "rsa2048",
+      "hasKey": true,
+      "isCa": false,
+      "meta": {"fccId": "TEST-FCC", "serial": "SN-0001"},
+      "revokedAt": null,
+      "createdAt": 1793120789860,
+      "details": "{…}",
+      "usage": {"serverCertificate": false, "trustedClientCa": false}
+    },
+    "… 2 more"
+  ]
+}
+```
+
+The file goes in `data` as base64: `{"data": "MIIK…", "password": "cbrs", "name": "SN-0001 from p12"}`.
+
 Request body (JSON, required):
 
 | Field | Type | Required | Description |
@@ -4908,15 +8937,6 @@ Request body (JSON, required):
 | `data` | string | yes | The .p12/.pfx file, base64. · min length 1 |
 | `password` | string |  | default `""` |
 | `name` | string |  | max length 200 |
-
-Example:
-
-```json
-{
-  "data": "MIIK…",
-  "password": "cbrs"
-}
-```
 
 Responses:
 
@@ -4943,6 +8963,41 @@ Response 201 body:
 
 Marks it revoked in the store. The SAS refuses TLS clients presenting it (or a certificate it issued) when tlsCheckCrl is on, and it appears in the CRL its CA generates.
 
+Example:
+
+```bash
+curl -s -X POST -H "Authorization: Bearer $KEY" "$API/certs/c074e922-4348-4f9e-906a-348a63f1a129/revoke"
+```
+
+Response `200`:
+
+```json
+{
+  "id": "c074e922-4348-4f9e-906a-348a63f1a129",
+  "kind": "cbsd",
+  "role": "cbsd",
+  "name": "TEST-FCC / SN-0666",
+  "parentId": "b479ab3a-21c1-4075-860d-959ad37ef9ac",
+  "subject": "CN=TEST-FCC:SN-0666",
+  "issuer": "O=SASBench, OU=Lab PKI, CN=SASBench CBSD CA",
+  "serial": "74E4D98C6E804BE4376951D794938728",
+  "notBefore": 1793120795000,
+  "notAfter": 2108480795000,
+  "fingerprint": "D9:83:71:58:A6:7C:36:56:51:95:25:B4:85:40:30:70:DC:36:44:7F:94:4E:2B:D8:96:A3:3B:FB:80:4C:36:D9",
+  "keyType": "rsa2048",
+  "hasKey": true,
+  "isCa": false,
+  "meta": {"fccId": "TEST-FCC", "serial": "SN-0666"},
+  "revokedAt": 1793120795244,
+  "createdAt": 1793120795216,
+  "details": "{…}",
+  "usage": {"serverCertificate": false, "trustedClientCa": false},
+  "pem": "-----BEGIN CERTIFICATE-----\nMIIEsTCCApmgAwIBAgIQdOTZjG6AS+Q3aVHXlJOH…\n-----END CERTIFICATE-----\n",
+  "chain": "[…]",
+  "children": []
+}
+```
+
 Path parameters:
 
 | Name | Type | Description |
@@ -4967,6 +9022,41 @@ Responses:
 `POST /api/v1/certs/{id}/unrevoke` · scope **write**
 
 **Clear a revocation.**
+
+Example:
+
+```bash
+curl -s -X POST -H "Authorization: Bearer $KEY" "$API/certs/c074e922-4348-4f9e-906a-348a63f1a129/unrevoke"
+```
+
+Response `200`:
+
+```json
+{
+  "id": "c074e922-4348-4f9e-906a-348a63f1a129",
+  "kind": "cbsd",
+  "role": "cbsd",
+  "name": "TEST-FCC / SN-0666",
+  "parentId": "b479ab3a-21c1-4075-860d-959ad37ef9ac",
+  "subject": "CN=TEST-FCC:SN-0666",
+  "issuer": "O=SASBench, OU=Lab PKI, CN=SASBench CBSD CA",
+  "serial": "74E4D98C6E804BE4376951D794938728",
+  "notBefore": 1793120795000,
+  "notAfter": 2108480795000,
+  "fingerprint": "D9:83:71:58:A6:7C:36:56:51:95:25:B4:85:40:30:70:DC:36:44:7F:94:4E:2B:D8:96:A3:3B:FB:80:4C:36:D9",
+  "keyType": "rsa2048",
+  "hasKey": true,
+  "isCa": false,
+  "meta": {"fccId": "TEST-FCC", "serial": "SN-0666"},
+  "revokedAt": null,
+  "createdAt": 1793120795216,
+  "details": "{…}",
+  "usage": {"serverCertificate": false, "trustedClientCa": false},
+  "pem": "-----BEGIN CERTIFICATE-----\nMIIEsTCCApmgAwIBAgIQdOTZjG6AS+Q3aVHXlJOH…\n-----END CERTIFICATE-----\n",
+  "chain": "[…]",
+  "children": []
+}
+```
 
 Path parameters:
 
@@ -5009,6 +9099,31 @@ Formats:
 - `p12-legacy`: PKCS#12 with 3DES/SHA-1 for older devices, protected by `password`. Contains the private key: needs write access.
 - `bundle`: Radio provisioning zip: identity in every format and the SAS trust anchors. Contains the private key: needs write access.
 
+Examples:
+
+*The radio bundle: certificate, key, chains, PKCS#12 and the SAS root CA in one zip.*
+
+```bash
+curl -s "$API/certs/53e9ba60-a340-4bae-8cad-625e1297e732/download?format=bundle&password=cbrs" \
+  -H "Authorization: Bearer $KEY" -o radio-bundle.zip
+```
+
+Response `200`: `application/zip`, 48,435 bytes, saved to `radio-bundle.zip`.
+
+*Just the certificate, PEM.*
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/certs/53e9ba60-a340-4bae-8cad-625e1297e732/download?format=pem"
+```
+
+Response `200` (`application/x-pem-file`):
+
+```text
+-----BEGIN CERTIFICATE-----
+MIIEsTCCApmgAwIBAgIQMVpS5H1ocfliQqNtqqwU…
+-----END CERTIFICATE-----
+```
+
 Path parameters:
 
 | Name | Type | Description |
@@ -5042,6 +9157,59 @@ Responses:
 
 Produces the `cpiSignatureData` a Category B registration carries: a JWS over the FCC ID, serial number, installation parameters and professional-installer data, signed with an installer certificate's key from the store (`installerCertId`; its CPI id and name are used when not given) or with `privateKeyPem`.
 
+Example:
+
+*Sign installation data as that CPI.*
+
+```bash
+curl -s -X POST "$API/cpi/sign" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{
+    "installerCertId": "d89318b7-8887-4128-bb4f-7bfe66d3187a",
+    "fccId": "TEST-FCC-B",
+    "cbsdSerialNumber": "SN-B002",
+    "installationParam": {
+      "latitude": 37.4215,
+      "longitude": -122.0839,
+      "height": 12,
+      "heightType": "AGL",
+      "indoorDeployment": false,
+      "antennaGain": 15,
+      "eirpCapability": 40
+    }
+  }'
+```
+
+Response `200`:
+
+```json
+{
+  "cpiSignatureData": {
+    "protectedHeader": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9",
+    "encodedCpiSignedData": "eyJmY2NJZCI6IlRFU1QtRkNDLUIiLCJjYnNkU2VyaWFsTnVtYmVyIjoiU04tQjAwMiIsImluc3RhbGxhdGlvblBhcmFtIjp7Imxh…",
+    "digitalSignature": "N-LoLTLg7ADXFrViGNz2zSEAbmAckAk4e6jkxvNL6L39YSRsRPMAbttTNJ0RVsAMRh5ol45hpIVRAnl_bb0L7RfqO9_seXELyXI8…"
+  },
+  "signedData": {
+    "fccId": "TEST-FCC-B",
+    "cbsdSerialNumber": "SN-B002",
+    "installationParam": {
+      "latitude": 37.4215,
+      "longitude": -122.0839,
+      "height": 12,
+      "heightType": "AGL",
+      "indoorDeployment": false,
+      "antennaGain": 15,
+      "eirpCapability": 40
+    },
+    "professionalInstallerData": {
+      "cpiId": "CPI-0007",
+      "cpiName": "Sam Rivera",
+      "installCertificationTime": "2026-10-27T17:06:33Z"
+    }
+  }
+}
+```
+
 Request body (JSON, required):
 
 | Field | Type | Required | Description |
@@ -5053,25 +9221,6 @@ Request body (JSON, required):
 | `privateKeyPem` | string |  | min length 1 |
 | `cpiId` | string |  | min length 1 |
 | `cpiName` | string |  | min length 1 |
-
-Example:
-
-```json
-{
-  "installerCertId": "<installer cert id>",
-  "fccId": "TEST-FCC",
-  "cbsdSerialNumber": "SN-0002",
-  "installationParam": {
-    "latitude": 37.4,
-    "longitude": -122.1,
-    "height": 10,
-    "heightType": "AGL",
-    "indoorDeployment": false,
-    "antennaGain": 15,
-    "eirpCapability": 40
-  }
-}
-```
 
 Responses:
 
@@ -5111,6 +9260,56 @@ Which certificates the SAS HTTPS listener presents and which CAs it trusts for c
 
 The server certificates presented on the HTTPS listener, the CAs trusted for client certificates (an empty list trusts every CA in the store), the TLS policy settings and the live listener state.
 
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/tls"
+```
+
+Response `200`:
+
+```json
+{
+  "serverCertIds": ["854a3c37-4fdf-4759-b1cb-3a02c07bdab3", "d2ce1631-5c73-453a-b8ae-c725c46e0921"],
+  "trustedClientCaIds": [],
+  "serverCerts": [
+    {
+      "id": "854a3c37-4fdf-4759-b1cb-3a02c07bdab3",
+      "name": "SAS server RSA (auto)",
+      "kind": "server",
+      "subject": "O=SASBench, CN=sas.lab.example",
+      "notAfter": 1864400784000,
+      "revoked": false
+    },
+    {
+      "id": "d2ce1631-5c73-453a-b8ae-c725c46e0921",
+      "name": "SAS server ECDSA (auto)",
+      "kind": "server",
+      "subject": "O=SASBench, CN=sas.lab.example",
+      "notAfter": 1864400785000,
+      "revoked": false
+    }
+  ],
+  "trustedClientCas": [],
+  "clientAuth": "optional",
+  "minVersion": "TLSv1.2",
+  "maxVersion": "TLSv1.2",
+  "cipherPolicy": "winnforum",
+  "checkCrl": true,
+  "listener": {
+    "enabled": true,
+    "listening": true,
+    "port": 8443,
+    "error": null,
+    "clientAuth": "optional",
+    "serverCerts": ["SAS server RSA (auto) (rsa2048)", "SAS server ECDSA (auto) (ec256)"],
+    "trustAnchors": 7,
+    "ciphers": "AES128-GCM-SHA256:AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256",
+    "protocols": "TLSv1.2"
+  }
+}
+```
+
 Responses:
 
 | Status | Description | Body |
@@ -5129,21 +9328,65 @@ Responses:
 
 At most one per key type (e.g. an RSA and an ECDSA certificate): the listener cannot present two of the same type. Each needs a private key. The HTTPS listener restarts; the call returns when it is back.
 
+Example:
+
+*Choose the certificates the HTTPS listener presents.*
+
+```bash
+curl -s -X PUT "$API/tls/server-certs" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{"ids": ["854a3c37-4fdf-4759-b1cb-3a02c07bdab3", "d2ce1631-5c73-453a-b8ae-c725c46e0921"]}'
+```
+
+Response `200`:
+
+```json
+{
+  "serverCertIds": ["854a3c37-4fdf-4759-b1cb-3a02c07bdab3", "d2ce1631-5c73-453a-b8ae-c725c46e0921"],
+  "trustedClientCaIds": [],
+  "serverCerts": [
+    {
+      "id": "854a3c37-4fdf-4759-b1cb-3a02c07bdab3",
+      "name": "SAS server RSA (auto)",
+      "kind": "server",
+      "subject": "O=SASBench, CN=sas.lab.example",
+      "notAfter": 1864400784000,
+      "revoked": false
+    },
+    {
+      "id": "d2ce1631-5c73-453a-b8ae-c725c46e0921",
+      "name": "SAS server ECDSA (auto)",
+      "kind": "server",
+      "subject": "O=SASBench, CN=sas.lab.example",
+      "notAfter": 1864400785000,
+      "revoked": false
+    }
+  ],
+  "trustedClientCas": [],
+  "clientAuth": "optional",
+  "minVersion": "TLSv1.2",
+  "maxVersion": "TLSv1.2",
+  "cipherPolicy": "winnforum",
+  "checkCrl": true,
+  "listener": {
+    "enabled": true,
+    "listening": true,
+    "port": 8443,
+    "error": null,
+    "clientAuth": "optional",
+    "serverCerts": ["SAS server RSA (auto) (rsa2048)", "SAS server ECDSA (auto) (ec256)"],
+    "trustAnchors": 7,
+    "ciphers": "AES128-GCM-SHA256:AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256",
+    "protocols": "TLSv1.2"
+  }
+}
+```
+
 Request body (JSON, required):
 
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `ids` | array of string | yes | min 1 items |
-
-Example:
-
-```json
-{
-  "ids": [
-    "<server cert id>"
-  ]
-}
-```
 
 Responses:
 
@@ -5164,21 +9407,48 @@ Responses:
 
 An empty list trusts every CA certificate in the store. The HTTPS listener restarts; the call returns when it is back.
 
+Example:
+
+*Trust client certificates from the CBSD CA only.*
+
+```bash
+curl -s -X PUT "$API/tls/trusted-cas" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{"ids": ["b479ab3a-21c1-4075-860d-959ad37ef9ac"]}'
+```
+
+Response `200`:
+
+```json
+{
+  "serverCertIds": ["854a3c37-4fdf-4759-b1cb-3a02c07bdab3", "d2ce1631-5c73-453a-b8ae-c725c46e0921"],
+  "trustedClientCaIds": ["b479ab3a-21c1-4075-860d-959ad37ef9ac"],
+  "serverCerts": ["{…}", "{…}"],
+  "trustedClientCas": ["{…}"],
+  "clientAuth": "optional",
+  "minVersion": "TLSv1.2",
+  "maxVersion": "TLSv1.2",
+  "cipherPolicy": "winnforum",
+  "checkCrl": true,
+  "listener": {
+    "enabled": true,
+    "listening": true,
+    "port": 8443,
+    "error": null,
+    "clientAuth": "optional",
+    "serverCerts": "[…]",
+    "trustAnchors": 1,
+    "ciphers": "AES128-GCM-SHA256:AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256",
+    "protocols": "TLSv1.2"
+  }
+}
+```
+
 Request body (JSON, required):
 
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `ids` | array of string | yes |  |
-
-Example:
-
-```json
-{
-  "ids": [
-    "<harness root id>"
-  ]
-}
-```
 
 Responses:
 
@@ -5198,6 +9468,25 @@ Responses:
 **Download the CA trust bundle.**
 
 CA certificates in one PEM file, for a CBSD or harness trust store. `which=roots`: self-signed CAs only.
+
+Example:
+
+*The root CAs, for a radio's trust store.*
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/trust-bundle?which=roots"
+```
+
+Response `200` (`application/x-pem-file`):
+
+```text
+-----BEGIN CERTIFICATE-----
+MIIFhzCCA2+gAwIBAgIQbIXYmL3A0rysvhXbmoOb…
+-----END CERTIFICATE-----
+-----BEGIN CERTIFICATE-----
+MIIB9DCCAZugAwIBAgIQZFAyBQijoZceVP+aSlwG…
+-----END CERTIFICATE-----
+```
 
 Query parameters:
 
@@ -5236,6 +9525,33 @@ Certificate revocation lists imported from trusted CAs.
 
 CRLs imported from trusted CAs (e.g. the harness certs/crl files). With tlsCheckCrl on, client certificates whose serial a CRL lists are refused.
 
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/crls"
+```
+
+Response `200`:
+
+```json
+{
+  "items": [
+    {
+      "id": "59369a89-ac9e-409a-83d3-4f5edee3ae64",
+      "name": "CBSD CA CRL",
+      "issuerHash": "df9035ef",
+      "thisUpdate": 1793120795000,
+      "nextUpdate": 1795712795000,
+      "revokedCount": 1,
+      "revoked": ["74E4D98C6E804BE4376951D794938728"]
+    }
+  ],
+  "total": 1,
+  "limit": 500,
+  "offset": 0
+}
+```
+
 Query parameters:
 
 | Name | Type | Required | Description |
@@ -5271,6 +9587,35 @@ Response 200 body:
 
 PEM or DER, base64-encoded. Re-importing the same CRL replaces it.
 
+Example:
+
+*Import a CRL.*
+
+```bash
+jq -n --arg data "$(base64 -w0 cbsd-ca.crl)" '{files: [{name: "CBSD CA CRL", data: $data}]}' \
+  | curl -s -X POST "$API/crls" -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' -d @-
+```
+
+Response `201`:
+
+```json
+{
+  "items": [
+    {
+      "id": "59369a89-ac9e-409a-83d3-4f5edee3ae64",
+      "name": "CBSD CA CRL",
+      "issuerHash": "df9035ef",
+      "thisUpdate": 1793120795000,
+      "nextUpdate": 1795712795000,
+      "revokedCount": 1,
+      "revoked": ["74E4D98C6E804BE4376951D794938728"]
+    }
+  ]
+}
+```
+
+Each file (PEM or DER) goes in `data` as base64: `{"files": [{"name": "CBSD CA CRL", "data": "LS0tLS1CRUdJTi…"}]}`.
+
 Request body (JSON, required):
 
 | Field | Type | Required | Description |
@@ -5278,19 +9623,6 @@ Request body (JSON, required):
 | `files` | array of object | yes | min 1 items |
 | `files[].data` | string | yes | min length 1 |
 | `files[].name` | string |  | max length 200 |
-
-Example:
-
-```json
-{
-  "files": [
-    {
-      "name": "harness root CRL",
-      "data": "LS0tLS1CRUdJTiBYNTA5IENSTC0tLS0t…"
-    }
-  ]
-}
-```
 
 Responses:
 
@@ -5317,6 +9649,26 @@ Response 201 body:
 
 With every revoked serial number.
 
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/crls/59369a89-ac9e-409a-83d3-4f5edee3ae64"
+```
+
+Response `200`:
+
+```json
+{
+  "id": "59369a89-ac9e-409a-83d3-4f5edee3ae64",
+  "name": "CBSD CA CRL",
+  "issuerHash": "df9035ef",
+  "thisUpdate": 1793120795000,
+  "nextUpdate": 1795712795000,
+  "revokedCount": 1,
+  "revoked": ["74E4D98C6E804BE4376951D794938728"]
+}
+```
+
 Path parameters:
 
 | Name | Type | Description |
@@ -5340,6 +9692,14 @@ Responses:
 `DELETE /api/v1/crls/{id}` · scope **write**
 
 **Delete a CRL.**
+
+Example:
+
+```bash
+curl -s -X DELETE -H "Authorization: Bearer $KEY" "$API/crls/59369a89-ac9e-409a-83d3-4f5edee3ae64"
+```
+
+Response `204`, no body.
 
 Path parameters:
 
@@ -5365,6 +9725,20 @@ Responses:
 `GET /api/v1/crls/{id}/download` · scope **read**
 
 **Download a CRL (PEM).**
+
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/crls/59369a89-ac9e-409a-83d3-4f5edee3ae64/download"
+```
+
+Response `200` (`application/x-pem-file`):
+
+```text
+-----BEGIN X509 CRL-----
+MIIC5DCBzQIBATANBgkqhkiG9w0BAQsFADBAMREw…
+-----END X509 CRL-----
+```
 
 Path parameters:
 
@@ -5409,6 +9783,45 @@ Map tile configuration, the offline tile store and tile-set downloads.
 
 Where the console map takes its tiles from (settings mapSource, mapTileUrl, …), the tile set in use when the source is local, the offline tile store and the current download.
 
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/map"
+```
+
+Response `200`:
+
+```json
+{
+  "source": "builtin",
+  "url": "https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}",
+  "attribution": "USGS The National Map",
+  "maxZoom": 16,
+  "darken": true,
+  "local": null,
+  "store": {
+    "dir": "/data/tiles",
+    "sets": [
+      {
+        "id": "lab-topo",
+        "kind": "directory",
+        "name": "lab-topo",
+        "format": "png",
+        "minZoom": 10,
+        "maxZoom": 10,
+        "bounds": null,
+        "attribution": null,
+        "sizeBytes": null,
+        "usable": true,
+        "error": null
+      }
+    ]
+  },
+  "download": null,
+  "maxDownloadTiles": 100000
+}
+```
+
 Responses:
 
 | Status | Description | Body |
@@ -5426,6 +9839,37 @@ Responses:
 **List offline tile sets.**
 
 MBTiles files and z/x/y tile directories in the tile store directory.
+
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/map/tilesets"
+```
+
+Response `200`:
+
+```json
+{
+  "items": [
+    {
+      "id": "lab-topo",
+      "kind": "directory",
+      "name": "lab-topo",
+      "format": "png",
+      "minZoom": 10,
+      "maxZoom": 10,
+      "bounds": null,
+      "attribution": null,
+      "sizeBytes": null,
+      "usable": true,
+      "error": null
+    }
+  ],
+  "total": 1,
+  "limit": 500,
+  "offset": 0
+}
+```
 
 Query parameters:
 
@@ -5462,6 +9906,36 @@ Response 200 body:
 
 Picks up tile sets copied into the directory by hand.
 
+Example:
+
+*Pick up files copied into the tile store.*
+
+```bash
+curl -s -X POST -H "Authorization: Bearer $KEY" "$API/map/tilesets/rescan"
+```
+
+Response `200`:
+
+```json
+{
+  "items": [
+    {
+      "id": "lab-topo",
+      "kind": "directory",
+      "name": "lab-topo",
+      "format": "png",
+      "minZoom": 10,
+      "maxZoom": 10,
+      "bounds": null,
+      "attribution": null,
+      "sizeBytes": null,
+      "usable": true,
+      "error": null
+    }
+  ]
+}
+```
+
 Responses:
 
 | Status | Description | Body |
@@ -5484,6 +9958,30 @@ Response 200 body:
 `GET /api/v1/map/tilesets/{id}` · scope **read**
 
 **Get a tile set.**
+
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/map/tilesets/lab-topo"
+```
+
+Response `200`:
+
+```json
+{
+  "id": "lab-topo",
+  "kind": "directory",
+  "name": "lab-topo",
+  "format": "png",
+  "minZoom": 10,
+  "maxZoom": 10,
+  "bounds": null,
+  "attribution": null,
+  "sizeBytes": null,
+  "usable": true,
+  "error": null
+}
+```
 
 Path parameters:
 
@@ -5511,6 +10009,14 @@ Responses:
 
 Deletes the file or directory. 409 while it is being downloaded.
 
+Example:
+
+```bash
+curl -s -X DELETE -H "Authorization: Bearer $KEY" "$API/map/tilesets/bench-area.mbtiles"
+```
+
+Response `204`, no body.
+
 Path parameters:
 
 | Name | Type | Description |
@@ -5537,6 +10043,16 @@ Responses:
 **Get one tile.**
 
 The tile image (XYZ scheme, as Leaflet requests it). 404 when the set has no tile there.
+
+Example:
+
+*One tile (z/x/y).*
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" -o tile.png "$API/map/tilesets/lab-topo/tiles/10/163/396"
+```
+
+Response `200`: `image/png`, 69 bytes, saved to `tile.png`.
 
 Path parameters:
 
@@ -5567,6 +10083,37 @@ Responses:
 
 Null when no download has run since the SAS started.
 
+Example:
+
+*Progress of the download (here, finished).*
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/map/download"
+```
+
+Response `200`:
+
+```json
+{
+  "job": {
+    "state": "done",
+    "file": "bench-area.mbtiles",
+    "url": "https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}",
+    "bounds": [-122.2, 37.3, -121.9, 37.5],
+    "minZoom": 10,
+    "maxZoom": 13,
+    "total": 89,
+    "done": 89,
+    "missing": 0,
+    "failed": 0,
+    "bytes": 6141,
+    "startedAt": 1793120795961,
+    "finishedAt": 1793120796167,
+    "error": null
+  }
+}
+```
+
 Responses:
 
 | Status | Description | Body |
@@ -5591,6 +10138,44 @@ Response 200 body:
 
 Fetches every tile of the area and zoom range from a z/x/y tile server into `<name>.mbtiles` in the tile store, in the background (202). At most 100,000 tiles; OpenStreetMap's servers are refused (their policy forbids bulk downloads). Poll GET /map/download or watch the `changed` stream for "map".
 
+Example:
+
+*Download that area from the USGS topo map for offline use.*
+
+```bash
+curl -s -X POST "$API/map/download" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{
+    "url": "https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}",
+    "bounds": [-122.2, 37.3, -121.9, 37.5],
+    "minZoom": 10,
+    "maxZoom": 13,
+    "name": "bench-area",
+    "attribution": "USGS The National Map"
+  }'
+```
+
+Response `202`:
+
+```json
+{
+  "state": "running",
+  "file": "bench-area.mbtiles",
+  "url": "https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}",
+  "bounds": [-122.2, 37.3, -121.9, 37.5],
+  "minZoom": 10,
+  "maxZoom": 13,
+  "total": 89,
+  "done": 0,
+  "missing": 0,
+  "failed": 0,
+  "bytes": 0,
+  "startedAt": 1793120795961,
+  "finishedAt": null,
+  "error": null
+}
+```
+
 Request body (JSON, required):
 
 | Field | Type | Required | Description |
@@ -5601,24 +10186,6 @@ Request body (JSON, required):
 | `maxZoom` | integer | yes | ≥ 0, ≤ 18 |
 | `name` | string |  | max length 100, default `"offline"` |
 | `attribution` | string |  | max length 500, default `""` |
-
-Example:
-
-```json
-{
-  "url": "https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}",
-  "bounds": [
-    -98.6,
-    38.9,
-    -98.3,
-    39.1
-  ],
-  "minZoom": 8,
-  "maxZoom": 12,
-  "name": "kansas-lab",
-  "attribution": "USGS The National Map"
-}
-```
 
 Responses:
 
@@ -5639,6 +10206,38 @@ Responses:
 **Cancel the tile download.**
 
 The partial file is discarded.
+
+Example:
+
+*Stop a download in progress.*
+
+```bash
+curl -s -X DELETE -H "Authorization: Bearer $KEY" "$API/map/download"
+```
+
+Response `200`:
+
+```json
+{
+  "cancelled": true,
+  "job": {
+    "state": "running",
+    "file": "imagery.mbtiles",
+    "url": "https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}",
+    "bounds": [-123, 37, -121, 38.5],
+    "minZoom": 8,
+    "maxZoom": 11,
+    "total": 196,
+    "done": 0,
+    "missing": 0,
+    "failed": 0,
+    "bytes": 0,
+    "startedAt": 1793120796221,
+    "finishedAt": null,
+    "error": null
+  }
+}
+```
 
 Responses:
 
@@ -5663,6 +10262,21 @@ Response 200 body:
 `GET /api/v1/map/download/estimate` · scope **read**
 
 **Count the tiles a download would fetch.**
+
+Example:
+
+*How many tiles is the area around the bench?*
+
+```bash
+curl -s "$API/map/download/estimate?bounds=-122.2,37.3,-121.9,37.5&minZoom=10&maxZoom=13" \
+  -H "Authorization: Bearer $KEY"
+```
+
+Response `200`:
+
+```json
+{"tiles": 89, "limit": 100000, "allowed": true}
+```
 
 Query parameters:
 
@@ -5714,6 +10328,24 @@ Elevation tiles for the Category A HAAT check: inventory, elevation and HAAT que
 
 The terrain directory (SAS_TERRAIN_DIR), the elevation tiles found there, where downloads come from, and the current download job. With no tiles, the HAAT check is skipped (and logged).
 
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/terrain"
+```
+
+Response `200`:
+
+```json
+{
+  "directory": "/data/terrain",
+  "tileCount": 1,
+  "files": [{"name": "n40w101", "file": "floatn40w101_1_std.flt", "sizeBytes": 90000}],
+  "source": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/1/TIFF/current",
+  "download": null
+}
+```
+
 Responses:
 
 | Status | Description | Body |
@@ -5731,6 +10363,20 @@ Responses:
 **Rescan the terrain directory.**
 
 Makes tiles copied in by hand visible at once (otherwise within 30 s).
+
+Example:
+
+*Pick up tiles copied into the terrain folder.*
+
+```bash
+curl -s -X POST -H "Authorization: Bearer $KEY" "$API/terrain/rescan"
+```
+
+Response `200`:
+
+```json
+{"tileCount": 1}
+```
 
 Responses:
 
@@ -5757,6 +10403,18 @@ Response 200 body:
 **Terrain elevation at a point.**
 
 Metres above mean sea level, bilinear interpolation. Null when no tile covers the point.
+
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/terrain/elevation?lat=39.5&lon=-100.5"
+```
+
+Response `200`:
+
+```json
+{"lat": 39.5, "lon": -100.5, "tile": "n40w101", "elevationM": 374.5}
+```
 
 Query parameters:
 
@@ -5793,6 +10451,29 @@ Response 200 body:
 **Height above average terrain.**
 
 As the registration check computes it (reference_models/geo/terrain.py): 8 radials × 50 points from 3 to 16 km; HAAT = antenna height AMSL − mean radial elevation. Null when a needed tile is missing; `missingTiles` lists them.
+
+Example:
+
+*Height above average terrain of a 10 m antenna, as the Category A check computes it.*
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/terrain/haat?lat=39.5&lon=-100.5&height=10"
+```
+
+Response `200`:
+
+```json
+{
+  "lat": 39.5,
+  "lon": -100.5,
+  "height": 10,
+  "heightType": "AGL",
+  "haatM": 10.000000000000796,
+  "elevationM": 374.5,
+  "tiles": ["n40w101"],
+  "missingTiles": []
+}
+```
 
 Query parameters:
 
@@ -5836,6 +10517,24 @@ Response 200 body:
 
 The tiles a HAAT computation reads around each point (its own and those under the 16 km radials), and which of them are present.
 
+Example:
+
+*Which tiles do HAAT checks at these two sites need?*
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/terrain/tiles-needed?points=39.5%2C-100.5%3B37.425%2C-122.084"
+```
+
+Response `200`:
+
+```json
+{
+  "tiles": ["n38w122", "n38w123", "n40w101"],
+  "present": ["n40w101"],
+  "missing": ["n38w122", "n38w123"]
+}
+```
+
 Query parameters:
 
 | Name | Type | Required | Description |
@@ -5862,6 +10561,34 @@ Responses:
 
 Null when no download has run since the SAS started.
 
+Example:
+
+*Progress of the download (here, finished).*
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/terrain/download"
+```
+
+Response `200`:
+
+```json
+{
+  "job": {
+    "state": "done",
+    "directory": "/data/terrain",
+    "source": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/1/TIFF/current",
+    "force": false,
+    "total": 1,
+    "finished": 1,
+    "failed": 0,
+    "bytes": 4096,
+    "tiles": [{"name": "n10w010", "status": "downloaded", "bytes": 4096, "error": null}],
+    "startedAt": 1793120796273,
+    "finishedAt": 1793120796283
+  }
+}
+```
+
 Responses:
 
 | Status | Description | Body |
@@ -5886,6 +10613,34 @@ Response 200 body:
 
 Downloads USGS 3DEP 1-arc-second GeoTIFF tiles (public domain, about 50 MB each) into the terrain directory in the background (202), three at a time, like `node server/src/tools/fetch-terrain.ts`. Give tile names, points to cover for HAAT (`around`), and/or `harness: true` for the harness test locations. Tiles already present are skipped unless `force`. Set SAS_TERRAIN_SOURCE_URL to use a mirror.
 
+Example:
+
+*Download a tile from USGS.*
+
+```bash
+curl -s -X POST "$API/terrain/download" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{"tiles": ["n10w010"]}'
+```
+
+Response `202`:
+
+```json
+{
+  "state": "running",
+  "directory": "/data/terrain",
+  "source": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/1/TIFF/current",
+  "force": false,
+  "total": 1,
+  "finished": 0,
+  "failed": 0,
+  "bytes": 0,
+  "tiles": [{"name": "n10w010", "status": "downloading", "bytes": null, "error": null}],
+  "startedAt": 1793120796273,
+  "finishedAt": null
+}
+```
+
 Request body (JSON, optional):
 
 | Field | Type | Required | Description |
@@ -5896,19 +10651,6 @@ Request body (JSON, optional):
 | `around[].lon` | number | yes | ≥ -180, ≤ 180 |
 | `harness` | boolean |  | default `false` |
 | `force` | boolean |  | default `false` |
-
-Example:
-
-```json
-{
-  "around": [
-    {
-      "lat": 39.0119,
-      "lon": -98.4842
-    }
-  ]
-}
-```
 
 Responses:
 
@@ -5929,6 +10671,33 @@ Responses:
 **Cancel the terrain download.**
 
 Tiles already downloaded are kept; the one in progress is discarded.
+
+Example:
+
+```bash
+curl -s -X DELETE -H "Authorization: Bearer $KEY" "$API/terrain/download"
+```
+
+Response `200`:
+
+```json
+{
+  "cancelled": true,
+  "job": {
+    "state": "running",
+    "directory": "/data/terrain",
+    "source": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/1/TIFF/current",
+    "force": false,
+    "total": 1,
+    "finished": 0,
+    "failed": 0,
+    "bytes": 0,
+    "tiles": [{"name": "n11w010", "status": "downloading", "bytes": null, "error": null}],
+    "startedAt": 1793120796389,
+    "finishedAt": null
+  }
+}
+```
 
 Responses:
 
@@ -5966,6 +10735,58 @@ Configuration export and import, and a full database backup.
 
 Settings, registry (FCC IDs, user IDs, blacklist, conditional registrations, CPI users), operator protections and PPAs, and fault rules, as one JSON document, the same file the console's Backup page saves. Certificates, CBSDs, grants and logs are not included: use GET /system/backup for everything.
 
+Example:
+
+*Settings, registry, protections, PPAs and fault rules as one JSON document.*
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/config/export"
+```
+
+Response `200`:
+
+```json
+{
+  "exportedAt": "2026-10-27T17:06:36.394Z",
+  "version": "1.0.0",
+  "settings": {
+    "sasHttpEnabled": true,
+    "sasHttpPort": 8000,
+    "sasHttpsEnabled": true,
+    "sasHttpsPort": 8443,
+    "tlsClientAuth": "optional",
+    "tlsMinVersion": "TLSv1.2",
+    "tlsMaxVersion": "TLSv1.2",
+    "tlsCipherPolicy": "winnforum",
+    "serverCertIds": "[…]",
+    "trustedClientCaIds": [],
+    "tlsCheckCrl": true,
+    "certRoleCheck": "lenient",
+    "rejectUnverifiedClientCert": false,
+    "supportedVersions": ["v1.2"],
+    "acceptVersionlessPaths": true,
+    "heartbeatIntervalSec": 60,
+    "transmitExpireSec": 240,
+    "grantExpireSec": 604800,
+    "connectivityLostSec": 604800,
+    "versionErrorAsResponseCode": false,
+    "siqChannelization": "none",
+    "siqIncludeDpa": false,
+    "strictOperationState": false,
+    "responseDelayMs": 0,
+    "…": "28 more"
+  },
+  "fccIds": ["{…}", "… 1 more"],
+  "userIds": [{"user_id": "lab-user", "created_at": 1793120787858}],
+  "blacklist": [],
+  "conditional": ["{…}", "… 1 more"],
+  "cpiUsers": ["{…}"],
+  "protections": [],
+  "ppas": [],
+  "faults": []
+}
+```
+
 Query parameters:
 
 | Name | Type | Required | Description |
@@ -5991,6 +10812,39 @@ Responses:
 
 Takes a document from GET /config/export (or the console). Settings are validated and applied, except server certificates and trusted CAs, which stay as they are on this installation (user accounts and API keys are never imported); unknown settings are skipped and listed. Rows are inserted or replaced by primary key; nothing is deleted.
 
+Example:
+
+*Import a configuration (here, one setting and one FCC ID).*
+
+```bash
+curl -s -X POST "$API/config/import" \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{
+    "settings": {"heartbeatIntervalSec": 60},
+    "fccIds": [{"fcc_id": "IMPORTED-FCC", "max_eirp": 33, "created_at": 1793120796398}]
+  }'
+```
+
+Response `200`:
+
+```json
+{
+  "settingsChanged": [],
+  "settingsSkipped": [],
+  "rows": {
+    "fccIds": 1,
+    "userIds": 0,
+    "blacklist": 0,
+    "conditional": 0,
+    "cpiUsers": 0,
+    "protections": 0,
+    "ppas": 0,
+    "faults": 0
+  },
+  "listenersRestarted": false
+}
+```
+
 Request body (JSON, required):
 
 | Field | Type | Required | Description |
@@ -6006,23 +10860,6 @@ Request body (JSON, required):
 | `protections` | array of object |  |  |
 | `ppas` | array of object |  |  |
 | `faults` | array of object |  |  |
-
-Example:
-
-```json
-{
-  "settings": {
-    "heartbeatIntervalSec": 60
-  },
-  "fccIds": [
-    {
-      "fcc_id": "TEST-FCC",
-      "max_eirp": 47,
-      "created_at": 1767225600000
-    }
-  ]
-}
-```
 
 Responses:
 
@@ -6052,6 +10889,16 @@ Response 200 body:
 
 A consistent copy of the whole SQLite database (VACUUM INTO): settings, certificates and private keys, CBSDs, grants, registry, spectrum data, fault rules, logs, user accounts (password hashes) and API key hashes. To restore, stop the SAS and replace sas.db in the data directory. For admins, because it contains private keys and password hashes.
 
+Example:
+
+*A consistent copy of the whole database, while the SAS runs (admins only).*
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" -o sasbench-backup.db "$API/system/backup"
+```
+
+Response `200`: `application/vnd.sqlite3`, 290,816 bytes, saved to `sasbench-backup.db`.
+
 Responses:
 
 | Status | Description | Body |
@@ -6080,6 +10927,38 @@ Read-only access to every database table (secrets redacted).
 
 Every table with its row count and columns.
 
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/data/tables"
+```
+
+Response `200`:
+
+```json
+{
+  "items": [
+    {
+      "name": "api_tokens",
+      "rows": 1,
+      "columns": ["id", "name", "scope", "token_hash", "… 6 more"]
+    },
+    {
+      "name": "blacklist",
+      "rows": 0,
+      "columns": ["id", "fcc_id", "serial", "reason", "created_at"]
+    },
+    {
+      "name": "cbsds",
+      "rows": 4,
+      "columns": ["cbsd_id", "fcc_id", "serial", "user_id", "… 22 more"]
+    },
+    {"name": "certs", "rows": 18, "columns": ["id", "kind", "role", "name", "… 13 more"]},
+    "… 15 more"
+  ]
+}
+```
+
 Responses:
 
 | Status | Description | Body |
@@ -6106,6 +10985,40 @@ Response 200 body:
 **Describe a table.**
 
 Columns (type, NOT NULL, primary key, default), indexes, row count and the CREATE statement.
+
+Example:
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/data/tables/fcc_ids"
+```
+
+Response `200`:
+
+```json
+{
+  "name": "fcc_ids",
+  "rows": 3,
+  "sql": "CREATE TABLE fcc_ids (\n  fcc_id      TEXT PRIMARY KEY,\n  max_eirp    REAL,                         -…",
+  "columns": [
+    {
+      "name": "fcc_id",
+      "type": "TEXT",
+      "notNull": false,
+      "primaryKey": true,
+      "default": null
+    },
+    {
+      "name": "max_eirp",
+      "type": "REAL",
+      "notNull": false,
+      "primaryKey": false,
+      "default": null
+    },
+    "… 1 more"
+  ],
+  "indexes": [{"name": "sqlite_autoindex_fcc_ids_1", "unique": true, "columns": ["fcc_id"]}]
+}
+```
 
 Path parameters:
 
@@ -6145,6 +11058,26 @@ Response 200 body:
 **Read table rows.**
 
 Raw rows (snake_case columns, JSON stored as text, timestamps in epoch milliseconds). Filter on one column with `column` and `value` (exact match) or `like` (substring). Private keys, password hashes, session IDs and API key hashes read as "[redacted]". The rows of api_tokens need write access, like GET /tokens; the users and sessions tables are for admins.
+
+Example:
+
+*Rows of a table, filtered.*
+
+```bash
+curl -s -H "Authorization: Bearer $KEY" "$API/data/tables/fcc_ids/rows?column=fcc_id&like=TEST&limit=5"
+```
+
+Response `200`:
+
+```json
+{
+  "items": [{"fcc_id": "TEST-FCC", "max_eirp": 47, "created_at": 1793120787857}],
+  "total": 1,
+  "limit": 5,
+  "offset": 0,
+  "columns": ["fcc_id", "max_eirp", "created_at"]
+}
+```
 
 Path parameters:
 

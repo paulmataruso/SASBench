@@ -97,7 +97,7 @@ curl -s -X POST http://<host>:8080/api/v1/faults -H "Authorization: Bearer $KEY"
   -d '{"method": "heartbeat", "action": "response_code", "responseCode": 501, "remaining": 1}'
 ```
 
-The [API guide](docs/API.md) covers authentication and conventions, with recipes for every area. The [API reference](docs/API-REFERENCE.md) lists all 176 operations. The running SAS serves its OpenAPI 3.1 description at `/api/v1/openapi.json`.
+The [API guide](docs/API.md) covers authentication and conventions, with recipes for every area. The [API reference](docs/API-REFERENCE.md) lists all 176 operations, each with a real example request and response. The running SAS serves its OpenAPI 3.1 description at `/api/v1/openapi.json`.
 
 ## Documentation
 
@@ -106,7 +106,7 @@ The [API guide](docs/API.md) covers authentication and conventions, with recipes
 | [Install](docs/INSTALL.md) | Requirements, Docker Compose, configuration, firewall, upgrading, backup and restore, troubleshooting |
 | [User guide](docs/GUIDE.md) | The console, users and API keys, connecting radios, certificates, TLS, settings profiles, the registry, map, terrain, the WInnForum test harness, limitations |
 | [API guide](docs/API.md) | The REST API: authentication, users, API keys and scopes, conventions, and recipes for every area |
-| [API reference](docs/API-REFERENCE.md) | Every endpoint, parameter and schema (generated from the code) |
+| [API reference](docs/API-REFERENCE.md) | Every endpoint, parameter and schema, each with a real `curl` example and response (generated from the code) |
 | [API architecture](docs/API-ARCHITECTURE.md) | How the API is built and secured, how it is tested, how to extend it |
 | [Development](docs/DEVELOPMENT.md) | Running from source, project layout, tests, third-party notices |
 | [Radio compatibility](RADIOS.md) | Radios confirmed to work with SASBench, and how to add yours |

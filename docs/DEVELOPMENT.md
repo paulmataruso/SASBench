@@ -47,7 +47,7 @@ npm run typecheck        # server
 npm --prefix web run typecheck
 npm test                 # integration tests (about two minutes)
 npm run notices:check    # third-party notices are up to date
-npm run api:docs:check   # docs/API-REFERENCE.md matches the route table
+npm run api:docs:check   # docs/API-REFERENCE.md matches the route table and every operation has an example
 npm run api:coverage     # API and auth tests with line and function coverage of server/src/api/v1 and server/src/auth
 ```
 
@@ -55,7 +55,7 @@ The tests start the real server on free ports and exercise the SAS–CBSD protoc
 
 `server/test/api-v1.test.ts` calls every REST API operation and fails if one never succeeded, a response does not match its documented schema, or an error status is undocumented. It also covers user accounts, sessions, API key scopes and the console's sign-in gate. `server/test/auth.test.ts` covers what needs a fresh SAS: the first-start admin account, `SAS_ADMIN_PASSWORD`, upgrades from the old UI password, the reset tool, the failed sign-in throttle and `SAS_AUTH=off`.
 
-The tests sign in as `admin` / `admin`; `helpers.ts` puts the header in `sas.authHeader`. After changing the API, run `npm run api:docs` to regenerate the reference. [API-ARCHITECTURE.md](API-ARCHITECTURE.md) explains the design and how to add an endpoint.
+The tests sign in as `admin` / `admin`; `helpers.ts` puts the header in `sas.authHeader`. After changing the API, run `npm run api:examples` (re-captures the example request and response for every operation, about a minute) and `npm run api:docs` to regenerate the reference. [API-ARCHITECTURE.md](API-ARCHITECTURE.md) explains the design and how to add an endpoint.
 
 The same checks, plus a Docker image build, run on every push to `main` and every pull request: see [`.github/workflows/ci.yml`](../.github/workflows/ci.yml).
 

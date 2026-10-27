@@ -93,6 +93,7 @@ server/src/tools/terrainFetch.ts   terrain download code shared by the CLI and t
 server/test/api-v1.test.ts         black-box test of every operation
 server/test/auth.test.ts           first-start admin, throttle, reset tool, SAS_AUTH=off
 scripts/api-reference.mjs          generates docs/API-REFERENCE.md (and checks it in CI)
+scripts/api-examples.mjs           captures a real request and response per operation (docs/api-examples.json)
 scripts/api-coverage.mjs           V8 line/function coverage of server/src/api/v1 and server/src/auth
 ```
 
@@ -413,10 +414,12 @@ The running server serves this at `/api/v1/openapi.json`, built on the first req
 
 - a table of contents;
 - one section per tag;
-- each operation's parameters, body fields (nested objects flattened), example, responses and inline response fields;
+- each operation's example, parameters, body fields (nested objects flattened), responses and inline response fields;
 - every named schema.
 
 `npm run api:docs` regenerates it. `npm run api:docs:check` fails when the committed file differs, and CI runs it, so the reference is always current.
+
+**Examples.** The example under each operation is real. `scripts/api-examples.mjs` (`npm run api:examples`) starts a scratch SAS, with local stand-ins for a tile server and the USGS terrain bucket, and works through the API in the order an operator would: keys and users, settings, registering and granting radios, faults, logs, registry, spectrum, operations, certificates, map, terrain, configuration. It records each call as a `curl` command and the response, shortened for reading, in `docs/api-examples.json`. The scratch instance's host name, addresses, ports and paths are replaced with those of a standard install (`sas.lab.example`, 8080/8000/8443, `/data`). The script fails when a call returns an unexpected status or an operation is left without an example, and the generator refuses to write the reference while any operation lacks one, so a new endpoint cannot ship without its example.
 
 ## The boundary with the SAS core
 
@@ -542,12 +545,12 @@ To add an endpoint:
    - Give it a unique, stable `operationId` and an existing `tag` (or add the tag with a description in `openapi.ts`).
    - Choose the narrowest scope.
    - Describe every path parameter, query parameter and body field with `S.*` builders, including a description and constraints.
-   - Add a body `example`.
+   - Add a body `example` (it goes into the OpenAPI document, which tools such as Postman show).
    - Declare responses with a schema. Use or add a named component in `components.ts` when the object appears in more than one place. Response schemas are strict: list every field, and mark optional ones explicitly.
 3. **Call the core, don't reimplement it.** If the console already does it, reuse the helper. Make changes to settings through `applySettings()`. Throw `notFound`, `conflict`, `badRequest` or `invalid`. Use `created()` with a Location for creations, `noContent()` for deletes, `accepted()` for jobs.
 4. **Add `errors: [...]`** if the route can return a status the generator does not infer (e.g. 404 on a route without path parameters, 409 on a GET).
 5. **Test it** in `api-v1.test.ts`: at least one success and its main error paths. The guards fail until the new operation has succeeded once and every status it returned is documented.
-6. **Regenerate the reference** with `npm run api:docs`, and update [API.md](API.md) if the feature deserves a recipe.
+6. **Add an example** to `scripts/api-examples.mjs` at the point in the walk-through where it makes sense, run `npm run api:examples`, then regenerate the reference with `npm run api:docs`. Update [API.md](API.md) if the feature deserves a recipe.
 7. **Run** `npm run typecheck`, `npm test` and `npm run api:coverage`.
 
 Within v1, never remove or rename an operation, field or enum value, and never change a field's meaning. Add instead, and leave older fields in place.
