@@ -1,5 +1,6 @@
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
+import http from 'node:http';
 import { startSas, cbsdIdFor, regRequest, grantRequest, code, type TestSas } from './helpers.ts';
 
 // SAS-CBSD protocol (WINNF-TS-0016 v1.2) over the plain-HTTP listener.
@@ -235,6 +236,25 @@ describe('transport', () => {
     assert.equal((await sas.sasRaw('/v1.2/foo', {})).status, 404);
     const res = await fetch(`http://127.0.0.1:${sas.httpPort}/v1.2/registration`, { method: 'POST', body: '{not json' });
     assert.equal(res.status, 400);
+  });
+
+  test('HTTP/1.1 request without a Host header is served (Sercomm NR radios send none)', async () => {
+    const data = JSON.stringify({ registrationRequest: [regRequest('FCCNOHOST', 'SN-H1')] });
+    const r = await new Promise<{ status: number; body: any }>((resolve, reject) => {
+      const req = http.request({
+        host: '127.0.0.1', port: sas.httpPort, path: '/v1.2/registration', method: 'POST', setHost: false, agent: false,
+        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) },
+      }, (res) => {
+        let text = '';
+        res.setEncoding('utf8');
+        res.on('data', (c) => (text += c));
+        res.on('end', () => resolve({ status: res.statusCode ?? 0, body: text ? JSON.parse(text) : null }));
+      });
+      req.on('error', reject);
+      req.end(data);
+    });
+    assert.equal(r.status, 200);
+    assert.equal(code(r.body.registrationResponse[0]), 0);
   });
 
   test('every exchange is recorded in the wire log', async () => {

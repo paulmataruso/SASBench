@@ -95,6 +95,12 @@ test('certificate whose identity differs from the request is accepted with a war
   assert.equal(code(r.body.registrationResponse[0]), 0);
 });
 
+test('HTTP/1.1 request without a Host header is served (Sercomm NR radios send none)', async () => {
+  const r = await post('/v1.2/registration', { registrationRequest: [regRequest('FCCTLS', 'SN-T1')] }, { setHost: false });
+  assert.equal(r.status, 200);
+  assert.equal(code(r.body.registrationResponse[0]), 0);
+});
+
 test('revoked client certificate → HTTP 403', async () => {
   await sas.api('POST', `/api/certs/${certId}/revoke`, {});
   const r = await post('/v1.2/registration', { registrationRequest: [regRequest('FCCTLS', 'SN-T1')] });

@@ -35,6 +35,12 @@ export const EXTENDED_CIPHERS = [
 const PATH_RE = /\/(v\d+\.\d+)\/([A-Za-z]+)\/?$/;
 const VERSIONLESS_RE = /\/([A-Za-z]+)\/?$/;
 
+/**
+ * Node answers an HTTP/1.1 request without a Host header with a bare 400 before it reaches the
+ * handler (and the wire log). Sercomm NR radios send none; the SAS serves no virtual hosts, so accept them.
+ */
+const SERVER_OPTIONS: http.ServerOptions = { requireHostHeader: false };
+
 export type AdminHook = (req: IncomingMessage, res: ServerResponse, pathname: string, ctx: RequestCtx) => Promise<boolean>;
 
 export interface ListenerStatus {
@@ -123,7 +129,7 @@ export class SasServer {
     this.status = this.initialStatus(s);
 
     if (s.sasHttpEnabled) {
-      const srv = http.createServer((req, res) => void this.onRequest(req, res, 'http'));
+      const srv = http.createServer(SERVER_OPTIONS, (req, res) => void this.onRequest(req, res, 'http'));
       srv.keepAliveTimeout = 65_000;
       try {
         await listen(srv, s.sasHttpPort, this.bindHost);
@@ -139,7 +145,7 @@ export class SasServer {
     if (s.sasHttpsEnabled) {
       try {
         const opts = this.tlsOptions(s);
-        const srv = https.createServer(opts, (req, res) => void this.onRequest(req, res, 'https'));
+        const srv = https.createServer({ ...opts, ...SERVER_OPTIONS }, (req, res) => void this.onRequest(req, res, 'https'));
         srv.keepAliveTimeout = 65_000;
         srv.on('tlsClientError', (err: any, sock: tls.TLSSocket) => {
           this.bus.message({

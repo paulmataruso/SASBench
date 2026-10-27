@@ -5,6 +5,7 @@
 First release.
 
 - SAS–CBSD protocol (WINNF-TS-0016 v1.2): registration with CPI-signed installation data, conditional registration and FCC/user ID databases, spectrum inquiry, grant, heartbeat, relinquishment and deregistration, with batched Domain Proxy requests.
+- SAS listeners that tolerate radio quirks: HTTP/1.1 requests without a `Host` header (Sercomm NR radios send none) and, while the setting is on, paths without a protocol version.
 - TLS profile (WINNF-TS-0065): TLS 1.2 with the WInnForum cipher suites, RSA and ECDSA server certificates, optional or required client certificates, role and identity checks, CRLs and local revocation.
 - Lab PKI created on first start, with radio certificate bundles in PEM, DER, PKCS#1, PKCS#8 and PKCS#12 (current and legacy) and step-by-step instructions for Nokia AirScale BBUs.
 - Grant and CBSD control: suspend, terminate, heartbeat interval and expiry changes, manual approval, SAS-initiated deregistration (105), per-CBSD EIRP caps and measurement-report configuration.
