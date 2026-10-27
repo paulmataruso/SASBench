@@ -21,10 +21,7 @@ Register, grant and heartbeat real CBSDs on your bench, see exactly what the rad
 
 <br>
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/overview-dark.png">
-  <img src="docs/screenshots/overview-light.png" alt="SASBench Overview page: the SAS URLs, the CBSD rack with REG, GNT and HB LEDs and transmit windows, band occupancy, SAS state and the live wire feed">
-</picture>
+<img src="docs/screenshots/overview.png" alt="SASBench Overview page with a Nokia BBU registered: the SAS URLs, the CBSD rack with REG, GNT and HB LEDs and the transmit window, band occupancy, SAS state and the live wire feed">
 
 > [!IMPORTANT]
 > SASBench is a test tool, not a certified SAS. It has no FCC or Wireless Innovation Forum certification and must not be used to authorize transmissions outside a controlled test environment.
@@ -48,16 +45,20 @@ Radios that register without location data, as many Category B units do, are han
 
 <table>
   <tr>
-    <td width="50%"><a href="docs/screenshots/cbsds.png"><img src="docs/screenshots/cbsds.png" alt="CBSDs page"></a><br><b>CBSDs.</b> Every radio as one rack row, with live LEDs, transmit window, location and last link.</td>
-    <td width="50%"><a href="docs/screenshots/cbsd-detail.png"><img src="docs/screenshots/cbsd-detail.png" alt="CBSD detail page"></a><br><b>CBSD detail.</b> Grants, exchanges, events and registration data, with operator overrides and actions.</td>
+    <td width="50%"><a href="docs/screenshots/CBSD.png"><img src="docs/screenshots/CBSD.png" alt="CBSDs page"></a><br><b>CBSDs.</b> Every radio as one rack row, with live LEDs, transmit window, held spectrum and last link.</td>
+    <td width="50%"><a href="docs/screenshots/CBSD-Detail.png"><img src="docs/screenshots/CBSD-Detail.png" alt="CBSD detail page"></a><br><b>CBSD detail.</b> Grants, exchanges, events and registration data, with operator overrides and actions such as Send 105.</td>
   </tr>
   <tr>
-    <td width="50%"><a href="docs/screenshots/spectrum.png"><img src="docs/screenshots/spectrum.png" alt="Spectrum page"></a><br><b>Spectrum.</b> The band plan with GAA, PAL, protections and grants, and the map of CBSDs and protection areas.</td>
-    <td width="50%"><a href="docs/screenshots/wire-log.png"><img src="docs/screenshots/wire-log.png" alt="Wire log with an exchange open"></a><br><b>Wire log.</b> The exact JSON of every request and response, one click from a replay in the console.</td>
+    <td width="50%"><a href="docs/screenshots/Grants.png"><img src="docs/screenshots/Grants.png" alt="Grants page"></a><br><b>Grants.</b> Every grant with its channel, EIRP, heartbeats and expiry. Suspend, edit or terminate any of them.</td>
+    <td width="50%"><a href="docs/screenshots/Spectrum.png"><img src="docs/screenshots/Spectrum.png" alt="Spectrum page"></a><br><b>Spectrum.</b> The band plan with GAA, PAL, protections and grants, and the map of CBSDs and protection areas.</td>
   </tr>
   <tr>
-    <td width="50%"><a href="docs/screenshots/certificates.png"><img src="docs/screenshots/certificates.png" alt="Certificates page"></a><br><b>Certificates.</b> Radio certificate kits from the built-in lab PKI, and the trust anchors to install on the radio.</td>
-    <td width="50%"><a href="docs/screenshots/console.png"><img src="docs/screenshots/console.png" alt="Request console"></a><br><b>Request console.</b> Hand-written requests sent straight into the engine, with a draft per method and the same request as <code>curl</code>.</td>
+    <td width="50%"><a href="docs/screenshots/Wirelog.png"><img src="docs/screenshots/Wirelog.png" alt="Wire log"></a><br><b>Wire log.</b> Every exchange with its response code, HTTP status, transport and timing. Open one for the exact JSON.</td>
+    <td width="50%"><a href="docs/screenshots/Events.png"><img src="docs/screenshots/Events.png" alt="Events page"></a><br><b>Events.</b> The SAS’s own account of what happened: state changes, policy decisions, warnings and operator actions.</td>
+  </tr>
+  <tr>
+    <td width="50%"><a href="docs/screenshots/Certs.png"><img src="docs/screenshots/Certs.png" alt="Certificates page"></a><br><b>Certificates.</b> Radio certificate kits from the built-in lab PKI, and step-by-step trust setup for Nokia AirScale BBUs.</td>
+    <td width="50%"><a href="docs/screenshots/Settings.png"><img src="docs/screenshots/Settings.png" alt="Settings page"></a><br><b>Settings.</b> Profiles and live settings for listeners, TLS, protocol and policy, applied without a restart.</td>
   </tr>
 </table>
 
